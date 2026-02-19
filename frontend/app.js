@@ -51,7 +51,7 @@ function costColorClass(cost) {
 
 function updateCostBadge(el, cost, baseClass, suffix) {
     if (!el) return;
-    if (cost) {
+    if (typeof cost === 'number' && cost) {
         el.textContent = `~${cost} ${suffix}`;
         el.className = `${baseClass} ${costColorClass(cost)}`;
         el.classList.remove('hidden');
