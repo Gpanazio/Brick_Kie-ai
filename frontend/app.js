@@ -3,7 +3,7 @@
  * Full model parameter configuration from KIE docs.
  */
 
-const API = '';
+const API = '/kie-ai';
 
 // ==================== MODEL PARAMETER REGISTRY ====================
 // Each model defines its 'params' — array of { key, label, type, options, default, min, max, step }
