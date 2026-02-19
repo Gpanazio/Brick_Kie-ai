@@ -244,8 +244,32 @@ const HISTORY_KEY = 'kie-history';
 const HISTORY_MAX = 200;
 
 function loadHistory() {
-    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
-    catch { return []; }
+    try {
+        const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        let migrated = false;
+        history.forEach(h => {
+            if (!h.cat && h.model) {
+                const tpl = document.getElementById('tpl-models');
+                if (tpl) {
+                    try {
+                        const item = tpl.content.querySelector(`[data-model="${h.model}"]`);
+                        if (item && item.dataset.cat) {
+                            h.cat = item.dataset.cat;
+                            migrated = true;
+                        }
+                    } catch (e) { }
+                }
+                if (!h.cat && h.model.startsWith('mj-')) {
+                    h.cat = 'mj';
+                    migrated = true;
+                }
+            }
+        });
+        if (migrated) {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX)));
+        }
+        return history;
+    } catch { return []; }
 }
 
 function saveHistory(history) {
