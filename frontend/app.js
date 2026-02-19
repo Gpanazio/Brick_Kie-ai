@@ -236,6 +236,7 @@ const MODEL_CONFIGS = {
 let selectedModel = null;
 let selectedFile = null;
 let currentCatLabel = '';
+let currentCat = ''; // Store the current internal category ID
 let tasks = [];
 
 // ==================== History (localStorage) ====================
@@ -276,6 +277,7 @@ function addToHistory(task) {
         id: task.id,
         model: task.model,
         state: task.state,
+        cat: task.cat || currentCat, // Store internal category id
         urls: uniqueUrls,
         prompt: task._prompt || '',
         timestamp: Date.now(),
@@ -417,6 +419,9 @@ function initLobby() {
 }
 
 function enterWorkspace(cat) {
+    // Save category globally
+    currentCat = cat;
+
     // Hide lobby, show workspace
     els.lobby.classList.add('exit');
     setTimeout(() => {
@@ -429,6 +434,11 @@ function enterWorkspace(cat) {
     currentCatLabel = label;
     els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${label}</span>`;
     if (els.workspaceCatLabel) els.workspaceCatLabel.textContent = label;
+
+    // Update History & Active tabs to only show tasks and history for this cat
+    updateActiveCount();
+    updateHistoryCount();
+    renderHistoryGallery();
 
     // Store model data for current category
     _currentCatItems = [];
@@ -464,6 +474,7 @@ function exitWorkspace() {
     els.headerBreadcrumb.innerHTML = '';
     selectedModel = null;
     currentCatLabel = '';
+    currentCat = '';
     _currentCatItems = [];
     clearFile();
     closeModelPickerModal();
@@ -929,7 +940,16 @@ async function submitMJ() {
 
 function addTask(taskId, model, mode) {
     const promptText = els.configPrompt?.value?.trim() || '';
-    const task = { id: taskId, model, mode, state: 'processing', data: null, pollTimer: null, _prompt: promptText };
+    const task = {
+        id: taskId,
+        model,
+        mode,
+        cat: currentCat, // Store the category the task was created in
+        state: 'processing',
+        data: null,
+        pollTimer: null,
+        _prompt: promptText
+    };
     tasks.unshift(task);
     renderTaskCard(task);
     startPolling(task);
@@ -1155,13 +1175,22 @@ function initTabs() {
 }
 
 function updateActiveCount() {
-    const processing = tasks.filter(t => t.state === 'processing' || t.state === 'waiting').length;
+    const matchedTasks = tasks.filter(t => t.cat === currentCat);
+    const processing = matchedTasks.filter(t => t.state === 'processing' || t.state === 'waiting').length;
     if (els.activeCount) els.activeCount.textContent = processing;
     if (els.activeCount) els.activeCount.classList.toggle('hidden', processing === 0);
+
+    // Also toggle visibility of tasks in the list:
+    els.tasksList.querySelectorAll('.task-card').forEach(card => {
+        const taskId = card.id.replace('task-', '');
+        const task = tasks.find(t => t.id === taskId);
+        if (task) card.style.display = task.cat === currentCat ? 'flex' : 'none';
+    });
 }
 
 function updateHistoryCount() {
-    const count = loadHistory().length;
+    const history = loadHistory().filter(h => h.cat === currentCat);
+    const count = history.length;
     if (els.historyCount) els.historyCount.textContent = count;
     if (els.historyCount) els.historyCount.classList.toggle('hidden', count === 0);
 }
@@ -1181,8 +1210,10 @@ function initHistory() {
     // Clear history
     if (els.btnClearHistory) {
         els.btnClearHistory.addEventListener('click', () => {
-            if (!confirm('Limpar todo o histórico de gerações?')) return;
-            saveHistory([]);
+            if (!confirm('Limpar histórico desta categoria?')) return;
+            // Keep history from other categories, clear current
+            const keptHistory = loadHistory().filter(h => h.cat !== currentCat);
+            saveHistory(keptHistory);
             renderHistoryGallery();
             updateHistoryCount();
             toast('🗑️ Histórico limpo', 'info');
@@ -1192,10 +1223,11 @@ function initHistory() {
 
 function renderHistoryGallery() {
     if (!els.historyGallery) return;
-    const history = loadHistory();
+    const allHistory = loadHistory();
+    const history = allHistory.filter(h => h.cat === currentCat); // filter to active category
     const filterModel = els.historyFilter?.value || '';
 
-    // Populate model filter dropdown
+    // Populate model filter dropdown with models from this category
     const models = [...new Set(history.map(h => h.model))].sort();
     if (els.historyFilter) {
         const current = els.historyFilter.value;
@@ -1208,7 +1240,7 @@ function renderHistoryGallery() {
         });
     }
 
-    // Filter
+    // Filter by model dropdown
     const filtered = filterModel ? history.filter(h => h.model === filterModel) : history;
 
     // Show/hide empty state
