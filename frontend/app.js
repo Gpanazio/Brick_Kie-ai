@@ -12,9 +12,9 @@ const API = '/kie-ai';
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
     // ── Image (20-40 credits) ──
+    'nano-banana-pro': 40,
     'bytedance/4.5-text-to-image': 25,
     'flux-2/pro-text-to-image': 40,
-    'google/imagen4': 30,
     'ideogram/v3-text-to-image': 35,
     'qwen/text-to-image': 20,
     // ── Image Tools (10-100) ──
@@ -62,6 +62,13 @@ function updateCostBadge(el, cost, baseClass, suffix) {
 
 const MODEL_CONFIGS = {
     // ──── IMAGE MODELS ────
+    'nano-banana-pro': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
+            { key: 'output_format', label: 'Formato', type: 'select', options: ['png', 'jpg'], default: 'png' },
+        ]
+    },
     'bytedance/4.5-text-to-image': {
         params: [
             { key: 'image_size', label: 'Tamanho', type: 'select', options: ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'square_hd' },
@@ -265,25 +272,29 @@ const els = {
     lobby: $('#lobby'),
     appMain: $('#app-main'),
     headerBreadcrumb: $('#header-breadcrumb'),
-    breadcrumbRoot: $('#breadcrumb-root'),
-    breadcrumbCat: $('#breadcrumb-cat'),
-    modelSelectorGrid: $('#model-selector-grid'),
-    modelContextDesc: $('#model-context-desc'),
     workspaceCatLabel: $('#workspace-cat-label'),
     btnBackLobby: $('#btn-back-lobby'),
     promptWordCount: $('#prompt-word-count'),
-    paramsEmpty: $('#params-empty'),
+    // Model picker trigger
+    btnModelPicker: $('#btn-model-picker'),
+    mptIcon: $('#mpt-icon'),
+    mptName: $('#mpt-name'),
+    mptCost: $('#mpt-cost'),
+    // Model picker modal
+    modalModelPicker: $('#modal-model-picker'),
+    mpmBackdrop: $('#mpm-backdrop'),
+    mpmClose: $('#mpm-close'),
+    mpmGrid: $('#mpm-grid'),
+    mpmSubtitle: $('#mpm-subtitle'),
+    // Config / params (now inline in left panel)
     configPanel: $('#config-panel'),
-    configIcon: $('#config-icon'),
-    configName: $('#config-model-name'),
-    configProvider: $('#config-model-provider'),
+    configParams: $('#config-model-params'),
+    btnResetParams: $('#btn-reset-params'),
     configPrompt: $('#config-prompt'),
     configPromptGrp: $('#config-prompt-group'),
     btnClearPrompt: $('#btn-clear-prompt'),
     configExtraJson: $('#config-extra-json'),
     configExtraGrp: $('#config-extra-group'),
-    configParams: $('#config-model-params'),
-    btnResetParams: $('#btn-reset-params'),
     uploadWrapper: $('#upload-zone-wrapper'),
     uploadZone: $('#upload-zone'),
     fileInput: $('#file-input'),
@@ -307,12 +318,6 @@ const els = {
     btnClearHistory: $('#btn-clear-history'),
     activeCount: $('#active-count'),
     historyCount: $('#history-count'),
-    masEmpty: $('#mas-empty'),
-    masModel: $('#mas-model'),
-    masIcon: $('#mas-icon'),
-    masName: $('#mas-name'),
-    masProvider: $('#mas-provider'),
-    masCost: $('#mas-cost'),
 };
 
 // Category labels
@@ -322,6 +327,7 @@ const CAT_LABELS = { image: 'Generate Image', 'vid-txt': 'Text → Video', 'vid-
 
 document.addEventListener('DOMContentLoaded', () => {
     initLobby();
+    initModelPickerModal();
     initUploadZone();
     initSubmit();
     initClearTasks();
@@ -331,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initPromptCounter();
     initResetButtons();
     initKeyboardShortcuts();
-    initBreadcrumb();
 });
 
 // ==================== Credits ====================
@@ -394,15 +399,32 @@ function enterWorkspace(cat) {
     els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${label}</span>`;
     if (els.workspaceCatLabel) els.workspaceCatLabel.textContent = label;
 
-    // Populate model chips from template
-    populateModelChips(cat);
+    // Store model data for current category
+    _currentCatItems = [];
+    const tpl = document.getElementById('tpl-models');
+    if (tpl) {
+        tpl.content.querySelectorAll(`[data-cat="${cat}"]`).forEach(item => {
+            _currentCatItems.push(item.dataset);
+        });
+    }
 
     // Reset state
     selectedModel = null;
     clearFile();
     els.configPrompt.value = '';
     updateSubmitState();
-    hideParamsPanel();
+    // Reset picker trigger
+    els.mptName.textContent = 'Selecione um modelo';
+    els.mptIcon.className = 'mpt-icon mc-purple';
+    els.mptIcon.textContent = '—';
+    if (els.mptCost) els.mptCost.classList.add('hidden');
+    if (els.btnModelPicker) els.btnModelPicker.classList.remove('has-model');
+    // Hide inline params
+    if (els.configPanel) els.configPanel.classList.add('hidden');
+    // Auto-select first model
+    if (_currentCatItems.length > 0) {
+        setTimeout(() => selectModelFromData(_currentCatItems[0]), 50);
+    }
 }
 
 function exitWorkspace() {
@@ -411,95 +433,97 @@ function exitWorkspace() {
     els.headerBreadcrumb.innerHTML = '';
     selectedModel = null;
     currentCatLabel = '';
+    _currentCatItems = [];
     clearFile();
-    // Reset model strip
-    if (els.masEmpty && els.masModel) {
-        els.masEmpty.classList.remove('hidden');
-        els.masModel.classList.add('hidden');
-    }
+    closeModelPickerModal();
 }
 
-function populateModelChips(cat) {
-    const tpl = document.getElementById('tpl-models');
-    if (!tpl || !els.modelSelectorGrid) return;
-    els.modelSelectorGrid.innerHTML = '';
+// ==================== Model Picker Modal ====================
 
-    const items = tpl.content.querySelectorAll(`[data-cat="${cat}"]`);
-    items.forEach(item => {
-        const chip = document.createElement('button');
-        chip.className = 'model-chip';
-        chip.dataset.model = item.dataset.model;
-        chip.dataset.input = item.dataset.input;
-        chip.dataset.field = item.dataset.field || '';
-        chip.dataset.shortcut = item.dataset.shortcut || '';
-        chip.dataset.mjType = item.dataset.mjType || '';
-        chip.dataset.prompt = item.dataset.prompt || '';
-        chip.dataset.desc = item.dataset.desc || ''; // Meta desc
-        chip.innerHTML = `<div class="mc-icon ${item.dataset.color}">${item.dataset.icon}</div><span class="model-chip-name">${item.dataset.name}</span>`;
-        chip.addEventListener('click', () => selectModelChip(chip, item));
-        els.modelSelectorGrid.appendChild(chip);
+let _currentCatItems = [];
+
+function initModelPickerModal() {
+    if (els.btnModelPicker) {
+        els.btnModelPicker.addEventListener('click', openModelPickerModal);
+    }
+    if (els.mpmBackdrop) {
+        els.mpmBackdrop.addEventListener('click', closeModelPickerModal);
+    }
+    if (els.mpmClose) {
+        els.mpmClose.addEventListener('click', closeModelPickerModal);
+    }
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && els.modalModelPicker && !els.modalModelPicker.classList.contains('hidden')) {
+            closeModelPickerModal();
+        }
+    });
+}
+
+function openModelPickerModal() {
+    if (!els.modalModelPicker || !els.mpmGrid) return;
+    // Build cards
+    els.mpmGrid.innerHTML = '';
+    _currentCatItems.forEach(data => {
+        const cost = getModelCost(data.model);
+        const isActive = selectedModel?.model === data.model;
+        const card = document.createElement('button');
+        card.className = `mpm-card${isActive ? ' active' : ''}`;
+        card.dataset.model = data.model;
+
+        const inputTypeTag = data.input === 'file' ? 'Image/File' : data.input === 'mj' ? 'Midjourney' : 'Text';
+        const costHtml = cost ? `<span class="mpm-card-cost ${costColorClass(cost)}">~${cost} cr</span>` : '';
+
+        card.innerHTML = `
+            <div class="mpm-card-top">
+                <div class="mpm-card-icon ${data.color}">${data.icon}</div>
+                ${costHtml}
+            </div>
+            <div>
+                <div class="mpm-card-name">${esc(data.provider)}</div>
+                <div class="mpm-card-provider">${esc(data.name)}</div>
+            </div>
+            <div class="mpm-card-desc">${esc(data.desc || '')}</div>
+            <div class="mpm-card-footer">
+                <span class="mpm-card-tag">${esc(inputTypeTag)}</span>
+            </div>
+            <div class="mpm-card-glow"></div>
+        `;
+        card.addEventListener('click', () => {
+            selectModelFromData(data);
+            closeModelPickerModal();
+        });
+        els.mpmGrid.appendChild(card);
     });
 
-    // Auto-select first with a small delay to ensure DOM is ready
-    setTimeout(() => {
-        const first = els.modelSelectorGrid.querySelector('.model-chip');
-        if (first) first.click();
-    }, 50);
+    els.modalModelPicker.classList.remove('hidden');
 }
 
-function hideParamsPanel() {
-    if (els.paramsEmpty) {
-        els.paramsEmpty.innerHTML = '<div style="opacity:0.2; transform:scale(1.2); margin-bottom:12px"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/></svg></div><p>Selecione um modelo para ver os parâmetros disponíveis.</p>';
-        els.paramsEmpty.classList.remove('hidden');
-    }
-    els.configParams.innerHTML = '';
-    const costEl = document.getElementById('config-cost-tag');
-    if (costEl) costEl.classList.add('hidden');
-    if (els.btnResetParams) els.btnResetParams.classList.add('hidden');
+function closeModelPickerModal() {
+    if (els.modalModelPicker) els.modalModelPicker.classList.add('hidden');
 }
 
-function selectModelChip(chip, dataEl) {
-    els.modelSelectorGrid.querySelectorAll('.model-chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-
+function selectModelFromData(data) {
     selectedModel = {
-        model: dataEl.dataset.model,
-        input: dataEl.dataset.input,
-        field: dataEl.dataset.field || 'image',
-        shortcut: dataEl.dataset.shortcut || null,
-        mjType: dataEl.dataset.mjType || null,
-        hasPrompt: dataEl.dataset.prompt === 'true',
+        model: data.model,
+        input: data.input,
+        field: data.field || 'image',
+        shortcut: data.shortcut || null,
+        mjType: data.mjType || null,
+        hasPrompt: data.prompt === 'true',
     };
 
-    // Update context desc
-    if (els.modelContextDesc) {
-        els.modelContextDesc.textContent = dataEl.dataset.desc || '';
-    }
+    // Update trigger button
+    els.mptIcon.textContent = data.icon;
+    els.mptIcon.className = `mpt-icon ${data.color}`;
+    els.mptName.textContent = `${data.name} — ${data.provider}`;
+    els.btnModelPicker.classList.add('has-model');
 
-    // Update header breadcrumb: / Category / Model Name
-    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${currentCatLabel} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${dataEl.dataset.name}</span>`;
-
-    // Populate model active strip
-    if (els.masEmpty && els.masModel) {
-        els.masEmpty.classList.add('hidden');
-        els.masModel.classList.remove('hidden');
-        els.masIcon.textContent = dataEl.dataset.icon;
-        els.masIcon.className = `mas-icon ${dataEl.dataset.color}`;
-        els.masName.textContent = dataEl.dataset.name;
-        els.masProvider.textContent = dataEl.dataset.provider;
-    }
-
-    // Populate right panel config header
-    els.configIcon.textContent = dataEl.dataset.icon;
-    els.configIcon.className = `mc-icon ${dataEl.dataset.color}`;
-    els.configName.textContent = dataEl.dataset.name;
-    els.configProvider.textContent = dataEl.dataset.provider;
-
-    // Cost
-    const costEl = document.getElementById('config-cost-tag');
+    // Cost in trigger
     const cost = getModelCost(selectedModel.model);
-    updateCostBadge(costEl, cost, 'config-cost-tag', 'créditos');
-    updateCostBadge(els.masCost, cost, 'mas-cost', 'cr');
+    updateCostBadge(els.mptCost, cost, 'mpt-cost', 'cr');
+
+    // Update header breadcrumb
+    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${currentCatLabel} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${data.name}</span>`;
 
     const isMj = selectedModel.input === 'mj';
     const needsFile = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img');
@@ -519,27 +543,16 @@ function selectModelChip(chip, dataEl) {
     if (selectedModel.field === 'text') els.configPrompt.placeholder = 'Digite o texto para sintetizar...';
     else els.configPrompt.placeholder = 'Descreva o que deseja gerar...';
 
-    // Render params in right panel
+    // Render params inline
     renderModelParams(selectedModel.model);
-
-    // Fix: Clear and update params empty state
-    if (els.paramsEmpty) {
-        const cfg = MODEL_CONFIGS[selectedModel.model];
-        const hasParams = !!(cfg && cfg.params.length > 0);
-        els.paramsEmpty.classList.toggle('hidden', hasParams);
-
-        if (!hasParams) {
-            // Static text to avoid HTML rendering bug
-            els.paramsEmpty.innerHTML = `
-                <div style="opacity:0.6;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em">Zero-Config</div>
-                <p style="margin-top:8px;font-size:11px;color:var(--text-muted)">Este modelo não possui configurações adicionais.</p>
-            `;
-        }
-        if (els.btnResetParams) els.btnResetParams.classList.toggle('hidden', !hasParams);
-    }
-
-    // Hide extra JSON when proper params exist
     const cfg = MODEL_CONFIGS[selectedModel.model];
+    const hasParams = !!(cfg && cfg.params.length > 0);
+    if (els.configPanel) {
+        els.configPanel.classList.toggle('hidden', !hasParams);
+    }
+    if (els.btnResetParams) els.btnResetParams.classList.toggle('hidden', !hasParams);
+
+    // Extra JSON fallback
     if (cfg && cfg.params.length > 0) els.configExtraGrp.classList.add('hidden');
     else els.configExtraGrp.classList.remove('hidden');
 

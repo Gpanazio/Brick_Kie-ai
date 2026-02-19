@@ -401,11 +401,11 @@ body {
 }
 
 /* ============================================================
-   WORKSPACE LAYOUT (3-column)
+   WORKSPACE LAYOUT (2-column: sidebar + results)
    ============================================================ */
 #app-main {
     display: grid;
-    grid-template-columns: 340px 1fr 320px;
+    grid-template-columns: 380px 1fr;
     height: calc(100vh - var(--header-h));
     overflow: hidden;
 }
@@ -458,11 +458,363 @@ body {
     gap: 16px;
 }
 
-/* ── Model Selector (compact horizontal cards) ── */
-.model-selector {
+/* ── Model Picker Trigger Button ── */
+.model-picker-trigger-wrap {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--surface);
+}
+
+.model-picker-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    gap: 10px;
+}
+
+.model-picker-trigger:hover {
+    border-color: var(--accent);
+    background: var(--surface-3);
+}
+
+.model-picker-trigger.has-model {
+    border-color: var(--border-hover);
+}
+
+.mpt-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.mpt-icon {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.mpt-info {
     display: flex;
     flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    text-align: left;
+}
+
+.mpt-label {
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.mpt-name {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mpt-right {
+    display: flex;
+    align-items: center;
     gap: 8px;
+    flex-shrink: 0;
+}
+
+.mpt-cost {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    white-space: nowrap;
+}
+
+.mpt-chevron {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+.model-picker-trigger:hover .mpt-chevron {
+    color: var(--accent);
+    transform: translateY(2px);
+}
+
+/* ── Inline Params Section ── */
+.config-panel-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.inline-params-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ── Model Picker Modal ── */
+.model-picker-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.model-picker-modal.hidden {
+    display: none;
+}
+
+.mpm-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+    animation: mpm-fade-in 0.2s ease;
+}
+
+@keyframes mpm-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.mpm-panel {
+    position: relative;
+    z-index: 10;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: min(900px, calc(100vw - 48px));
+    max-height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: mpm-slide-up 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes mpm-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.mpm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.mpm-title {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.mpm-subtitle {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    letter-spacing: 0.05em;
+}
+
+.mpm-close {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.mpm-close:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.mpm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+    padding: 20px 24px;
+    overflow-y: auto;
+}
+
+/* Model Picker Card */
+.mpm-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.mpm-card:hover {
+    border-color: var(--border-hover);
+    background: var(--surface-3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.mpm-card.active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.mpm-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.mpm-card-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    opacity: 0.9;
+}
+
+.mpm-card.active .mpm-card-icon {
+    box-shadow: 0 0 16px currentColor;
+    opacity: 1;
+}
+
+.mpm-card-cost {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    white-space: nowrap;
+    align-self: flex-start;
+}
+
+.mpm-card-name {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+}
+
+.mpm-card-provider {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 3px;
+}
+
+.mpm-card-desc {
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    flex: 1;
+}
+
+.mpm-card-footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.mpm-card-tag {
+    font-family: var(--mono);
+    font-size: 8px;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.mpm-card-glow {
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 50px;
+    background: radial-gradient(ellipse, var(--accent-glow), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.mpm-card:hover .mpm-card-glow {
+    opacity: 0.6;
 }
 
 .model-selector-grid {
