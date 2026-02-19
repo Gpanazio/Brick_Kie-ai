@@ -963,19 +963,20 @@ function initClearTasks() {
 
 function renderTaskCard(task) {
     const el = document.createElement('div');
-    el.className = 'task-card'; el.id = `task-${CSS.escape(task.id)}`;
+    el.className = `task-card state-${task.state}`; el.id = `task-${CSS.escape(task.id)}`;
+    const promptSnippet = task._prompt ? (task._prompt.length > 50 ? task._prompt.slice(0, 50) + '…' : task._prompt) : '';
     el.innerHTML = `
         <div class="task-card-header">
             <div class="task-card-left">
-                <div class="task-status-dot ${task.state}"></div>
+                <div class="task-card-icon ${task.state}">${stateIcon(task.state)}</div>
                 <div class="task-card-info">
                     <span class="task-card-model">${esc(task.model)}</span>
-                    <span class="task-card-id">${esc(task.id)}</span>
+                    ${promptSnippet ? `<span class="task-card-prompt-preview">${esc(promptSnippet)}</span>` : ''}
                 </div>
             </div>
             <span class="task-card-badge ${task.state}">${badgeLabel(task.state)}</span>
         </div>
-        <div class="task-progress-bar ${task.state === 'processing' ? 'indeterminate' : ''}">
+        <div class="task-progress-bar ${(task.state === 'processing' || task.state === 'waiting') ? 'indeterminate' : ''}">
             <div class="task-progress-bar-fill" style="width:${task.state === 'success' ? '100' : '0'}%"></div>
         </div>
         <div class="task-result" data-task-result="${esc(task.id)}"></div>`;
@@ -985,15 +986,29 @@ function renderTaskCard(task) {
 function updateTaskCard(task) {
     const card = document.getElementById(`task-${CSS.escape(task.id)}`);
     if (!card) return;
-    card.querySelector('.task-status-dot').className = `task-status-dot ${task.state}`;
+    // Update card state class
+    card.className = `task-card state-${task.state}`;
+    // Update icon
+    const icon = card.querySelector('.task-card-icon');
+    if (icon) { icon.className = `task-card-icon ${task.state}`; icon.innerHTML = stateIcon(task.state); }
+    // Update badge
     const badge = card.querySelector('.task-card-badge');
     badge.className = `task-card-badge ${task.state}`;
     badge.textContent = badgeLabel(task.state);
+    // Update progress bar
     const bar = card.querySelector('.task-progress-bar');
     const fill = card.querySelector('.task-progress-bar-fill');
-    if (task.state === 'processing') { bar.classList.add('indeterminate'); fill.style.width = '30%'; }
+    const isActive = task.state === 'processing' || task.state === 'waiting';
+    if (isActive) { bar.classList.add('indeterminate'); fill.style.width = '30%'; }
     else { bar.classList.remove('indeterminate'); fill.style.width = task.state === 'success' ? '100%' : '0%'; }
     if (task.state === 'success' || task.state === 'fail') renderTaskResult(task);
+}
+
+function stateIcon(s) {
+    if (s === 'processing' || s === 'waiting') return '⏳';
+    if (s === 'success') return '✓';
+    if (s === 'fail') return '✕';
+    return '•';
 }
 
 function renderTaskResult(task) {
@@ -1058,7 +1073,7 @@ function renderTaskResult(task) {
 }
 
 function badgeLabel(s) {
-    return { processing: 'Processando', success: 'Concluído', fail: 'Falhou', error: 'Erro' }[s] || s;
+    return { waiting: 'Na fila...', processing: 'Processando', success: 'Concluído', fail: 'Falhou', error: 'Erro' }[s] || s;
 }
 
 // ==================== Tabs ====================
@@ -1078,7 +1093,7 @@ function initTabs() {
 }
 
 function updateActiveCount() {
-    const processing = tasks.filter(t => t.state === 'processing').length;
+    const processing = tasks.filter(t => t.state === 'processing' || t.state === 'waiting').length;
     if (els.activeCount) els.activeCount.textContent = processing;
     if (els.activeCount) els.activeCount.classList.toggle('hidden', processing === 0);
 }
