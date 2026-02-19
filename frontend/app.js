@@ -11,32 +11,54 @@ const API = '/kie-ai';
 
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
-    // ── Image (20-40 credits) ──
-    'nano-banana-pro': 40,
-    'bytedance/4.5-text-to-image': 25,
-    'flux-2/pro-text-to-image': 40,
-    'ideogram/v3-text-to-image': 35,
-    'qwen/text-to-image': 20,
-    // ── Image Tools (10-100) ──
+    // ── Image ──
+    'nano-banana-pro': 18,                // 1/2K = 18, 4K = 24
+    'bytedance/4.5-text-to-image': 10,    // estimated
+    'flux-2/pro-text-to-image': 5,        // 1K = 5, 2K = 7
+    'google/imagen4': 10,                 // estimated
+    'ideogram/v3-text-to-image': 10,      // v3 = 10, v3 pro = 20
+    'qwen/text-to-image': 4,             // qwen image = 4
+    // ── Image Tools ──
     'recraft/remove-background': 10,
     'recraft/crisp-upscale': 15,
     'topaz/image-upscale': 15,
     'topaz/video-upscale': 100,
-    // ── Video (100-500 credits) ──
-    'sora-2-pro-text-to-video': 500,
-    'kling-3.0/video': 350,
-    'wan/2-2-a14b-text-to-video-turbo': 100,
-    'grok-imagine/text-to-video': 200,
-    'grok-imagine/image-to-video': 200,
-    'hailuo/2-3-image-to-video-pro': 200,
-    // ── Audio (15-20) ──
-    'elevenlabs/text-to-speech-turbo-2-5': 15,
+    // ── Video (costs vary by duration/resolution, showing default config) ──
+    'sora-2-pro-text-to-video': 35,       // standard-10s = 30, stable-10s = 35
+    'sora-2-pro-image-to-video': 35,      // standard-10s = 30, stable-10s = 35
+    'kling-3.0/video': 40,                // 40/s 1080p w/ audio, 27/s without
+    'wan/2-2-a14b-text-to-video-turbo': 40,  // 5s 480p = 40
+    'grok-imagine/text-to-video': 10,     // 6s 480p = 10, 10s 720p = 30
+    'grok-imagine/image-to-video': 10,    // 6s 480p = 10, 10s 720p = 30
+    'hailuo/2-3-image-to-video-pro': 30,  // 6s 768p = 30, 6s 1080p pro = 80
+    // ── Audio ──
+    'elevenlabs/text-to-speech-turbo-2-5': 14,  // 14 cr / 1000 chars
     'infinitalk/from-audio': 20,
-    // ── Music / Suno (30-50) ──
-    'suno/generate-music': 50,
-    'suno/generate-lyrics': 30,
-    // ── MJ (30-50) ──
-    'mj': 40,
+    // ── Music / Suno ──
+    'suno/generate-music': 12,            // mashup = 12
+    'suno/generate-lyrics': 1,            // 0.4 cr/request ≈ ~1
+    // ── MJ ──
+    'mj': 8,                              // relaxed=3, fast=8, turbo=16
+};
+
+// Per-model prompt character limits (from KIE API docs)
+const PROMPT_CHAR_LIMITS = {
+    'grok-imagine/text-to-video': 5000,
+    'grok-imagine/image-to-video': 5000,
+    'kling-3.0/video': 2500,
+    'sora-2-pro-text-to-video': 4000,
+    'wan/2-2-a14b-text-to-video-turbo': 2000,
+    'hailuo/2-3-image-to-video-pro': 2000,
+    'nano-banana-pro': 2000,
+    'bytedance/4.5-text-to-image': 2000,
+    'flux-2/pro-text-to-image': 2000,
+    'google/imagen4': 2000,
+    'ideogram/v3-text-to-image': 2000,
+    'qwen/text-to-image': 2000,
+    'elevenlabs/text-to-speech-turbo-2-5': 5000,
+    'sora-2-pro-image-to-video': 4000,
+    'suno/generate-music': 3000,
+    'suno/generate-lyrics': 3000,
 };
 
 function getModelCost(model) {
@@ -44,8 +66,8 @@ function getModelCost(model) {
 }
 
 function costColorClass(cost) {
-    if (cost <= 30) return 'cost-low';
-    if (cost <= 200) return 'cost-mid';
+    if (cost <= 10) return 'cost-low';
+    if (cost <= 35) return 'cost-mid';
     return 'cost-high';
 }
 
@@ -153,16 +175,25 @@ const MODEL_CONFIGS = {
     'grok-imagine/text-to-video': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '2:3', '3:2', '4:3', '3:4'], default: '16:9' },
-            { key: 'mode', label: 'Modo', type: 'select', options: ['normal', 'fast'], default: 'normal' },
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['4', '6', '8'], default: '6' },
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p', '1080p'], default: '480p' },
+            { key: 'mode', label: 'Modo', type: 'select', options: ['fun', 'normal', 'spicy'], default: 'normal' },
+            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['6', '10'], default: '6' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '480p' },
         ]
     },
     'grok-imagine/image-to-video': {
         params: [
-            { key: 'mode', label: 'Modo', type: 'select', options: ['normal', 'fast'], default: 'normal' },
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['4', '6', '8'], default: '6' },
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p', '1080p'], default: '480p' },
+            { key: 'mode', label: 'Modo', type: 'select', options: ['fun', 'normal', 'spicy'], default: 'normal' },
+            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['6', '10'], default: '6' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '480p' },
+        ]
+    },
+    'sora-2-pro-image-to-video': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['landscape', 'portrait', 'square'], default: 'landscape' },
+            { key: 'n_frames', label: 'Frames', type: 'select', options: ['5', '10', '20'], default: '10' },
+            { key: 'size', label: 'Qualidade', type: 'select', options: ['low', 'medium', 'high', 'standard'], default: 'standard' },
+            { key: 'remove_watermark', label: 'Sem Watermark', type: 'bool', default: true },
+            { key: 'upload_method', label: 'Upload Method', type: 'select', options: ['s3', ''], default: 's3' },
         ]
     },
     'hailuo/2-3-image-to-video-pro': {
@@ -559,11 +590,30 @@ function selectModelFromData(data) {
 
     clearFile();
     updateSubmitState();
+    updateCharCounter();
     if (needsPrompt) setTimeout(() => els.configPrompt.focus(), 150);
 }
 
 function initPromptCounter() {
-    // word counter removed
+    const counter = document.getElementById('prompt-char-counter');
+    if (!counter || !els.configPrompt) return;
+    els.configPrompt.addEventListener('input', () => updateCharCounter());
+}
+
+function updateCharCounter() {
+    const counter = document.getElementById('prompt-char-counter');
+    if (!counter) return;
+    const model = selectedModel?.model;
+    const limit = model ? PROMPT_CHAR_LIMITS[model] : null;
+    if (!limit) { counter.classList.add('hidden'); return; }
+    const len = els.configPrompt.value.length;
+    counter.classList.remove('hidden');
+    counter.textContent = `${len.toLocaleString('pt-BR')} / ${limit.toLocaleString('pt-BR')}`;
+    const ratio = len / limit;
+    counter.classList.remove('char-ok', 'char-warn', 'char-over');
+    if (ratio > 1) counter.classList.add('char-over');
+    else if (ratio > 0.8) counter.classList.add('char-warn');
+    else counter.classList.add('char-ok');
 }
 
 function initResetButtons() {
@@ -780,7 +830,11 @@ function initSubmit() {
 
 async function handleSubmit() {
     if (!selectedModel || els.btnSubmit.disabled) return;
+    // Visual feedback: spinner + text change
     els.btnSubmit.classList.add('loading'); els.btnSubmit.disabled = true;
+    const btnSpan = els.btnSubmit.querySelector('span');
+    const origText = btnSpan?.textContent;
+    if (btnSpan) btnSpan.textContent = 'Enviando...';
     try {
         let response;
         if (selectedModel.input === 'mj') response = await submitMJ();
@@ -791,10 +845,15 @@ async function handleSubmit() {
         if (response) {
             toast('✅ Tarefa criada!', 'success');
             clearFile(); els.configPrompt.value = ''; updateSubmitState();
+            updateCharCounter();
         }
     } catch (err) {
         toast(`❌ Erro: ${err.message}`, 'error');
-    } finally { els.btnSubmit.classList.remove('loading'); updateSubmitState(); }
+    } finally {
+        els.btnSubmit.classList.remove('loading');
+        if (btnSpan) btnSpan.textContent = origText || 'Gerar';
+        updateSubmitState();
+    }
 }
 
 async function submitShortcut(endpoint, uploadPath) {
@@ -877,13 +936,22 @@ function addTask(taskId, model, mode) {
     updateTasksEmpty();
     updateActiveCount();
 
-    // Pulse feedback on active tab
+    // Auto-switch to Ativas tab
     const activeTabBtn = document.querySelector('.panel-tab[data-tab="active"]');
+    if (activeTabBtn && !activeTabBtn.classList.contains('active')) {
+        activeTabBtn.click();
+    }
+
+    // Pulse feedback on active tab
     if (activeTabBtn) {
         activeTabBtn.classList.remove('tab-pulse');
         void activeTabBtn.offsetWidth; // Trigger reflow
         activeTabBtn.classList.add('tab-pulse');
     }
+
+    // Scroll to new task card
+    const newCard = document.getElementById(`task-${CSS.escape(taskId)}`);
+    if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function startPolling(task) {

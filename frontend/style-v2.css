@@ -1609,6 +1609,46 @@ body {
 .btn-primary.loading {
     opacity: 0.7;
     cursor: wait;
+    pointer-events: none;
+    position: relative;
+}
+
+.btn-primary.loading::after {
+    content: '';
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: btn-spin 0.6s linear infinite;
+    margin-left: 6px;
+}
+
+@keyframes btn-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── Prompt Char Counter ── */
+.prompt-char-counter {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.prompt-char-counter.char-ok {
+    color: var(--text-muted);
+}
+
+.prompt-char-counter.char-warn {
+    color: var(--yellow);
+}
+
+.prompt-char-counter.char-over {
+    color: #ef4444;
 }
 
 /* ── Ghost Button ── */

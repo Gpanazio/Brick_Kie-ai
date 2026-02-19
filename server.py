@@ -223,7 +223,11 @@ async def process_file(
 
             # Step 2: Build input
             extra = json.loads(input_json) if input_json else {}
-            extra[file_field] = file_url
+            # Fields ending with _urls expect an array of URLs
+            if file_field.endswith("_urls"):
+                extra[file_field] = [file_url]
+            else:
+                extra[file_field] = file_url
 
             # Step 3: Create task
             task_resp = kie_api.market_create_task(model, extra)

@@ -96,9 +96,9 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Image → Video</span>
-                        <span class="lobby-card-desc">Kling 3.0 · Hailuo 2.3 · Grok Imagine</span>
+                        <span class="lobby-card-desc">Sora 2 · Kling 3.0 · Hailuo 2.3 · Grok Imagine</span>
                     </div>
-                    <div class="lobby-card-count">3 modelos</div>
+                    <div class="lobby-card-count">4 modelos</div>
                     <div class="lobby-card-glow"></div>
                 </button>
 
@@ -223,6 +223,7 @@
                         <textarea id="config-prompt" class="form-textarea"
                             placeholder="Descreva o que deseja gerar..."></textarea>
                         <div class="prompt-meta">
+                            <span id="prompt-char-counter" class="prompt-char-counter hidden"></span>
                             <span class="shortcut-legend"><span class="kbd">⌘</span> + <span
                                     class="kbd">Enter</span></span>
                         </div>
@@ -467,8 +468,11 @@
 
         <!-- VID IMG -->
         <div data-cat="vid-img" data-model="grok-imagine/image-to-video" data-name="Grok VidGen" data-provider="xAI"
-            data-input="file" data-field="image" data-icon="Gr" data-color="mc-white" data-prompt="true"
+            data-input="file" data-field="image_urls" data-icon="Gr" data-color="mc-white" data-prompt="true"
             data-desc="Anima imagens estáticas com controle de movimento natural."></div>
+        <div data-cat="vid-img" data-model="sora-2-pro-image-to-video" data-name="Sora 2 Pro" data-provider="OpenAI"
+            data-input="file" data-field="image_urls" data-icon="So" data-color="mc-purple" data-prompt="true"
+            data-desc="O padrão ouro: transforma imagens em vídeos ultra-realistas com física avançada."></div>
         <div data-cat="vid-img" data-model="hailuo/2-3-image-to-video-pro" data-name="Hailuo Pro" data-provider="Hailuo"
             data-input="file" data-field="image_url" data-icon="Hl" data-color="mc-indigo" data-prompt="true"
             data-desc="Especialista em animações complexas a partir de fotos."></div>
