@@ -11,7 +11,8 @@ import requests
 # ==================== Config ====================
 
 # Market + MJ share the same API key header.
-API_KEY = os.environ.get("KIE_API_KEY")
+# Accepts KIE_API_KEY or KIE_API (Railway env var name)
+API_KEY = os.environ.get("KIE_API_KEY") or os.environ.get("KIE_API")
 
 # Market base
 BASE_URL = os.environ.get("KIE_BASE_URL", "https://api.kie.ai")

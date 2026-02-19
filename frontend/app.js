@@ -186,6 +186,7 @@ const MODEL_CONFIGS = {
 
 let selectedModel = null;
 let selectedFile = null;
+let currentCatLabel = '';
 let tasks = [];
 
 // ==================== History (localStorage) ====================
@@ -372,6 +373,7 @@ function enterWorkspace(cat) {
 
     // Set breadcrumb
     const label = CAT_LABELS[cat] || cat;
+    currentCatLabel = label;
     els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${label}</span>`;
     if (els.workspaceCatLabel) els.workspaceCatLabel.textContent = label;
 
@@ -391,7 +393,15 @@ function exitWorkspace() {
     els.lobby.classList.remove('hidden', 'exit');
     els.headerBreadcrumb.innerHTML = '';
     selectedModel = null;
+    currentCatLabel = '';
     clearFile();
+    // Reset model strip
+    const masEmpty = document.getElementById('mas-empty');
+    const masModel = document.getElementById('mas-model');
+    if (masEmpty && masModel) {
+        masEmpty.classList.remove('hidden');
+        masModel.classList.add('hidden');
+    }
 }
 
 function populateModelChips(cat) {
@@ -451,6 +461,25 @@ function selectModelChip(chip, dataEl) {
         els.modelContextDesc.textContent = dataEl.dataset.desc || '';
     }
 
+    // Update header breadcrumb: / Category / Model Name
+    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${currentCatLabel} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${dataEl.dataset.name}</span>`;
+
+    // Populate model active strip
+    const masEmpty = document.getElementById('mas-empty');
+    const masModel = document.getElementById('mas-model');
+    const masIcon = document.getElementById('mas-icon');
+    const masName = document.getElementById('mas-name');
+    const masProvider = document.getElementById('mas-provider');
+    const masCostEl = document.getElementById('mas-cost');
+    if (masEmpty && masModel) {
+        masEmpty.classList.add('hidden');
+        masModel.classList.remove('hidden');
+        masIcon.textContent = dataEl.dataset.icon;
+        masIcon.className = `mas-icon ${dataEl.dataset.color}`;
+        masName.textContent = dataEl.dataset.name;
+        masProvider.textContent = dataEl.dataset.provider;
+    }
+
     // Populate right panel config header
     els.configIcon.textContent = dataEl.dataset.icon;
     els.configIcon.className = `mc-icon ${dataEl.dataset.color}`;
@@ -465,6 +494,17 @@ function selectModelChip(chip, dataEl) {
         costEl.className = `config-cost-tag ${costColorClass(cost)}`;
         costEl.classList.remove('hidden');
     } else if (costEl) costEl.classList.add('hidden');
+
+    // Update strip cost
+    if (masCostEl) {
+        if (cost) {
+            masCostEl.textContent = `~${cost} cr`;
+            masCostEl.className = `mas-cost ${costColorClass(cost)}`;
+            masCostEl.classList.remove('hidden');
+        } else {
+            masCostEl.classList.add('hidden');
+        }
+    }
 
     const isMj = selectedModel.input === 'mj';
     const needsFile = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img');

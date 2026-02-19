@@ -191,6 +191,23 @@
                     Voltar
                 </button>
             </div>
+
+            <!-- ── Active Model Identity Strip ── -->
+            <div class="model-active-strip" id="model-active-strip">
+                <div class="mas-empty" id="mas-empty">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                    Selecione um modelo abaixo
+                </div>
+                <div class="mas-model hidden" id="mas-model">
+                    <div class="mas-icon mc-purple" id="mas-icon">—</div>
+                    <div class="mas-info">
+                        <span class="mas-name" id="mas-name">—</span>
+                        <span class="mas-provider" id="mas-provider">—</span>
+                    </div>
+                    <span class="mas-cost hidden" id="mas-cost">—</span>
+                </div>
+            </div>
+
             <div class="panel-scroll">
                 <!-- Model Selection -->
                 <div class="model-selector">
@@ -260,7 +277,10 @@
                     </div>
                 </div>
 
-                <!-- Submit -->
+            </div>
+
+            <!-- ── Submit Dock — always visible, outside scroll ── -->
+            <div class="submit-dock">
                 <button id="btn-submit" class="btn-primary" disabled>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 2L11 13" />
@@ -268,7 +288,6 @@
                     </svg>
                     <span>Gerar</span>
                 </button>
-
             </div>
         </section>
 
@@ -353,11 +372,9 @@
 
         <!-- ====== RIGHT: PARAMETERS ====== -->
         <section id="panel-params" class="panel">
-            <div class="header-nav">
-                <span class="header-breadcrumb" id="header-breadcrumb"><a href="javascript:void(0)"
-                        id="breadcrumb-root">WAR ROOM</a> / <span id="breadcrumb-cat">—</span></span>
-            </div>
-            <button class="btn-ghost btn-sm hidden" id="btn-reset-params">Reset</button>
+            <div class="panel-topbar">
+                <div class="panel-topbar-title">Parâmetros</div>
+                <button class="btn-ghost btn-sm hidden" id="btn-reset-params">Reset</button>
             </div>
             <div class="panel-scroll">
 
