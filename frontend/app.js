@@ -1083,7 +1083,10 @@ function renderTaskCard(task) {
     const mIcon = modelData ? `<span class="card-model-icon ${modelData.color}">${modelData.icon}</span>` : '';
     const mName = modelData ? esc(`${modelData.provider} ${modelData.name}`) : esc(task.model);
 
+    const mColor = modelData ? modelData.color : '';
+
     el.innerHTML = `
+        <div class="task-card-accent ${mColor}"></div>
         <div class="task-card-header">
             <div class="task-card-left">
                 <div class="task-card-icon ${task.state}">${stateIcon(task.state)}</div>
@@ -1322,7 +1325,10 @@ function renderHistoryGallery() {
         const mIcon = modelData ? `<span class="card-model-icon ${modelData.color}">${modelData.icon}</span>` : '';
         const mName = modelData ? esc(`${modelData.provider} ${modelData.name}`) : esc(entry.model.split('/').pop());
 
+        const mColor = modelData ? modelData.color : '';
+
         card.innerHTML = `
+            <div class="history-card-accent ${mColor}"></div>
             <div class="history-thumb">${thumbHtml}</div>
             <div class="history-meta">
                 <span class="history-card-model">${mIcon}${mName}</span>
