@@ -49,6 +49,17 @@ function costColorClass(cost) {
     return 'cost-high';
 }
 
+function updateCostBadge(el, cost, baseClass, suffix) {
+    if (!el) return;
+    if (cost) {
+        el.textContent = `~${cost} ${suffix}`;
+        el.className = `${baseClass} ${costColorClass(cost)}`;
+        el.classList.remove('hidden');
+    } else {
+        el.classList.add('hidden');
+    }
+}
+
 const MODEL_CONFIGS = {
     // ──── IMAGE MODELS ────
     'bytedance/4.5-text-to-image': {
@@ -296,6 +307,12 @@ const els = {
     btnClearHistory: $('#btn-clear-history'),
     activeCount: $('#active-count'),
     historyCount: $('#history-count'),
+    masEmpty: $('#mas-empty'),
+    masModel: $('#mas-model'),
+    masIcon: $('#mas-icon'),
+    masName: $('#mas-name'),
+    masProvider: $('#mas-provider'),
+    masCost: $('#mas-cost'),
 };
 
 // Category labels
@@ -396,11 +413,9 @@ function exitWorkspace() {
     currentCatLabel = '';
     clearFile();
     // Reset model strip
-    const masEmpty = document.getElementById('mas-empty');
-    const masModel = document.getElementById('mas-model');
-    if (masEmpty && masModel) {
-        masEmpty.classList.remove('hidden');
-        masModel.classList.add('hidden');
+    if (els.masEmpty && els.masModel) {
+        els.masEmpty.classList.remove('hidden');
+        els.masModel.classList.add('hidden');
     }
 }
 
@@ -465,19 +480,13 @@ function selectModelChip(chip, dataEl) {
     els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${currentCatLabel} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${dataEl.dataset.name}</span>`;
 
     // Populate model active strip
-    const masEmpty = document.getElementById('mas-empty');
-    const masModel = document.getElementById('mas-model');
-    const masIcon = document.getElementById('mas-icon');
-    const masName = document.getElementById('mas-name');
-    const masProvider = document.getElementById('mas-provider');
-    const masCostEl = document.getElementById('mas-cost');
-    if (masEmpty && masModel) {
-        masEmpty.classList.add('hidden');
-        masModel.classList.remove('hidden');
-        masIcon.textContent = dataEl.dataset.icon;
-        masIcon.className = `mas-icon ${dataEl.dataset.color}`;
-        masName.textContent = dataEl.dataset.name;
-        masProvider.textContent = dataEl.dataset.provider;
+    if (els.masEmpty && els.masModel) {
+        els.masEmpty.classList.add('hidden');
+        els.masModel.classList.remove('hidden');
+        els.masIcon.textContent = dataEl.dataset.icon;
+        els.masIcon.className = `mas-icon ${dataEl.dataset.color}`;
+        els.masName.textContent = dataEl.dataset.name;
+        els.masProvider.textContent = dataEl.dataset.provider;
     }
 
     // Populate right panel config header
@@ -489,22 +498,8 @@ function selectModelChip(chip, dataEl) {
     // Cost
     const costEl = document.getElementById('config-cost-tag');
     const cost = getModelCost(selectedModel.model);
-    if (costEl && cost) {
-        costEl.textContent = `~${cost} créditos`;
-        costEl.className = `config-cost-tag ${costColorClass(cost)}`;
-        costEl.classList.remove('hidden');
-    } else if (costEl) costEl.classList.add('hidden');
-
-    // Update strip cost
-    if (masCostEl) {
-        if (cost) {
-            masCostEl.textContent = `~${cost} cr`;
-            masCostEl.className = `mas-cost ${costColorClass(cost)}`;
-            masCostEl.classList.remove('hidden');
-        } else {
-            masCostEl.classList.add('hidden');
-        }
-    }
+    updateCostBadge(costEl, cost, 'config-cost-tag', 'créditos');
+    updateCostBadge(els.masCost, cost, 'mas-cost', 'cr');
 
     const isMj = selectedModel.input === 'mj';
     const needsFile = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img');
