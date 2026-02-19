@@ -1043,16 +1043,28 @@ function initClearTasks() {
 
 // ==================== Task Card Rendering ====================
 
+function getModelDetails(modelKey) {
+    const tpl = document.getElementById('tpl-models');
+    if (!tpl) return null;
+    const item = tpl.content.querySelector(`[data-model="${modelKey}"]`);
+    return item ? item.dataset : null;
+}
+
 function renderTaskCard(task) {
     const el = document.createElement('div');
     el.className = `task-card state-${task.state}`; el.id = `task-${CSS.escape(task.id)}`;
     const promptSnippet = task._prompt ? (task._prompt.length > 50 ? task._prompt.slice(0, 50) + '…' : task._prompt) : '';
+
+    const modelData = getModelDetails(task.model);
+    const mIcon = modelData ? `<span class="card-model-icon ${modelData.color}">${modelData.icon}</span>` : '';
+    const mName = modelData ? esc(`${modelData.provider} ${modelData.name}`) : esc(task.model);
+
     el.innerHTML = `
         <div class="task-card-header">
             <div class="task-card-left">
                 <div class="task-card-icon ${task.state}">${stateIcon(task.state)}</div>
                 <div class="task-card-info">
-                    <span class="task-card-model">${esc(task.model)}</span>
+                    <span class="task-card-model">${mIcon}${mName}</span>
                     ${promptSnippet ? `<span class="task-card-prompt-preview">${esc(promptSnippet)}</span>` : ''}
                 </div>
             </div>
@@ -1281,13 +1293,16 @@ function renderHistoryGallery() {
         }
 
         const timeStr = formatTimeAgo(entry.timestamp);
-        const modelShort = entry.model.split('/').pop();
+
+        const modelData = getModelDetails(entry.model);
+        const mIcon = modelData ? `<span class="card-model-icon ${modelData.color}">${modelData.icon}</span>` : '';
+        const mName = modelData ? esc(`${modelData.provider} ${modelData.name}`) : esc(entry.model.split('/').pop());
 
         card.innerHTML = `
             <div class="history-thumb">${thumbHtml}</div>
             <div class="history-meta">
-                <span class="history-model">${esc(modelShort)}</span>
-                <span class="history-time">${esc(timeStr)}</span>
+                <span class="history-card-model">${mIcon}${mName}</span>
+                <span class="history-card-time">${esc(timeStr)}</span>
             </div>`;
 
         // Click to open lightbox
