@@ -274,7 +274,7 @@ const els = {
     headerBreadcrumb: $('#header-breadcrumb'),
     workspaceCatLabel: $('#workspace-cat-label'),
     btnBackLobby: $('#btn-back-lobby'),
-    promptWordCount: $('#prompt-word-count'),
+
     // Model picker trigger
     btnModelPicker: $('#btn-model-picker'),
     mptIcon: $('#mpt-icon'),
@@ -474,6 +474,7 @@ function openModelPickerModal() {
         const costHtml = cost ? `<span class="mpm-card-cost ${costColorClass(cost)}">~${cost} cr</span>` : '';
 
         card.innerHTML = `
+            <div class="mpm-card-accent ${data.color || ''}"></div>
             <div class="mpm-card-top">
                 <div class="mpm-card-icon ${data.color}">${data.icon}</div>
                 ${costHtml}
@@ -562,13 +563,7 @@ function selectModelFromData(data) {
 }
 
 function initPromptCounter() {
-    if (!els.configPrompt || !els.promptWordCount) return;
-    const updateCount = () => {
-        const val = els.configPrompt.value.trim();
-        const words = val ? val.split(/\s+/).filter(Boolean).length : 0;
-        els.promptWordCount.textContent = `${words} palavra${words !== 1 ? 's' : ''}`;
-    };
-    els.configPrompt.addEventListener('input', updateCount);
+    // word counter removed
 }
 
 function initResetButtons() {
@@ -576,8 +571,7 @@ function initResetButtons() {
         els.btnClearPrompt.addEventListener('click', () => {
             els.configPrompt.value = '';
             els.configPrompt.focus();
-            const words = 0;
-            els.promptWordCount.textContent = `${words} palavra${words !== 1 ? 's' : ''}`;
+
             updateSubmitState();
         });
     }

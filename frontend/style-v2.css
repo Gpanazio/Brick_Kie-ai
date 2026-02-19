@@ -699,12 +699,77 @@ body {
     flex-direction: column;
     gap: 14px;
     padding: 20px;
+    padding-top: 22px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
     overflow: hidden;
+}
+
+/* ── Provider brand accent stripe ── */
+.mpm-card-accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 6px 6px 0 0;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.mpm-card:hover .mpm-card-accent {
+    opacity: 1;
+}
+
+.mpm-card-accent.mc-yellow {
+    background: linear-gradient(90deg, #ffd600, #ffab00);
+}
+
+.mpm-card-accent.mc-purple {
+    background: linear-gradient(90deg, #b44fff, #7c4dff);
+}
+
+.mpm-card-accent.mc-blue {
+    background: linear-gradient(90deg, #2979ff, #448aff);
+}
+
+.mpm-card-accent.mc-white {
+    background: linear-gradient(90deg, #d0d0d0, #9e9e9e);
+}
+
+.mpm-card-accent.mc-orange {
+    background: linear-gradient(90deg, #ff8c00, #ff6d00);
+}
+
+.mpm-card-accent.mc-cyan {
+    background: linear-gradient(90deg, #00d4ee, #00bcd4);
+}
+
+.mpm-card-accent.mc-green {
+    background: linear-gradient(90deg, #00e760, #00c853);
+}
+
+.mpm-card-accent.mc-red {
+    background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.mpm-card-accent.mc-pink {
+    background: linear-gradient(90deg, #ff4081, #e91e63);
+}
+
+.mpm-card-accent.mc-teal {
+    background: linear-gradient(90deg, #00bfa5, #009688);
+}
+
+.mpm-card-accent.mc-indigo {
+    background: linear-gradient(90deg, #7986cb, #3f51b5);
+}
+
+.mpm-card-accent.mc-coral {
+    background: linear-gradient(90deg, #ff7f50, #ff6347);
 }
 
 .mpm-card:hover {
@@ -2006,7 +2071,7 @@ body {
 
 .history-gallery {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
 }
 
