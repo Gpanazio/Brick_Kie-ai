@@ -1323,7 +1323,7 @@ function renderHistoryGallery() {
 
         let thumbHtml;
         if (isVid) {
-            thumbHtml = `<video src="${esc(url)}" muted preload="metadata" class="history-thumb-media"></video>
+            thumbHtml = `<video src="${esc(url)}#t=0.001" muted preload="metadata" class="history-thumb-media"></video>
                          <div class="history-play-icon">
                              <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21"/></svg>
                          </div>`;
@@ -1390,7 +1390,7 @@ function openHistoryLightbox(entry) {
     const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(url);
 
     let mediaHtml;
-    if (isVid) mediaHtml = `<video src="${esc(url)}" controls autoplay preload="auto" class="lightbox-media"></video>`;
+    if (isVid) mediaHtml = `<video src="${esc(url)}" controls autoplay preload="auto" class="lightbox-media" playsinline></video>`;
     else if (isAud) mediaHtml = `<audio src="${esc(url)}" controls autoplay class="lightbox-audio"></audio>`;
     else if (url) mediaHtml = `<img src="${esc(url)}" alt="Result" class="lightbox-media">`;
     else mediaHtml = '<p style="color:var(--text-muted)">Sem mídia disponível</p>';
