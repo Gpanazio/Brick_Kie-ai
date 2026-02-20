@@ -13,11 +13,14 @@ const API = '/kie-ai';
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
     'nano-banana-pro': 18,                // 1/2K = 18, 4K = 24
+    'google/nano-banana-edit': 4,          // image editing
     'bytedance/4.5-text-to-image': 10,    // estimated
     'flux-2/pro-text-to-image': 5,        // 1K = 5, 2K = 7
     'google/imagen4': 10,                 // estimated
     'ideogram/v3-text-to-image': 10,      // v3 = 10, v3 pro = 20
     'qwen/text-to-image': 4,             // qwen image = 4
+    'grok-imagine/text-to-image': 4,     // 4 cr/image
+    'grok-imagine/image-to-image': 4,    // 4 cr/image
     // ── Image Tools ──
     'recraft/remove-background': 10,
     'recraft/crisp-upscale': 15,
@@ -31,12 +34,32 @@ const MODEL_COST_ESTIMATES = {
     'grok-imagine/text-to-video': 10,     // 6s 480p = 10, 10s 720p = 30
     'grok-imagine/image-to-video': 10,    // 6s 480p = 10, 10s 720p = 30
     'hailuo/2-3-image-to-video-pro': 30,  // 6s 768p = 30, 6s 1080p pro = 80
-    // ── Audio ──
-    'elevenlabs/text-to-speech-turbo-2-5': 14,  // 14 cr / 1000 chars
-    'infinitalk/from-audio': 20,
+    // ── Audio (ElevenLabs) ──
+    'elevenlabs/text-to-speech-turbo-2-5': 6,   // 6 cr / 1000 chars
+    'elevenlabs/text-to-dialogue-v3': 14,       // 14 cr / 1000 chars
+    'elevenlabs/sound-effect-v2': 5,            // 0.24 cr/s ≈ ~5 for typical
+    'elevenlabs/speech-to-text': 4,             // 3.5 cr/min
+    'elevenlabs/audio-isolation': 1,            // 0.1 cr/s
     // ── Music / Suno ──
     'suno/generate-music': 12,            // mashup = 12
     'suno/generate-lyrics': 1,            // 0.4 cr/request ≈ ~1
+    'suno/extend-music': 12,              // extend existing
+    'suno/upload-cover': 12,              // cover generation
+    'suno/add-instrumental': 12,          // add backing
+    'suno/add-vocals': 12,                // add vocals
+    'suno/separate-vocals': 10,           // vocal separation
+    'suno/music-video': 2,                // video from audio
+    'suno/convert-wav': 1,                // 0.4 cr format conversion
+    'suno/get-lyrics': 1,                 // 0.4 cr timestamped lyrics
+    // ── Veo 3.1 (Google) ──
+    'veo3/text-to-video-fast': 60,        // 60 cr/video
+    'veo3/text-to-video-quality': 250,    // 250 cr/video
+    'veo3/image-to-video-fast': 80,       // 80 cr/video
+    'veo3/image-to-video-quality': 250,   // 250 cr/video
+    'veo3/extend-fast': 60,               // 60 cr/video
+    'veo3/extend-quality': 250,           // 250 cr/video
+    'veo3/get-1080p': 5,                  // 5 cr/video
+    'veo3/get-4k': 120,                   // 120 cr/video
     // ── MJ ──
     'mj': 8,                              // relaxed=3, fast=8, turbo=16
 };
@@ -59,7 +82,7 @@ const BRAND_LOGOS = {
     'suno': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z" fill="currentColor"/></svg>`,
     'recraft': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M6 6h12v12H6z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
     'topaz': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2l-6 10h12zM5 14l7 8 7-8z" fill="currentColor"/></svg>`,
-    'midjourney': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.93V13h-2v3.93C7.06 16.43 4 13.56 4 10c0-3.87 3.13-7 7-7s7 3.13 7 7c0 3.56-3.06 6.43-7 6.93z" fill="currentColor"/></svg>`
+    'midjourney': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 19c3-2 6-3 9-3s6 1 9 3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`
 };
 
 // Per-model prompt character limits (from KIE API docs)
@@ -71,15 +94,29 @@ const PROMPT_CHAR_LIMITS = {
     'wan/2-2-a14b-text-to-video-turbo': 2000,
     'hailuo/2-3-image-to-video-pro': 2000,
     'nano-banana-pro': 2000,
+    'google/nano-banana-edit': 5000,
+    'grok-imagine/text-to-image': 5000,
+    'grok-imagine/image-to-image': 5000,
     'bytedance/4.5-text-to-image': 2000,
     'flux-2/pro-text-to-image': 2000,
     'google/imagen4': 2000,
     'ideogram/v3-text-to-image': 2000,
     'qwen/text-to-image': 2000,
     'elevenlabs/text-to-speech-turbo-2-5': 5000,
+    'elevenlabs/text-to-dialogue-v3': 5000,
+    'elevenlabs/sound-effect-v2': 5000,
     'sora-2-pro-image-to-video': 4000,
     'suno/generate-music': 3000,
     'suno/generate-lyrics': 3000,
+    'suno/extend-music': 3000,
+    'suno/upload-cover': 3000,
+    'suno/add-vocals': 3000,
+    'veo3/text-to-video-fast': 5000,
+    'veo3/text-to-video-quality': 5000,
+    'veo3/image-to-video-fast': 5000,
+    'veo3/image-to-video-quality': 5000,
+    'veo3/extend-fast': 5000,
+    'veo3/extend-quality': 5000,
 };
 
 function getModelCost(model) {
@@ -111,6 +148,20 @@ const MODEL_CONFIGS = {
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
             { key: 'output_format', label: 'Formato', type: 'select', options: ['png', 'jpg'], default: 'png' },
         ]
+    },
+    'google/nano-banana-edit': {
+        params: [
+            { key: 'image_size', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '5:4', '4:5', '21:9', 'auto'], default: '1:1' },
+            { key: 'output_format', label: 'Formato', type: 'select', options: ['png', 'jpeg'], default: 'png' },
+        ]
+    },
+    'grok-imagine/text-to-image': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '16:9', '9:16'], default: '1:1' },
+        ]
+    },
+    'grok-imagine/image-to-image': {
+        params: []
     },
     'bytedance/4.5-text-to-image': {
         params: [
@@ -167,11 +218,11 @@ const MODEL_CONFIGS = {
     // ──── VIDEO MODELS ────
     'sora-2-pro-text-to-video': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['landscape', 'portrait', 'square'], default: 'landscape' },
-            { key: 'n_frames', label: 'Frames', type: 'select', options: ['5', '10', '20'], default: '10' },
-            { key: 'size', label: 'Qualidade', type: 'select', options: ['low', 'medium', 'high'], default: 'high' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['landscape', 'portrait'], default: 'landscape' },
+            { key: 'n_frames', label: 'Frames', type: 'select', options: ['10', '15'], default: '10' },
+            { key: 'size', label: 'Qualidade', type: 'select', options: ['standard', 'high'], default: 'high' },
             { key: 'remove_watermark', label: 'Sem Watermark', type: 'bool', default: true },
-            { key: 'upload_method', label: 'Upload Method', type: 'select', options: ['s3', ''], default: 's3' },
+            { key: 'upload_method', label: 'Upload Method', type: 'select', options: ['s3', 'oss'], default: 's3' },
         ]
     },
     'kling-3.0/video': {
@@ -210,11 +261,11 @@ const MODEL_CONFIGS = {
     },
     'sora-2-pro-image-to-video': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['landscape', 'portrait', 'square'], default: 'landscape' },
-            { key: 'n_frames', label: 'Frames', type: 'select', options: ['5', '10', '20'], default: '10' },
-            { key: 'size', label: 'Qualidade', type: 'select', options: ['low', 'medium', 'high', 'standard'], default: 'standard' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['landscape', 'portrait'], default: 'landscape' },
+            { key: 'n_frames', label: 'Frames', type: 'select', options: ['10', '15'], default: '10' },
+            { key: 'size', label: 'Qualidade', type: 'select', options: ['standard', 'high'], default: 'standard' },
             { key: 'remove_watermark', label: 'Sem Watermark', type: 'bool', default: true },
-            { key: 'upload_method', label: 'Upload Method', type: 'select', options: ['s3', ''], default: 's3' },
+            { key: 'upload_method', label: 'Upload Method', type: 'select', options: ['s3', 'oss'], default: 's3' },
         ]
     },
     'hailuo/2-3-image-to-video-pro': {
@@ -238,7 +289,26 @@ const MODEL_CONFIGS = {
             { key: 'language_code', label: 'Idioma', type: 'select', options: ['', 'en', 'pt', 'es', 'fr', 'de', 'it', 'ja', 'ko', 'zh'], default: '' },
         ]
     },
-    'infinitalk/from-audio': { params: [] },
+    // ──── ELEVENLABS / AUDIO ────
+    'elevenlabs/text-to-dialogue-v3': {
+        params: [
+            { key: 'stability', label: 'Estabilidade da Voz', type: 'radio', options: ['0', '0.5', '1'], default: '0.5' },
+        ]
+    },
+    'elevenlabs/sound-effect-v2': {
+        params: [
+            { key: 'duration_seconds', label: 'Duração (s)', type: 'number', min: 0.5, max: 22, step: 0.5, default: 5 },
+            { key: 'prompt_influence', label: 'Fidelidade ao Prompt', type: 'number', min: 0, max: 1, step: 0.01, default: 0.3 },
+            { key: 'loop', label: 'Loop Contínuo', type: 'bool', default: false },
+        ]
+    },
+    'elevenlabs/speech-to-text': {
+        params: [
+            { key: 'tag_audio_events', label: 'Detectar Eventos', type: 'bool', default: true },
+            { key: 'diarize', label: 'Identificar Falantes', type: 'bool', default: true },
+        ]
+    },
+    'elevenlabs/audio-isolation': { params: [] },
 
     // ──── SUNO / MUSIC ────
     'suno/generate-music': {
@@ -250,6 +320,104 @@ const MODEL_CONFIGS = {
         ]
     },
     'suno/generate-lyrics': { params: [] },
+    'suno/extend-music': {
+        params: [
+            { key: 'audioId', label: 'Audio ID (da geração anterior)', type: 'text', default: '' },
+            { key: 'style', label: 'Estilo Musical', type: 'text', default: '' },
+            { key: 'title', label: 'Título', type: 'text', default: '' },
+            { key: 'continueAt', label: 'Continuar em (segundos)', type: 'number', min: 0, max: 600, step: 1, default: 0 },
+        ]
+    },
+    'suno/upload-cover': {
+        params: [
+            { key: 'style', label: 'Estilo Musical', type: 'text', default: '' },
+            { key: 'title', label: 'Título', type: 'text', default: '' },
+            { key: 'custom_mode', label: 'Modo Avançado', type: 'bool', default: false },
+            { key: 'instrumental', label: 'Só Instrumental', type: 'bool', default: false },
+        ]
+    },
+    'suno/add-instrumental': {
+        params: [
+            { key: 'title', label: 'Título', type: 'text', default: '' },
+            { key: 'tags', label: 'Tags / Gênero', type: 'text', default: '' },
+            { key: 'negativeTags', label: 'Tags Negativas', type: 'text', default: '' },
+        ]
+    },
+    'suno/add-vocals': {
+        params: [
+            { key: 'style', label: 'Estilo Musical', type: 'text', default: '' },
+            { key: 'title', label: 'Título', type: 'text', default: '' },
+            { key: 'negativeTags', label: 'Tags Negativas', type: 'text', default: '' },
+        ]
+    },
+    'suno/separate-vocals': {
+        params: [
+            { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
+            { key: 'audioId', label: 'Audio ID', type: 'text', default: '' },
+            { key: 'type', label: 'Tipo de Separação', type: 'radio', options: ['vocals', 'instrumental', 'both'], default: 'both' },
+        ]
+    },
+    'suno/music-video': {
+        params: [
+            { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
+            { key: 'audioId', label: 'Audio ID', type: 'text', default: '' },
+            { key: 'author', label: 'Autor (opcional)', type: 'text', default: '' },
+        ]
+    },
+    'suno/convert-wav': {
+        params: [
+            { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
+            { key: 'audioId', label: 'Audio ID', type: 'text', default: '' },
+        ]
+    },
+    'suno/get-lyrics': {
+        params: [
+            { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
+            { key: 'audioId', label: 'Audio ID', type: 'text', default: '' },
+        ]
+    },
+
+    // ──── VEO 3.1 (Google) ────
+    'veo3/text-to-video-fast': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
+        ]
+    },
+    'veo3/text-to-video-quality': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
+        ]
+    },
+    'veo3/image-to-video-fast': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
+        ]
+    },
+    'veo3/image-to-video-quality': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
+        ]
+    },
+    'veo3/extend-fast': {
+        params: [
+            { key: 'taskId', label: 'Task ID (do vídeo original)', type: 'text', default: '' },
+        ]
+    },
+    'veo3/extend-quality': {
+        params: [
+            { key: 'taskId', label: 'Task ID (do vídeo original)', type: 'text', default: '' },
+        ]
+    },
+    'veo3/get-1080p': {
+        params: [
+            { key: 'taskId', label: 'Task ID (do vídeo gerado)', type: 'text', default: '' },
+        ]
+    },
+    'veo3/get-4k': {
+        params: [
+            { key: 'taskId', label: 'Task ID (do vídeo gerado)', type: 'text', default: '' },
+        ]
+    },
 };
 
 // ==================== State ====================
@@ -400,7 +568,7 @@ const els = {
 };
 
 // Category labels
-const CAT_LABELS = { image: 'Generate Image', 'vid-txt': 'Text → Video', 'vid-img': 'Image → Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale', mj: 'Midjourney' };
+const CAT_LABELS = { image: 'Generate Image', 'vid-txt': 'Text → Video', 'vid-img': 'Image → Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale', mj: 'Midjourney', veo3: 'Veo 3.1' };
 
 // ==================== Init ====================
 
@@ -508,9 +676,9 @@ function enterWorkspace(cat) {
     if (els.btnModelPicker) els.btnModelPicker.classList.remove('has-model');
     // Hide inline params
     if (els.configPanel) els.configPanel.classList.add('hidden');
-    // Auto-select first model
+    // Open model picker modal so user chooses a model first
     if (_currentCatItems.length > 0) {
-        setTimeout(() => selectModelFromData(_currentCatItems[0]), 50);
+        setTimeout(() => openModelPickerModal(), 50);
     }
 }
 

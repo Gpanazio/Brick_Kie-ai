@@ -155,6 +155,125 @@ def market_wait(task_id: str, interval: float = 5.0, timeout_s: float = 1800.0) 
         time.sleep(interval)
 
 
+# ==================== Suno ====================
+
+SUNO_API_PATHS: Dict[str, str] = {
+    "suno/extend-music": "/api/v1/generate/extend",
+    "suno/upload-cover": "/api/v1/generate/upload-cover",
+    "suno/add-instrumental": "/api/v1/generate/add-instrumental",
+    "suno/add-vocals": "/api/v1/generate/add-vocals",
+    "suno/separate-vocals": "/api/v1/vocal-removal/generate",
+    "suno/music-video": "/api/v1/mp4/generate",
+    "suno/convert-wav": "/api/v1/wav/generate",
+    "suno/get-lyrics": "/api/v1/generate/get-timestamped-lyrics",
+}
+
+SUNO_TASK_INFO_PATH = "/api/v1/generate/record-info"
+
+
+def suno_create_task(model: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Call a Suno-specific API endpoint (not Market)."""
+    api_path = SUNO_API_PATHS.get(model)
+    if not api_path:
+        raise ValueError(f"Modelo Suno desconhecido: {model}")
+
+    r = requests.post(
+        _url(BASE_URL, api_path),
+        headers=_auth_headers_json(),
+        data=json.dumps(input_data),
+        timeout=180,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def suno_task_info(task_id: str) -> Dict[str, Any]:
+    """Get Suno task details via the Suno-specific record-info endpoint."""
+    r = requests.get(
+        _url(BASE_URL, SUNO_TASK_INFO_PATH),
+        headers=_auth_headers_json(),
+        params={"taskId": task_id},
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+# ==================== Veo 3.1 (Google) ====================
+
+VEO_GENERATE_PATH = "/api/v1/veo/generate"
+VEO_EXTEND_PATH = "/api/v1/veo/extend"
+VEO_1080P_PATH = "/api/v1/veo/get-1080p-video"
+VEO_4K_PATH = "/api/v1/veo/get-4k-video"
+VEO_RECORD_INFO_PATH = "/api/v1/veo/record-info"
+
+# Map frontend model names → (api_model, api_path, method)
+VEO_MODEL_MAP: Dict[str, Dict[str, str]] = {
+    "veo3/text-to-video-fast": {"model": "veo3_fast", "path": VEO_GENERATE_PATH},
+    "veo3/text-to-video-quality": {"model": "veo3", "path": VEO_GENERATE_PATH},
+    "veo3/image-to-video-fast": {"model": "veo3_fast", "path": VEO_GENERATE_PATH},
+    "veo3/image-to-video-quality": {"model": "veo3", "path": VEO_GENERATE_PATH},
+    "veo3/extend-fast": {"model": "fast", "path": VEO_EXTEND_PATH},
+    "veo3/extend-quality": {"model": "quality", "path": VEO_EXTEND_PATH},
+}
+
+
+def veo_create_task(model: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Call a Veo 3.1 API endpoint (generate or extend)."""
+    mapping = VEO_MODEL_MAP.get(model)
+    if not mapping:
+        raise ValueError(f"Modelo Veo desconhecido: {model}")
+
+    input_data["model"] = mapping["model"]
+    r = requests.post(
+        _url(BASE_URL, mapping["path"]),
+        headers=_auth_headers_json(),
+        data=json.dumps(input_data),
+        timeout=180,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def veo_get_1080p(task_id: str) -> Dict[str, Any]:
+    """Get 1080P version of a Veo video."""
+    r = requests.get(
+        _url(BASE_URL, VEO_1080P_PATH),
+        headers=_auth_headers_json(),
+        params={"taskId": task_id},
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def veo_get_4k(task_id: str, callback_url: Optional[str] = None) -> Dict[str, Any]:
+    """Get 4K version of a Veo video."""
+    payload: Dict[str, Any] = {"taskId": task_id}
+    if callback_url:
+        payload["callBackUrl"] = callback_url
+    r = requests.post(
+        _url(BASE_URL, VEO_4K_PATH),
+        headers=_auth_headers_json(),
+        data=json.dumps(payload),
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def veo_task_info(task_id: str) -> Dict[str, Any]:
+    """Get Veo task details."""
+    r = requests.get(
+        _url(BASE_URL, VEO_RECORD_INFO_PATH),
+        headers=_auth_headers_json(),
+        params={"taskId": task_id},
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
 # ==================== MJ (Midjourney) ====================
 
 

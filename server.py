@@ -264,7 +264,107 @@ async def market_create_json_body(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== Static Files (MUST be last) ====================
+# ==================== Suno-specific API proxy ====================
+
+
+@app.post("/api/suno/create")
+async def suno_create(
+    model: str = Form(...),
+    input_json: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+):
+    """Proxy to Suno-specific API endpoints (extend, cover, vocals, etc.)."""
+    try:
+        input_data = json.loads(input_json)
+
+        # If a file was uploaded, stream it to KIE upload API first
+        if file and file.filename:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+                tmp.write(await file.read())
+                tmp_path = tmp.name
+            try:
+                up_resp = kie_api.upload_stream(tmp_path, upload_path="audio")
+                upload_url = kie_api._extract_uploaded_url(up_resp)
+                input_data["uploadUrl"] = upload_url
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
+
+        resp = kie_api.suno_create_task(model, input_data)
+        return resp
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid input JSON")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/suno/task/{task_id}")
+async def suno_task(task_id: str):
+    """Get Suno task status."""
+    try:
+        return kie_api.suno_task_info(task_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== Veo 3.1 API proxy ====================
+
+
+@app.post("/api/veo/create")
+async def veo_create(
+    model: str = Form(...),
+    input_json: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+):
+    """Proxy to Veo 3.1 API endpoints (generate, extend)."""
+    try:
+        input_data = json.loads(input_json)
+
+        # If a file was uploaded (image-to-video), upload it first then add to imageUrls
+        if file and file.filename:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+                tmp.write(await file.read())
+                tmp_path = tmp.name
+            try:
+                up_resp = kie_api.upload_stream(tmp_path, upload_path="image")
+                upload_url = kie_api._extract_uploaded_url(up_resp)
+                input_data["imageUrls"] = [upload_url]
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
+
+        resp = kie_api.veo_create_task(model, input_data)
+        return resp
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid input JSON")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/veo/task/{task_id}")
+async def veo_task(task_id: str):
+    """Get Veo 3.1 task status."""
+    try:
+        return kie_api.veo_task_info(task_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/veo/1080p/{task_id}")
+async def veo_1080p(task_id: str):
+    """Get 1080P version of a Veo video."""
+    try:
+        return kie_api.veo_get_1080p(task_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/veo/4k")
+async def veo_4k(task_id: str = Form(...)):
+    """Get 4K version of a Veo video."""
+    try:
+        return kie_api.veo_get_4k(task_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 

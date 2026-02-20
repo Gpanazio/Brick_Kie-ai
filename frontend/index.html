@@ -63,9 +63,9 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Generate Image</span>
-                        <span class="lobby-card-desc">Seedream, Flux-2, Imagen 4, Ideogram, Qwen</span>
+                        <span class="lobby-card-desc">Nano Banana, Grok, Seedream, Flux-2, Ideogram</span>
                     </div>
-                    <div class="lobby-card-count">5 modelos</div>
+                    <div class="lobby-card-count">8 modelos</div>
                     <div class="lobby-card-glow"></div>
                 </button>
 
@@ -114,9 +114,9 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Audio</span>
-                        <span class="lobby-card-desc">ElevenLabs TTS, Infinitalk</span>
+                        <span class="lobby-card-desc">ElevenLabs — TTS, Dialogue, SFX, STT</span>
                     </div>
-                    <div class="lobby-card-count">2 modelos</div>
+                    <div class="lobby-card-count">5 modelos</div>
                     <div class="lobby-card-glow"></div>
                 </button>
 
@@ -131,9 +131,9 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Music</span>
-                        <span class="lobby-card-desc">Suno — Generate Music, Lyrics</span>
+                        <span class="lobby-card-desc">Suno — Music, Lyrics, Cover, Video...</span>
                     </div>
-                    <div class="lobby-card-count">2 modelos</div>
+                    <div class="lobby-card-count">11 modelos</div>
                     <div class="lobby-card-glow"></div>
                 </button>
 
@@ -153,41 +153,45 @@
                     <div class="lobby-card-glow"></div>
                 </button>
 
-            </div>
-
-            <div class="lobby-divider">WORKFLOW DEDICADO</div>
-
-            <!-- MIDJOURNEY SLIM BAR -->
-            <button class="lobby-slim-card" data-lobby-cat="mj" id="lobby-mj">
-                <div class="lsc-left">
-                    <div class="lsc-icon">
+                <!-- MIDJOURNEY -->
+                <button class="lobby-card" data-lobby-cat="mj" id="lobby-mj">
+                    <div class="lobby-card-icon">
                         <svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg">
-                            <path
-                                d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.93V13h-2v3.93C7.06 16.43 4 13.56 4 10c0-3.87 3.13-7 7-7s7 3.13 7 7c0 3.56-3.06 6.43-7 6.93z"
-                                fill="currentColor" />
+                            <path d="M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z"
+                                stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            <path d="M3 19c3-2 6-3 9-3s6 1 9 3" stroke="currentColor" stroke-width="1.5" fill="none"
+                                stroke-linecap="round" />
+                            <path d="M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5" stroke="currentColor" stroke-width="1.5"
+                                fill="none" stroke-linecap="round" />
                         </svg>
                     </div>
-                    <span class="lsc-title">Midjourney</span>
-                </div>
+                    <div class="lobby-card-body">
+                        <span class="lobby-card-title">Midjourney</span>
+                        <span class="lobby-card-desc">Text→Image, Img→Img, Style Ref, Video</span>
+                    </div>
+                    <div class="lobby-card-count">4 modelos</div>
+                    <div class="lobby-card-glow"></div>
+                </button>
 
-                <div class="lsc-center">
-                    <span class="lsc-pill">Text ➔ Image</span>
-                    <span class="lsc-pill">Image ➔ Image</span>
-                    <span class="lsc-pill">Style Reference</span>
-                    <span class="lsc-pill">Video</span>
-                </div>
-
-                <div class="lsc-right">
-                    <span class="lsc-count">4 modelos</span>
-                    <div class="lsc-arrow">
-                        <span>Workspace</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M5 12h14M12 5l7 7-7 7" />
+                <!-- VEO 3.1 -->
+                <button class="lobby-card" data-lobby-cat="veo3" id="lobby-veo3">
+                    <div class="lobby-card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                            <path d="M2 17l10 5 10-5" />
+                            <path d="M2 12l10 5 10-5" />
                         </svg>
                     </div>
-                </div>
-            </button>
+                    <div class="lobby-card-body">
+                        <span class="lobby-card-title">Veo 3.1</span>
+                        <span class="lobby-card-desc">Google — Text/Img→Video, Extend, 4K</span>
+                    </div>
+                    <div class="lobby-card-count">8 modelos</div>
+                    <div class="lobby-card-glow"></div>
+                </button>
+
+            </div>
 
         </div>
     </section>
@@ -475,6 +479,21 @@
             data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='2'/><path d='M12 6v6l4 4' stroke='currentColor' stroke-width='2' stroke-linecap='round'/></svg>"
             data-color="mc-qwen" data-prompt="true"
             data-desc="Versátil e rápido, ótimo para ilustrações e conceitos rápidos."></div>
+        <div data-cat="image" data-model="google/nano-banana-edit" data-name="Nano Banana Edit" data-provider="Google"
+            data-input="file" data-field="image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-green" data-prompt="true"
+            data-desc="Edição inteligente: envie uma imagem e descreva as mudanças que deseja."></div>
+        <div data-cat="image" data-model="grok-imagine/text-to-image" data-name="Text to Image" data-provider="Grok"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M13.5 2L3 14h9l-1 8L22 10h-9l.5-8z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-purple" data-prompt="true"
+            data-desc="Geração fotorrealista de imagens com qualidade cinematográfica."></div>
+        <div data-cat="image" data-model="grok-imagine/image-to-image" data-name="Image to Image" data-provider="Grok"
+            data-input="file" data-field="image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M13.5 2L3 14h9l-1 8L22 10h-9l.5-8z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-purple" data-prompt="true"
+            data-desc="Transforme e edite imagens com prompt usando Grok Imagine."></div>
 
         <!-- VID TXT -->
         <div data-cat="vid-txt" data-model="sora-2-pro-text-to-video" data-name="Sora 2 Pro" data-provider="OpenAI"
@@ -518,29 +537,123 @@
             data-color="mc-indigo" data-prompt="true"
             data-desc="Especialista em animações complexas a partir de fotos."></div>
 
-        <!-- AUDIO -->
-        <div data-cat="audio" data-model="elevenlabs/text-to-speech-turbo-2-5" data-name="ElevenLabs TTS"
+        <!-- AUDIO (ElevenLabs) -->
+        <div data-cat="audio" data-model="elevenlabs/text-to-speech-turbo-2-5" data-name="TTS Turbo 2.5"
             data-provider="ElevenLabs" data-input="text" data-field="text"
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
             data-color="mc-teal" data-prompt="true"
             data-desc="A tecnologia de voz mais humana e expressiva do mercado."></div>
-        <div data-cat="audio" data-model="infinitalk/from-audio" data-name="Infinitalk" data-provider="Infini"
-            data-input="file" data-field="audio_url"
-            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M8 12c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;2&quot; fill=&quot;currentColor&quot;/></svg>"
-            data-color="mc-pink" data-prompt="false"
-            data-desc="Processamento e tradução de voz com preservação de tom."></div>
+        <div data-cat="audio" data-model="elevenlabs/text-to-dialogue-v3" data-name="Dialogue V3"
+            data-provider="ElevenLabs" data-input="text" data-field="dialogue"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="true"
+            data-desc="Diálogo multi-voz com personagens distintos e vozes naturais."></div>
+        <div data-cat="audio" data-model="elevenlabs/sound-effect-v2" data-name="Sound Effect V2"
+            data-provider="ElevenLabs" data-input="text" data-field="text"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="true"
+            data-desc="Efeitos sonoros ultra-realistas gerados por IA a partir de texto."></div>
+        <div data-cat="audio" data-model="elevenlabs/speech-to-text" data-name="Speech to Text"
+            data-provider="ElevenLabs" data-input="file" data-field="audio_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="false" data-desc="Transcrição precisa de áudio com detecção de falantes.">
+        </div>
+        <div data-cat="audio" data-model="elevenlabs/audio-isolation" data-name="Audio Isolation"
+            data-provider="ElevenLabs" data-input="file" data-field="audio_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="false" data-desc="Isolamento e separação de voz de qualquer áudio."></div>
 
-        <!-- MUSIC -->
-        <div data-cat="music" data-model="suno/generate-music" data-name="Suno Music" data-provider="Suno"
+        <!-- MUSIC (Suno) -->
+        <div data-cat="music" data-model="suno/generate-music" data-name="Generate Music" data-provider="Suno"
             data-input="text" data-field="prompt"
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
             data-color="mc-yellow" data-prompt="true"
             data-desc="Crie músicas completas com vocais e instrumentação em qualquer gênero ou idioma."></div>
-        <div data-cat="music" data-model="suno/generate-lyrics" data-name="Suno Lyrics" data-provider="Suno"
+        <div data-cat="music" data-model="suno/generate-lyrics" data-name="Generate Lyrics" data-provider="Suno"
             data-input="text" data-field="prompt"
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-orange" data-prompt="true" data-desc="Letras estruturadas e rimas perfeitas criadas por IA.">
+        </div>
+        <div data-cat="music" data-model="suno/extend-music" data-name="Extend Music" data-provider="Suno"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-yellow" data-prompt="true"
+            data-desc="Estenda músicas existentes criando continuações a partir de um ponto."></div>
+        <div data-cat="music" data-model="suno/upload-cover" data-name="Upload & Cover" data-provider="Suno"
+            data-input="file" data-field="uploadUrl"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-orange" data-prompt="true" data-desc="Crie um cover AI da sua música com novo estilo e voz.">
+        </div>
+        <div data-cat="music" data-model="suno/add-instrumental" data-name="Add Instrumental" data-provider="Suno"
+            data-input="file" data-field="uploadUrl"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-yellow" data-prompt="false"
+            data-desc="Adicione acompanhamento instrumental AI a vocais existentes."></div>
+        <div data-cat="music" data-model="suno/add-vocals" data-name="Add Vocals" data-provider="Suno" data-input="file"
+            data-field="uploadUrl"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
             data-color="mc-orange" data-prompt="true"
-            data-desc="Otimize suas composições com letras estruturadas e rimas perfeitas criadas por IA."></div>
+            data-desc="Adicione vocais AI harmonizados a faixas instrumentais."></div>
+        <div data-cat="music" data-model="suno/separate-vocals" data-name="Separate Vocals" data-provider="Suno"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-yellow" data-prompt="false"
+            data-desc="Separe vocais e instrumentos de qualquer faixa de áudio."></div>
+        <div data-cat="music" data-model="suno/music-video" data-name="Music Video" data-provider="Suno"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-orange" data-prompt="false"
+            data-desc="Crie um videoclipe visual a partir da sua faixa gerada."></div>
+        <div data-cat="music" data-model="suno/convert-wav" data-name="Convert to WAV" data-provider="Suno"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-yellow" data-prompt="false" data-desc="Converta faixas geradas para WAV sem compressão.">
+        </div>
+        <div data-cat="music" data-model="suno/get-lyrics" data-name="Get Lyrics" data-provider="Suno" data-input="text"
+            data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-orange" data-prompt="false"
+            data-desc="Obtenha letras sincronizadas com timestamps de uma faixa."></div>
+
+        <!-- VEO 3.1 (Google) -->
+        <div data-cat="veo3" data-model="veo3/text-to-video-fast" data-name="Text→Video Fast" data-provider="Google"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 7l10 5 10-5-10-5z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 17l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 12l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/></svg>"
+            data-color="mc-blue" data-prompt="true" data-desc="Geração rápida de vídeo a partir de texto com Veo 3.1.">
+        </div>
+        <div data-cat="veo3" data-model="veo3/text-to-video-quality" data-name="Text→Video Quality"
+            data-provider="Google" data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 7l10 5 10-5-10-5z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 17l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 12l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/></svg>"
+            data-color="mc-purple" data-prompt="true"
+            data-desc="Vídeo de alta fidelidade a partir de texto — máxima qualidade Veo 3.1."></div>
+        <div data-cat="veo3" data-model="veo3/image-to-video-fast" data-name="Image→Video Fast" data-provider="Google"
+            data-input="file" data-field="image_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 7l10 5 10-5-10-5z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 17l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 12l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/></svg>"
+            data-color="mc-blue" data-prompt="true" data-desc="Anime imagens rapidamente com Veo 3.1 Fast."></div>
+        <div data-cat="veo3" data-model="veo3/image-to-video-quality" data-name="Image→Video Quality"
+            data-provider="Google" data-input="file" data-field="image_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 7l10 5 10-5-10-5z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 17l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 12l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/></svg>"
+            data-color="mc-purple" data-prompt="true" data-desc="Anime imagens com máxima qualidade Veo 3.1 Quality.">
+        </div>
+        <div data-cat="veo3" data-model="veo3/extend-fast" data-name="Extend Fast" data-provider="Google"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 7l10 5 10-5-10-5z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 17l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 12l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/></svg>"
+            data-color="mc-blue" data-prompt="true" data-desc="Estenda vídeos existentes com continuações naturais.">
+        </div>
+        <div data-cat="veo3" data-model="veo3/extend-quality" data-name="Extend Quality" data-provider="Google"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 7l10 5 10-5-10-5z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 17l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 12l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/></svg>"
+            data-color="mc-purple" data-prompt="true"
+            data-desc="Estenda vídeos com máxima qualidade e transição perfeita."></div>
+        <div data-cat="veo3" data-model="veo3/get-1080p" data-name="Get 1080P" data-provider="Google" data-input="text"
+            data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 7l10 5 10-5-10-5z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 17l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 12l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/></svg>"
+            data-color="mc-teal" data-prompt="false" data-desc="Converta seu vídeo gerado para 1080P Full HD."></div>
+        <div data-cat="veo3" data-model="veo3/get-4k" data-name="Get 4K" data-provider="Google" data-input="text"
+            data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 7l10 5 10-5-10-5z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 17l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 12l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/></svg>"
+            data-color="mc-gold" data-prompt="false" data-desc="Upgrade para 4K Ultra HD para produção profissional.">
+        </div>
 
         <!-- TOOLS -->
         <div data-cat="tools" data-model="recraft/remove-background" data-name="Remove BG" data-provider="Recraft"
@@ -566,20 +679,20 @@
         <!-- MIDJOURNEY -->
         <div data-cat="mj" data-model="mj-txt" data-name="Text-Image" data-provider="Midjourney" data-input="mj"
             data-mj-type="mj_txt2img"
-            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10zM6 12c0 3.31 2.69 6 6 6s6-2.69 6-6-2.69-6-6-6-6 2.69-6 6z' fill='currentColor'/></svg>"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M3 19c3-2 6-3 9-3s6 1 9 3' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/><path d='M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>"
             data-color="mc-mj" data-prompt="true" data-desc="Gera imagens ultra-artísticas a partir de texto."></div>
         <div data-cat="mj" data-model="mj-img" data-name="Image-Image" data-provider="Midjourney" data-input="mj"
             data-mj-type="mj_img2img"
-            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10zM6 12c0 3.31 2.69 6 6 6s6-2.69 6-6-2.69-6-6-6-6 2.69-6 6z' fill='currentColor'/></svg>"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M3 19c3-2 6-3 9-3s6 1 9 3' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/><path d='M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>"
             data-color="mc-mj" data-prompt="true" data-desc="Refina e transforma uma imagem base usando referências.">
         </div>
         <div data-cat="mj" data-model="mj-video" data-name="Video" data-provider="Midjourney" data-input="mj"
             data-mj-type="mj_video"
-            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10zM6 12c0 3.31 2.69 6 6 6s6-2.69 6-6-2.69-6-6-6-6 2.69-6 6z' fill='currentColor'/></svg>"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M3 19c3-2 6-3 9-3s6 1 9 3' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/><path d='M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>"
             data-color="mc-mj" data-prompt="true" data-desc="Gera videoclipes artísticos curtos no estilo MJ."></div>
         <div data-cat="mj" data-model="mj-ref" data-name="Style Reference" data-provider="Midjourney" data-input="mj"
             data-mj-type="mj_style_ref"
-            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10zM6 12c0 3.31 2.69 6 6 6s6-2.69 6-6-2.69-6-6-6-6 2.69-6 6z' fill='currentColor'/></svg>"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M3 19c3-2 6-3 9-3s6 1 9 3' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/><path d='M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>"
             data-color="mc-mj" data-prompt="true" data-desc="Copia o estilo de uma imagem para outras criações."></div>
     </template>
 
