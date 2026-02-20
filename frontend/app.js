@@ -1561,9 +1561,9 @@ function renderTaskResult(task) {
     }
     // Cost/time info for completed tasks
     if (data.costTime) {
-        html += `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">⏱ ${(data.costTime / 1000).toFixed(1)}s</div>`;
+        html += `<div style="padding: 0 16px; font-size:11px;color:var(--text-muted);margin-top:12px">⏱ ${(data.costTime / 1000).toFixed(1)}s</div>`;
     }
-    html += `<details style="margin-top:4px"><summary style="font-size:11px;color:var(--text-muted);cursor:pointer">Ver JSON</summary><div class="task-result-json">${esc(JSON.stringify(task.data, null, 2))}</div></details>`;
+    html += `<details style="padding: 0 16px 12px 16px; margin-top:8px"><summary style="font-size:11px;color:var(--text-muted);cursor:pointer">Ver JSON</summary><div class="task-result-json">${esc(JSON.stringify(task.data, null, 2))}</div></details>`;
     container.innerHTML = html;
 }
 
