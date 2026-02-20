@@ -299,7 +299,13 @@ def mj_task_info(task_id: str) -> Dict[str, Any]:
 def _mj_state(resp: Dict[str, Any]) -> Optional[str]:
     data = resp.get("data") if isinstance(resp, dict) else None
     if isinstance(data, dict):
-        return data.get("status") or data.get("state")
+        sf = data.get("successFlag")
+        if sf == 1 or data.get("resultUrls") or data.get("resultInfoJson"):
+            return "success"
+        if sf is not None and sf > 1:
+            return "fail"
+        if data.get("errorCode"):
+            return "fail"
     return None
 
 

@@ -1295,7 +1295,28 @@ async function submitMJ() {
     const ar = document.querySelector('input[name="mj-ar"]:checked')?.value || '1:1';
     const speed = document.querySelector('input[name="mj-speed"]:checked')?.value || 'relaxed';
     const version = document.querySelector('input[name="mj-version"]:checked')?.value || '7';
-    const payload = { taskType: selectedModel.mjType, speed, prompt, aspectRatio: ar, version };
+
+    // Handle image-to-image or video generation involving an image file
+    const isImageReq = selectedModel.mjType !== 'mj_txt2img';
+    let payload = { taskType: selectedModel.mjType, speed, prompt, aspectRatio: ar, version };
+
+    if (isImageReq && selectedFile) {
+        // Upload the image first before triggering Midjourney
+        const upFd = new FormData();
+        upFd.append('file', selectedFile);
+        upFd.append('uploadPath', 'images');
+        const upResp = await fetch(`${API}/api/upload`, { method: 'POST', body: upFd });
+        const upJson = await upResp.json();
+        if (!upResp.ok) throw new Error(upJson.detail || 'Falha ao fazer upload da imagem de referência');
+
+        const imageUrl = upJson.url;
+        if (selectedModel.mjType === 'mj_img2img' || selectedModel.mjType === 'mj_video') {
+            payload.prompt = `${imageUrl} ${prompt}`.trim();
+        } else if (selectedModel.mjType === 'mj_style_ref') {
+            payload.prompt = `${prompt} --sref ${imageUrl}`.trim();
+        }
+    }
+
     const fd = new FormData();
     fd.append('payload_json', JSON.stringify(payload));
     const resp = await fetch(`${API}/api/mj/generate`, { method: 'POST', body: fd });
@@ -1378,9 +1399,10 @@ function startPolling(task) {
 
             let state;
             if (task.mode === 'midjourney') {
-                const st = (data.status || data.state || '').toLowerCase();
-                if (['success', 'succeeded', 'completed', 'done'].includes(st) || data.resultUrls) state = 'success';
-                else if (['fail', 'failed', 'error'].includes(st)) state = 'fail';
+                const sf = data.successFlag;
+                // successFlag: 1 = success, 2/3 = fail, 0/null = processing
+                if (sf === 1 || data.resultUrls || data.resultInfoJson) state = 'success';
+                else if (sf > 1 || data.errorCode) state = 'fail';
                 else state = 'processing';
             } else {
                 // Veo/Suno APIs use 'status', Market uses 'state'
