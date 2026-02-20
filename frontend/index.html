@@ -12,7 +12,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/kie-ai/static/style-v2.css?v=7">
+    <link rel="stylesheet" href="/kie-ai/static/style-v2.css?v=8">
 </head>
 
 <body>
@@ -63,7 +63,7 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Generate Image</span>
-                        <span class="lobby-card-desc">Seedream · Flux-2 · Imagen 4 · Ideogram · Qwen</span>
+                        <span class="lobby-card-desc">Seedream, Flux-2, Imagen 4, Ideogram, Qwen</span>
                     </div>
                     <div class="lobby-card-count">5 modelos</div>
                     <div class="lobby-card-glow"></div>
@@ -79,7 +79,7 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Text → Video</span>
-                        <span class="lobby-card-desc">Sora 2 · Kling 3.0 · Wan 2.2 · Grok Imagine</span>
+                        <span class="lobby-card-desc">Sora 2, Kling 3.0, Wan 2.2, Grok Imagine</span>
                     </div>
                     <div class="lobby-card-count">4 modelos</div>
                     <div class="lobby-card-glow"></div>
@@ -96,7 +96,7 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Image → Video</span>
-                        <span class="lobby-card-desc">Sora 2 · Kling 3.0 · Hailuo 2.3 · Grok Imagine</span>
+                        <span class="lobby-card-desc">Sora 2, Kling 3.0, Hailuo 2.3, Grok Imagine</span>
                     </div>
                     <div class="lobby-card-count">4 modelos</div>
                     <div class="lobby-card-glow"></div>
@@ -114,7 +114,7 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Audio</span>
-                        <span class="lobby-card-desc">ElevenLabs TTS · Infinitalk</span>
+                        <span class="lobby-card-desc">ElevenLabs TTS, Infinitalk</span>
                     </div>
                     <div class="lobby-card-count">2 modelos</div>
                     <div class="lobby-card-glow"></div>
@@ -131,7 +131,7 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Music</span>
-                        <span class="lobby-card-desc">Suno — Generate Music · Lyrics</span>
+                        <span class="lobby-card-desc">Suno — Generate Music, Lyrics</span>
                     </div>
                     <div class="lobby-card-count">2 modelos</div>
                     <div class="lobby-card-glow"></div>
@@ -147,30 +147,48 @@
                     </div>
                     <div class="lobby-card-body">
                         <span class="lobby-card-title">Tools & Upscale</span>
-                        <span class="lobby-card-desc">Recraft BG · Crisp Upscale · Topaz</span>
-                    </div>
-                    <div class="lobby-card-count">4 modelos</div>
-                    <div class="lobby-card-glow"></div>
-                </button>
-
-                <!-- MIDJOURNEY -->
-                <button class="lobby-card lobby-card-wide" data-lobby-cat="mj" id="lobby-mj">
-                    <div class="lobby-card-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                            <path d="M2 17l10 5 10-5" />
-                            <path d="M2 12l10 5 10-5" />
-                        </svg>
-                    </div>
-                    <div class="lobby-card-body">
-                        <span class="lobby-card-title">Midjourney</span>
-                        <span class="lobby-card-desc">Text→Image · Image→Image · Video · Style Reference</span>
+                        <span class="lobby-card-desc">Recraft BG, Crisp Upscale, Topaz</span>
                     </div>
                     <div class="lobby-card-count">4 modelos</div>
                     <div class="lobby-card-glow"></div>
                 </button>
 
             </div>
+
+            <div class="lobby-divider">WORKFLOW DEDICADO</div>
+
+            <!-- MIDJOURNEY SLIM BAR -->
+            <button class="lobby-slim-card" data-lobby-cat="mj" id="lobby-mj">
+                <div class="lsc-left">
+                    <div class="lsc-icon">
+                        <svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg">
+                            <path
+                                d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.93V13h-2v3.93C7.06 16.43 4 13.56 4 10c0-3.87 3.13-7 7-7s7 3.13 7 7c0 3.56-3.06 6.43-7 6.93z"
+                                fill="currentColor" />
+                        </svg>
+                    </div>
+                    <span class="lsc-title">Midjourney</span>
+                </div>
+
+                <div class="lsc-center">
+                    <span class="lsc-pill">Text ➔ Image</span>
+                    <span class="lsc-pill">Image ➔ Image</span>
+                    <span class="lsc-pill">Style Reference</span>
+                    <span class="lsc-pill">Video</span>
+                </div>
+
+                <div class="lsc-right">
+                    <span class="lsc-count">4 modelos</span>
+                    <div class="lsc-arrow">
+                        <span>Workspace</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </div>
+            </button>
+
         </div>
     </section>
 
@@ -432,7 +450,9 @@
     <template id="tpl-models">
         <!-- IMAGE -->
         <div data-cat="image" data-model="nano-banana-pro" data-name="Nano Banana Pro" data-provider="Kie.ai"
-            data-input="text" data-field="prompt" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-yellow" data-prompt="true"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-yellow" data-prompt="true"
             data-desc="Modelo próprio da Kie.ai: geração com prompt, imagens de referência e controle de aspect ratio, resolução e formato.">
         </div>
         <div data-cat="image" data-model="bytedance/4.5-text-to-image" data-name="Seedream 4.5"
@@ -475,50 +495,73 @@
             data-color="mc-wan" data-prompt="true"
             data-desc="A opção mais rápida para visualização imediata: gera vídeos de 5s em segundos."></div>
         <div data-cat="vid-txt" data-model="grok-imagine/text-to-video" data-name="Grok Video" data-provider="xAI"
-            data-input="text" data-field="prompt" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M4 4l6 8-6 8h3l4.5-6L16 20h3l-6-8 6-8h-3l-4.5 6L7 4z&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-white" data-prompt="true"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M4 4l6 8-6 8h3l4.5-6L16 20h3l-6-8 6-8h-3l-4.5 6L7 4z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-white" data-prompt="true"
             data-desc="Geração fluida com compreensão semântica profunda, ideal para cenas conceituais e artísticas.">
         </div>
 
         <!-- VID IMG -->
         <div data-cat="vid-img" data-model="grok-imagine/image-to-video" data-name="Grok VidGen" data-provider="xAI"
-            data-input="file" data-field="image_urls" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M4 4l6 8-6 8h3l4.5-6L16 20h3l-6-8 6-8h-3l-4.5 6L7 4z&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-white" data-prompt="true"
+            data-input="file" data-field="image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M4 4l6 8-6 8h3l4.5-6L16 20h3l-6-8 6-8h-3l-4.5 6L7 4z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-white" data-prompt="true"
             data-desc="Anima imagens estáticas com controle de movimento natural."></div>
         <div data-cat="vid-img" data-model="sora-2-pro-image-to-video" data-name="Sora 2 Pro" data-provider="OpenAI"
-            data-input="file" data-field="image_urls" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10 10-4.48 10-10zM12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8zm-2 12h4v1h-4zm0-3h4v1h-4zm0-3h4v1h-4z&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-purple" data-prompt="true"
+            data-input="file" data-field="image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10 10-4.48 10-10zM12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8zm-2 12h4v1h-4zm0-3h4v1h-4zm0-3h4v1h-4z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-purple" data-prompt="true"
             data-desc="O padrão ouro: transforma imagens em vídeos ultra-realistas com física avançada."></div>
         <div data-cat="vid-img" data-model="hailuo/2-3-image-to-video-pro" data-name="Hailuo Pro" data-provider="Hailuo"
-            data-input="file" data-field="image_url" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-11.5v7l6-3.5z&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-indigo" data-prompt="true"
+            data-input="file" data-field="image_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-11.5v7l6-3.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-indigo" data-prompt="true"
             data-desc="Especialista em animações complexas a partir de fotos."></div>
 
         <!-- AUDIO -->
         <div data-cat="audio" data-model="elevenlabs/text-to-speech-turbo-2-5" data-name="ElevenLabs TTS"
-            data-provider="ElevenLabs" data-input="text" data-field="text" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>" data-color="mc-teal"
-            data-prompt="true" data-desc="A tecnologia de voz mais humana e expressiva do mercado."></div>
+            data-provider="ElevenLabs" data-input="text" data-field="text"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="true"
+            data-desc="A tecnologia de voz mais humana e expressiva do mercado."></div>
         <div data-cat="audio" data-model="infinitalk/from-audio" data-name="Infinitalk" data-provider="Infini"
-            data-input="file" data-field="audio_url" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M8 12c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;2&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-pink" data-prompt="false"
+            data-input="file" data-field="audio_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M8 12c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;2&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-pink" data-prompt="false"
             data-desc="Processamento e tradução de voz com preservação de tom."></div>
 
         <!-- MUSIC -->
         <div data-cat="music" data-model="suno/generate-music" data-name="Suno Music" data-provider="Suno"
-            data-input="text" data-field="prompt" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-yellow" data-prompt="true"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-yellow" data-prompt="true"
             data-desc="Crie músicas completas com vocais e instrumentação em qualquer gênero ou idioma."></div>
         <div data-cat="music" data-model="suno/generate-lyrics" data-name="Suno Lyrics" data-provider="Suno"
-            data-input="text" data-field="prompt" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-orange" data-prompt="true"
+            data-input="text" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-orange" data-prompt="true"
             data-desc="Otimize suas composições com letras estruturadas e rimas perfeitas criadas por IA."></div>
 
         <!-- TOOLS -->
         <div data-cat="tools" data-model="recraft/remove-background" data-name="Remove BG" data-provider="Recraft"
-            data-input="file" data-field="image" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 6h12v12H6z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; fill=&quot;currentColor&quot;/></svg>" data-shortcut="recraft-rmbg" data-color="mc-green"
-            data-prompt="false" data-desc="Remoção limpa de fundos usando IA avançada."></div>
+            data-input="file" data-field="image"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 6h12v12H6z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-shortcut="recraft-rmbg" data-color="mc-green" data-prompt="false"
+            data-desc="Remoção limpa de fundos usando IA avançada."></div>
         <div data-cat="tools" data-model="recraft/crisp-upscale" data-name="Crisp Upscale" data-provider="Recraft"
-            data-input="file" data-field="image" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 6h12v12H6z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-blue" data-prompt="false"
-            data-desc="Aumenta a nitidez e resolução de fotografias."></div>
+            data-input="file" data-field="image"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 6h12v12H6z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-blue" data-prompt="false" data-desc="Aumenta a nitidez e resolução de fotografias."></div>
         <div data-cat="tools" data-model="topaz/image-upscale" data-name="Image Upscale" data-provider="Topaz"
-            data-input="file" data-field="image" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2l-6 10h12zM5 14l7 8 7-8z&quot; fill=&quot;currentColor&quot;/></svg>" data-color="mc-teal" data-prompt="false"
+            data-input="file" data-field="image"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2l-6 10h12zM5 14l7 8 7-8z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-teal" data-prompt="false"
             data-desc="Upscale profissional com preservação de detalhes finos."></div>
         <div data-cat="tools" data-model="topaz/video-upscale" data-name="Video Upscale" data-provider="Topaz"
-            data-input="file" data-field="video" data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2l-6 10h12zM5 14l7 8 7-8z&quot; fill=&quot;currentColor&quot;/></svg>" data-shortcut="topaz-upscale" data-color="mc-red"
-            data-prompt="false" data-desc="Restauração e aumento de resolução para vídeos legados."></div>
+            data-input="file" data-field="video"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2l-6 10h12zM5 14l7 8 7-8z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-shortcut="topaz-upscale" data-color="mc-red" data-prompt="false"
+            data-desc="Restauração e aumento de resolução para vídeos legados."></div>
 
         <!-- MIDJOURNEY -->
         <div data-cat="mj" data-model="mj-txt" data-name="Text-Image" data-provider="Midjourney" data-input="mj"
