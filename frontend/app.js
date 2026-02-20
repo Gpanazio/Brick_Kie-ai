@@ -44,14 +44,8 @@ const MODEL_COST_ESTIMATES = {
     // ── Music / Suno ──
     'suno/generate-music': 12,            // mashup = 12
     'suno/generate-lyrics': 1,            // 0.4 cr/request ≈ ~1
-    'suno/extend-music': 12,              // extend existing
-    'suno/upload-cover': 12,              // cover generation
-    'suno/add-instrumental': 12,          // add backing
-    'suno/add-vocals': 12,                // add vocals
-    'suno/separate-vocals': 10,           // vocal separation
-    'suno/music-video': 2,                // video from audio
-    'suno/convert-wav': 1,                // 0.4 cr format conversion
-    'suno/get-lyrics': 1,                 // 0.4 cr timestamped lyrics
+    'suno/edit-audio': 12,                // extend/instrumental/vocals/separate
+    'suno/utilities': 2,                  // music-video/convert-wav/get-lyrics
     // ── Veo 3.1 (Google) ──
     'veo3/text-to-video': 60,             // Base display cost 
     'veo3/image-to-video': 80,            // Base display cost
@@ -111,9 +105,8 @@ const PROMPT_CHAR_LIMITS = {
     'sora-2-pro-image-to-video': 4000,
     'suno/generate-music': 3000,
     'suno/generate-lyrics': 3000,
-    'suno/extend-music': 3000,
-    'suno/upload-cover': 3000,
-    'suno/add-vocals': 3000,
+    'suno/edit-audio': 3000,
+    'suno/utilities': 200,
     'veo3/text-to-video': 5000,
     'veo3/image-to-video': 5000,
     'veo3/text-to-video-fast': 5000,
@@ -331,6 +324,7 @@ const MODEL_CONFIGS = {
     // ──── SUNO / MUSIC ────
     'suno/generate-music': {
         params: [
+            { key: 'model', label: 'Modelo Suno', type: 'select', options: ['V3_5', 'V4', 'V4_5', 'V4_5PLUS', 'V5'], default: 'V4_5' },
             { key: 'custom_mode', label: 'Modo Avançado', type: 'bool', default: false },
             { key: 'style', label: 'Estilo Musical', type: 'text', default: '' },
             { key: 'title', label: 'Título', type: 'text', default: '' },
@@ -338,60 +332,25 @@ const MODEL_CONFIGS = {
         ]
     },
     'suno/generate-lyrics': { params: [] },
-    'suno/extend-music': {
+    'suno/edit-audio': {
         params: [
+            { key: 'suno_action', label: 'Ação', type: 'select', options: ['Extend Music', 'Add Instrumental', 'Add Vocals', 'Separate Vocals'], default: 'Extend Music' },
             { key: 'audioId', label: 'Audio ID (da geração anterior)', type: 'text', default: '' },
+            { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
             { key: 'style', label: 'Estilo Musical', type: 'text', default: '' },
             { key: 'title', label: 'Título', type: 'text', default: '' },
             { key: 'continueAt', label: 'Continuar em (segundos)', type: 'number', min: 0, max: 600, step: 1, default: 0 },
-        ]
-    },
-    'suno/upload-cover': {
-        params: [
-            { key: 'style', label: 'Estilo Musical', type: 'text', default: '' },
-            { key: 'title', label: 'Título', type: 'text', default: '' },
-            { key: 'custom_mode', label: 'Modo Avançado', type: 'bool', default: false },
-            { key: 'instrumental', label: 'Só Instrumental', type: 'bool', default: false },
-        ]
-    },
-    'suno/add-instrumental': {
-        params: [
-            { key: 'title', label: 'Título', type: 'text', default: '' },
             { key: 'tags', label: 'Tags / Gênero', type: 'text', default: '' },
             { key: 'negativeTags', label: 'Tags Negativas', type: 'text', default: '' },
-        ]
-    },
-    'suno/add-vocals': {
-        params: [
-            { key: 'style', label: 'Estilo Musical', type: 'text', default: '' },
-            { key: 'title', label: 'Título', type: 'text', default: '' },
-            { key: 'negativeTags', label: 'Tags Negativas', type: 'text', default: '' },
-        ]
-    },
-    'suno/separate-vocals': {
-        params: [
-            { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
-            { key: 'audioId', label: 'Audio ID', type: 'text', default: '' },
             { key: 'type', label: 'Tipo de Separação', type: 'radio', options: ['vocals', 'instrumental', 'both'], default: 'both' },
         ]
     },
-    'suno/music-video': {
+    'suno/utilities': {
         params: [
+            { key: 'suno_action', label: 'Ação', type: 'select', options: ['Music Video', 'Convert WAV', 'Get Lyrics'], default: 'Music Video' },
             { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
             { key: 'audioId', label: 'Audio ID', type: 'text', default: '' },
             { key: 'author', label: 'Autor (opcional)', type: 'text', default: '' },
-        ]
-    },
-    'suno/convert-wav': {
-        params: [
-            { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
-            { key: 'audioId', label: 'Audio ID', type: 'text', default: '' },
-        ]
-    },
-    'suno/get-lyrics': {
-        params: [
-            { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
-            { key: 'audioId', label: 'Audio ID', type: 'text', default: '' },
         ]
     },
 
@@ -430,10 +389,22 @@ const MODEL_CONFIGS = {
     },
 };
 
+// ==================== Batch Upload Support ====================
+const BATCH_MODELS = new Set([
+    'topaz/image-upscale',
+    'topaz/video-upscale',
+    'recraft/crisp-upscale',
+]);
+
+function isBatchModel(model) {
+    return model && BATCH_MODELS.has(model);
+}
+
 // ==================== State ====================
 
 let selectedModel = null;
 let selectedFile = null;
+let selectedFiles = []; // For batch upload
 let currentCatLabel = '';
 let currentCat = ''; // Store the current internal category ID
 let tasks = [];
@@ -661,6 +632,7 @@ function enterWorkspace(cat) {
     if (els.workspaceCatLabel) els.workspaceCatLabel.textContent = label;
 
     // Update History & Active tabs to only show tasks and history for this cat
+    filterTasksByCategory();
     updateActiveCount();
     updateHistoryCount();
     renderHistoryGallery();
@@ -810,6 +782,9 @@ function selectModelFromData(data) {
     if (selectedModel.field === 'video_url') els.fileInput.accept = 'video/*';
     else if (selectedModel.field === 'audio_url') els.fileInput.accept = 'audio/*';
     else els.fileInput.accept = 'image/*,video/*,audio/*';
+
+    // Enable multi-file selection for batch-capable models
+    els.fileInput.multiple = isBatchModel(data.model);
 
     if (selectedModel.field === 'text') els.configPrompt.placeholder = 'Digite o texto para sintetizar...';
     else els.configPrompt.placeholder = 'Descreva o que deseja gerar...';
@@ -1014,10 +989,20 @@ function initUploadZone() {
     els.uploadZone.addEventListener('dragleave', () => els.uploadZone.classList.remove('dragover'));
     els.uploadZone.addEventListener('drop', e => {
         e.preventDefault(); els.uploadZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files[0]);
+        const files = e.dataTransfer.files;
+        if (files.length > 1 && isBatchModel(selectedModel?.model)) {
+            handleBatchFileSelect(files);
+        } else if (files.length) {
+            handleFileSelect(files[0]);
+        }
     });
     els.fileInput.addEventListener('change', () => {
-        if (els.fileInput.files.length) handleFileSelect(els.fileInput.files[0]);
+        const files = els.fileInput.files;
+        if (files.length > 1 && isBatchModel(selectedModel?.model)) {
+            handleBatchFileSelect(files);
+        } else if (files.length) {
+            handleFileSelect(files[0]);
+        }
     });
     els.filePreviewRemove.addEventListener('click', clearFile);
 }
@@ -1043,8 +1028,21 @@ function handleFileSelect(file) {
     updateSubmitState();
 }
 
+function handleBatchFileSelect(fileList) {
+    selectedFiles = Array.from(fileList);
+    selectedFile = selectedFiles[0]; // Keep compat
+    const count = selectedFiles.length;
+    const totalSize = selectedFiles.reduce((s, f) => s + f.size, 0);
+    els.filePreviewName.textContent = `${count} arquivo${count > 1 ? 's' : ''} selecionado${count > 1 ? 's' : ''}`;
+    els.filePreviewSize.textContent = formatSize(totalSize);
+    els.filePreviewThumb.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:20px;font-weight:700;color:var(--accent)">${count}</div>`;
+    els.uploadZone.classList.add('hidden');
+    els.filePreview.classList.remove('hidden');
+    updateSubmitState();
+}
+
 function clearFile() {
-    selectedFile = null; els.fileInput.value = '';
+    selectedFile = null; selectedFiles = []; els.fileInput.value = '';
     els.filePreviewThumb.innerHTML = '';
     els.filePreview.classList.add('hidden');
     els.uploadZone.classList.remove('hidden');
@@ -1085,21 +1083,46 @@ async function handleSubmit() {
     const origText = btnSpan?.textContent;
     if (btnSpan) btnSpan.textContent = 'Enviando...';
     try {
-        let response;
-        if (selectedModel.input === 'mj') response = await submitMJ();
-        else if (selectedModel.shortcut === 'recraft-rmbg') response = await submitShortcut('/api/shortcuts/recraft-rmbg', 'images');
-        else if (selectedModel.shortcut === 'topaz-upscale') {
-            const params = collectModelParams();
-            response = await submitShortcut('/api/shortcuts/topaz-upscale', 'videos', { factor: params.upscale_factor || '2' });
-        }
-        else if (selectedModel.model.startsWith('suno/')) response = await submitSunoModel();
-        else if (selectedModel.model.startsWith('veo3/')) response = await submitVeoModel();
-        else if (selectedModel.input === 'file') response = await submitFileModel();
-        else response = await submitTextModel();
-        if (response) {
-            toast('✅ Tarefa criada!', 'success');
-            clearFile(); els.configPrompt.value = ''; updateSubmitState();
-            updateCharCounter();
+        // Batch upload: loop through all selected files
+        if (selectedFiles.length > 1 && isBatchModel(selectedModel.model)) {
+            const total = selectedFiles.length;
+            let ok = 0, fail = 0;
+            for (let i = 0; i < total; i++) {
+                if (btnSpan) btnSpan.textContent = `Enviando ${i + 1}/${total}...`;
+                selectedFile = selectedFiles[i];
+                try {
+                    if (selectedModel.shortcut === 'topaz-upscale') {
+                        const params = collectModelParams();
+                        await submitShortcut('/api/shortcuts/topaz-upscale', 'videos', { factor: params.upscale_factor || '2' });
+                    } else {
+                        await submitFileModel();
+                    }
+                    ok++;
+                } catch (err) {
+                    fail++;
+                    toast(`❌ Erro (${selectedFiles[i].name}): ${err.message}`, 'error');
+                }
+            }
+            toast(`✅ Batch: ${ok} enviado${ok > 1 ? 's' : ''}${fail ? `, ${fail} erro${fail > 1 ? 's' : ''}` : ''}`, ok > 0 ? 'success' : 'error');
+            clearFile(); updateSubmitState(); updateCharCounter();
+        } else {
+            // Single file / normal submit
+            let response;
+            if (selectedModel.input === 'mj') response = await submitMJ();
+            else if (selectedModel.shortcut === 'recraft-rmbg') response = await submitShortcut('/api/shortcuts/recraft-rmbg', 'images');
+            else if (selectedModel.shortcut === 'topaz-upscale') {
+                const params = collectModelParams();
+                response = await submitShortcut('/api/shortcuts/topaz-upscale', 'videos', { factor: params.upscale_factor || '2' });
+            }
+            else if (selectedModel.model.startsWith('suno/')) response = await submitSunoModel();
+            else if (selectedModel.model.startsWith('veo3/')) response = await submitVeoModel();
+            else if (selectedModel.input === 'file') response = await submitFileModel();
+            else response = await submitTextModel();
+            if (response) {
+                toast('✅ Tarefa criada!', 'success');
+                clearFile(); els.configPrompt.value = ''; updateSubmitState();
+                updateCharCounter();
+            }
         }
     } catch (err) {
         toast(`❌ Erro: ${err.message}`, 'error');
@@ -1138,6 +1161,27 @@ async function submitSunoModel() {
     let resolvedModel = selectedModel.model;
     let extra = collectModelParams();
     const prompt = els.configPrompt.value.trim();
+
+    // Resolve virtual consolidated models to real API models
+    const SUNO_ACTION_MAP = {
+        'suno/edit-audio': {
+            'Extend Music': 'suno/extend-music',
+            'Add Instrumental': 'suno/add-instrumental',
+            'Add Vocals': 'suno/add-vocals',
+            'Separate Vocals': 'suno/separate-vocals',
+        },
+        'suno/utilities': {
+            'Music Video': 'suno/music-video',
+            'Convert WAV': 'suno/convert-wav',
+            'Get Lyrics': 'suno/get-lyrics',
+        }
+    };
+
+    if (SUNO_ACTION_MAP[resolvedModel]) {
+        const action = extra.suno_action || Object.keys(SUNO_ACTION_MAP[resolvedModel])[0];
+        resolvedModel = SUNO_ACTION_MAP[resolvedModel][action] || resolvedModel;
+        delete extra.suno_action;
+    }
 
     // If "Generate Music" and there's a file, it means they want an audio Cover
     if (resolvedModel === 'suno/generate-music' && selectedFile) {
@@ -1258,7 +1302,7 @@ async function submitMJ() {
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
     const taskId = json?.data?.taskId;
-    if (taskId) addTask(taskId, `MJ ${selectedModel.mjType}`, 'midjourney', null, { ar, speed, version });
+    if (taskId) addTask(taskId, selectedModel.model, 'midjourney', null, { ar, speed, version });
     return json;
 }
 
@@ -1301,6 +1345,16 @@ function addTask(taskId, model, mode, inputFileUrl = null, extraParams = null) {
     const newCard = document.getElementById(`task-${CSS.escape(taskId)}`);
     if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+// Filter visible task cards by current category
+function filterTasksByCategory() {
+    tasks.forEach(t => {
+        const card = document.getElementById(`task-${CSS.escape(t.id)}`);
+        if (card) card.style.display = (!currentCat || t.cat === currentCat) ? '' : 'none';
+    });
+    updateTasksEmpty();
+    updateActiveCount();
+}
 function startPolling(task) {
     let pollErrors = 0;
     const MAX_POLL_ERRORS = 5;
@@ -1328,7 +1382,13 @@ function startPolling(task) {
                 if (['success', 'succeeded', 'completed', 'done'].includes(st) || data.resultUrls) state = 'success';
                 else if (['fail', 'failed', 'error'].includes(st)) state = 'fail';
                 else state = 'processing';
-            } else { state = data.state || 'processing'; }
+            } else {
+                // Veo/Suno APIs use 'status', Market uses 'state'
+                const raw = (data.status || data.state || 'processing').toString().toLowerCase();
+                if (raw === 'success' || raw === 'succeeded' || raw === 'completed') state = 'success';
+                else if (raw === 'fail' || raw === 'failed' || raw === 'error') state = 'fail';
+                else state = 'processing';
+            }
             task.state = state;
             updateTaskCard(task);
             if (state === 'success' || state === 'fail') {
