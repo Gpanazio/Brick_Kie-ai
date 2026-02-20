@@ -41,6 +41,27 @@ const MODEL_COST_ESTIMATES = {
     'mj': 8,                              // relaxed=3, fast=8, turbo=16
 };
 
+// ==================== BRAND SVG LOGOS ====================
+// Used to override HTML data-icons directly for crisp rendering
+const BRAND_LOGOS = {
+    'kie.ai': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z" fill="currentColor"/></svg>`,
+    'bytedance': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M19 12h-3c-1.1 0-2-.9-2-2V7c0-1.1-.9-2-2-2S10 5.9 10 7v3c0 1.1-.9 2-2 2H5c-1.1 0-2 .9-2 2s.9 2 2 2h3c1.1 0 2 .9 2 2v3c0 1.1.9 2 2 2s2-.9 2-2v-3c0-1.1.9-2 2-2h3c1.1 0 2-.9 2-2s-.9-2-2-2z" fill="currentColor"/></svg>`,
+    'flux.2': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M5 5h14v3H9v3h8v3H9v5H5V5z" fill="currentColor"/></svg>`,
+    'ideogram': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M7 4h2v16H7zm8 0h2v16h-2zm-4 4h2v8h-2z" fill="currentColor"/></svg>`,
+    'qwen': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z" fill="currentColor"/></svg>`,
+    'openai': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10 10-4.48 10-10zM12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8zm-2 12h4v1h-4zm0-3h4v1h-4zm0-3h4v1h-4z" fill="currentColor"/></svg>`,
+    'kling': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13z" fill="currentColor"/></svg>`,
+    'wan': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M5 5l4 14 3-8 3 8 4-14h-2.5l-2.5 9-3-8-3 8-2.5-9z" fill="currentColor"/></svg>`,
+    'xai': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M4 4l6 8-6 8h3l4.5-6L16 20h3l-6-8 6-8h-3l-4.5 6L7 4z" fill="currentColor"/></svg>`,
+    'hailuo': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-11.5v7l6-3.5z" fill="currentColor"/></svg>`,
+    'elevenlabs': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M6 10v4M10 6v12M14 8v8M18 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+    'infini': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M8 12c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>`,
+    'suno': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z" fill="currentColor"/></svg>`,
+    'recraft': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M6 6h12v12H6z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
+    'topaz': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2l-6 10h12zM5 14l7 8 7-8z" fill="currentColor"/></svg>`,
+    'midjourney': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.93V13h-2v3.93C7.06 16.43 4 13.56 4 10c0-3.87 3.13-7 7-7s7 3.13 7 7c0 3.56-3.06 6.43-7 6.93z" fill="currentColor"/></svg>`
+};
+
 // Per-model prompt character limits (from KIE API docs)
 const PROMPT_CHAR_LIMITS = {
     'grok-imagine/text-to-video': 5000,
@@ -304,6 +325,7 @@ function addToHistory(task) {
         cat: task.cat || currentCat, // Store internal category id
         urls: uniqueUrls,
         prompt: task._prompt || '',
+        inputFileUrl: task._inputFileUrl || null,
         timestamp: Date.now(),
         costTime: data.costTime || null,
     };
@@ -546,8 +568,8 @@ function openModelPickerModal() {
                 ${costHtml}
             </div>
             <div>
-                <div class="mpm-card-name">${esc(data.provider)}</div>
-                <div class="mpm-card-provider">${esc(data.name)}</div>
+                <div class="mpm-card-name">${esc(data.name)}</div>
+                <div class="mpm-card-provider">${esc(data.provider)}</div>
             </div>
             <div class="mpm-card-desc">${esc(data.desc || '')}</div>
             <div class="mpm-card-footer">
@@ -580,7 +602,7 @@ function selectModelFromData(data) {
     };
 
     // Update trigger button
-    els.mptIcon.textContent = data.icon;
+    els.mptIcon.innerHTML = data.icon; // Using innerHTML as data.icon contains SVG
     els.mptIcon.className = `mpt-icon ${data.color}`;
     els.mptName.textContent = `${data.name} — ${data.provider}`;
     els.btnModelPicker.classList.add('has-model');
@@ -898,7 +920,9 @@ async function submitShortcut(endpoint, uploadPath) {
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
     const taskId = json?.data?.taskId;
-    if (taskId) addTask(taskId, selectedModel.model, 'market');
+    // Shortcuts might return the uploaded url if present, but we'll try to get it if they do.
+    const uploadedUrl = json?.uploaded_url || null;
+    if (taskId) addTask(taskId, selectedModel.model, 'market', uploadedUrl);
     return json;
 }
 
@@ -920,7 +944,7 @@ async function submitFileModel() {
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
     const taskId = json?.task?.data?.taskId;
-    if (taskId) addTask(taskId, selectedModel.model, 'market');
+    if (taskId) addTask(taskId, selectedModel.model, 'market', json.uploaded_url);
     return json;
 }
 
@@ -962,7 +986,7 @@ async function submitMJ() {
 
 // ==================== Task Management ====================
 
-function addTask(taskId, model, mode) {
+function addTask(taskId, model, mode, inputFileUrl = null) {
     const promptText = els.configPrompt?.value?.trim() || '';
     const task = {
         id: taskId,
@@ -972,7 +996,8 @@ function addTask(taskId, model, mode) {
         state: 'processing',
         data: null,
         pollTimer: null,
-        _prompt: promptText
+        _prompt: promptText,
+        _inputFileUrl: inputFileUrl
     };
     tasks.unshift(task);
     renderTaskCard(task);
@@ -1329,8 +1354,8 @@ function renderHistoryGallery() {
 
         card.innerHTML = `
             <div class="history-card-accent ${mColor}"></div>
-            <div class="history-thumb">${thumbHtml}</div>
-            <div class="history-meta">
+            <div class="history-card-thumb">${thumbHtml}</div>
+            <div class="history-card-footer">
                 <span class="history-card-model">${mIcon}${mName}</span>
                 <span class="history-card-time">${esc(timeStr)}</span>
             </div>`;
@@ -1400,6 +1425,12 @@ function openHistoryLightbox(entry) {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     ${entry.urls.length > 1 ? `Download ${i + 1}` : 'Download'}
                 </a>`).join('')}
+                <button class="btn-ghost btn-sm lightbox-reuse" data-id="${esc(entry.id)}" title="Reutilizar Prompt e Configurações">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+                    </svg>
+                    Reutilizar
+                </button>
                 <button class="btn-ghost btn-sm btn-danger lightbox-delete" data-id="${esc(entry.id)}">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/>
@@ -1416,6 +1447,51 @@ function openHistoryLightbox(entry) {
     overlay.querySelector('.lightbox-backdrop').addEventListener('click', () => closeLightbox(overlay));
     overlay.querySelector('.lightbox-close').addEventListener('click', () => closeLightbox(overlay));
     overlay.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(overlay); });
+
+    // Reuse handler
+    overlay.querySelector('.lightbox-reuse')?.addEventListener('click', async () => {
+        const modelData = getModelDetails(entry.model);
+        if (modelData) {
+            if (entry.cat !== currentCat) {
+                const catTab = document.querySelector(`.sidebar-nav-item[data-cat="${entry.cat}"]`);
+                if (catTab) catTab.click();
+            }
+            selectModelFromData(modelData);
+            if (entry.prompt && els.configPrompt) {
+                els.configPrompt.value = entry.prompt;
+                updateSubmitState();
+            }
+            if (entry.inputFileUrl) {
+                try {
+                    toast('Baixando mídia original...', 'info');
+                    const resp = await fetch(entry.inputFileUrl);
+                    if (!resp.ok) throw new Error('Download failed');
+                    const blob = await resp.blob();
+
+                    // Determine filename and type from URL if possible
+                    let ext = 'jpg';
+                    if (entry.inputFileUrl.includes('.mp4')) ext = 'mp4';
+                    else if (entry.inputFileUrl.includes('.png')) ext = 'png';
+                    else if (entry.inputFileUrl.includes('.webm')) ext = 'webm';
+                    else if (entry.inputFileUrl.includes('.mp3')) ext = 'mp3';
+
+                    const file = new File([blob], `input.${ext}`, { type: blob.type });
+                    handleFileSelect(file);
+                } catch (err) {
+                    console.error('Failed to load input file', err);
+                    toast('⚠️ Não foi possível carregar a mídia original', 'error');
+                }
+            }
+
+            const activeTabBtn = document.querySelector('.panel-tab[data-tab="active"]');
+            if (activeTabBtn) activeTabBtn.click();
+
+            closeLightbox(overlay);
+            toast('⚙️ Configurações prontas!', 'success');
+        } else {
+            toast('⚠️ Modelo não encontrado', 'error');
+        }
+    });
 
     // Delete handler
     overlay.querySelector('.lightbox-delete')?.addEventListener('click', () => {
