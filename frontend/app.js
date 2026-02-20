@@ -227,7 +227,11 @@ const MODEL_CONFIGS = {
             { key: 'seed', label: 'Seed (0 = Random)', type: 'number_input', default: '0' }
         ]
     },
-    'topaz/video-upscale': { params: [] },
+    'topaz/video-upscale': {
+        params: [
+            { key: 'upscale_factor', label: 'Fator de Upscale', type: 'radio', options: ['1', '2', '4'], default: '2' },
+        ]
+    },
 
     // ──── VIDEO MODELS ────
     'sora-2-pro-text-to-video': {
@@ -699,6 +703,8 @@ function exitWorkspace() {
     _currentCatItems = [];
     clearFile();
     closeModelPickerModal();
+    // Clean up polling timers to avoid memory leaks
+    tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
 }
 
 // ==================== Model Picker Modal ====================
@@ -1056,8 +1062,9 @@ function formatSize(b) {
 function updateSubmitState() {
     if (!selectedModel) { els.btnSubmit.disabled = true; return; }
     const isMj = selectedModel.input === 'mj';
-    const needsFile = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img');
-    const needsPrompt = selectedModel.input === 'text' || isMj;
+    const isMix = selectedModel.input === 'mix';
+    const needsFile = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img') || isMix;
+    const needsPrompt = selectedModel.input === 'text' || isMj || isMix;
     let ok = true;
     if (needsFile && !selectedFile) ok = false;
     // Prompt is required for text-only & MJ, but optional for file+prompt models
@@ -1081,7 +1088,10 @@ async function handleSubmit() {
         let response;
         if (selectedModel.input === 'mj') response = await submitMJ();
         else if (selectedModel.shortcut === 'recraft-rmbg') response = await submitShortcut('/api/shortcuts/recraft-rmbg', 'images');
-        else if (selectedModel.shortcut === 'topaz-upscale') response = await submitShortcut('/api/shortcuts/topaz-upscale', 'videos');
+        else if (selectedModel.shortcut === 'topaz-upscale') {
+            const params = collectModelParams();
+            response = await submitShortcut('/api/shortcuts/topaz-upscale', 'videos', { factor: params.upscale_factor || '2' });
+        }
         else if (selectedModel.model.startsWith('suno/')) response = await submitSunoModel();
         else if (selectedModel.model.startsWith('veo3/')) response = await submitVeoModel();
         else if (selectedModel.input === 'file') response = await submitFileModel();
@@ -1100,9 +1110,13 @@ async function handleSubmit() {
     }
 }
 
-async function submitShortcut(endpoint, uploadPath) {
+async function submitShortcut(endpoint, uploadPath, extraFields = {}) {
     const fd = new FormData();
     fd.append('file', selectedFile); fd.append('uploadPath', uploadPath);
+    // Append any extra form fields (e.g. factor for topaz)
+    for (const [k, v] of Object.entries(extraFields)) {
+        fd.append(k, v);
+    }
     const resp = await fetch(`${API}${endpoint}`, { method: 'POST', body: fd });
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
@@ -1120,7 +1134,7 @@ async function submitShortcut(endpoint, uploadPath) {
 async function submitSunoModel() {
     const fd = new FormData();
     if (selectedFile) fd.append('file', selectedFile);
-    
+
     let resolvedModel = selectedModel.model;
     let extra = collectModelParams();
     const prompt = els.configPrompt.value.trim();
@@ -1131,7 +1145,7 @@ async function submitSunoModel() {
     }
 
     if (prompt) extra.prompt = prompt;
-    
+
     if (!els.configExtraGrp.classList.contains('hidden')) {
         try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
     }
@@ -1142,7 +1156,7 @@ async function submitSunoModel() {
     const resp = await fetch(`${API}/api/suno/create`, { method: 'POST', body: fd });
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
-    
+
     let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
     if (tid) addTask(tid, resolvedModel, 'suno', json.uploaded_url, extra);
     return json;
@@ -1152,7 +1166,7 @@ async function submitSunoModel() {
 async function submitVeoModel() {
     const fd = new FormData();
     if (selectedFile) fd.append('file', selectedFile);
-    
+
     let resolvedModel = selectedModel.model;
     let extra = collectModelParams();
     const prompt = els.configPrompt.value.trim();
@@ -1165,7 +1179,7 @@ async function submitVeoModel() {
     }
 
     if (prompt) extra.prompt = prompt;
-    
+
     if (!els.configExtraGrp.classList.contains('hidden')) {
         try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
     }
@@ -1179,7 +1193,7 @@ async function submitVeoModel() {
     const resp = await fetch(`${API}/api/veo/create`, { method: 'POST', body: fd });
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
-    
+
     let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
     // Set task mode to veo so poll matches
     if (tid) addTask(tid, resolvedModel, 'veo', json.uploaded_url, extra);
@@ -1191,13 +1205,6 @@ async function submitFileModel() {
     fd.append('file', selectedFile);
     let resolvedModel = selectedModel.model;
     let extra = collectModelParams();
-
-    // Transform Veo 3 base model to specific model based on quality param
-    if (resolvedModel === 'veo3/image-to-video' || resolvedModel === 'veo3/text-to-video') {
-        const quality = (extra.quality || 'Fast').toLowerCase();
-        resolvedModel = `${resolvedModel}-${quality}`;
-        delete extra.quality;
-    }
 
     fd.append('model', resolvedModel);
     fd.append('file_field', selectedModel.field);
@@ -1221,13 +1228,6 @@ async function submitTextModel() {
     const prompt = els.configPrompt.value.trim();
     let extra = collectModelParams();
     let resolvedModel = selectedModel.model;
-
-    // Transform Veo 3 base model to specific model based on quality param
-    if (resolvedModel === 'veo3/text-to-video' || resolvedModel === 'veo3/image-to-video') {
-        const quality = (extra.quality || 'Fast').toLowerCase();
-        resolvedModel = `${resolvedModel}-${quality}`;
-        delete extra.quality;
-    }
 
     if (selectedModel.field === 'text') extra.text = prompt;
     else extra.prompt = prompt;
@@ -1306,10 +1306,10 @@ function startPolling(task) {
     const MAX_POLL_ERRORS = 5;
     const poll = async () => {
         try {
-            const ep = task.mode === 'midjourney' ? `/api/mj/task/${task.id}` : 
-               task.mode === 'suno'       ? `/api/suno/task/${task.id}` :
-               task.mode === 'veo'        ? `/api/veo/task/${task.id}`  :
-               `/api/market/task/${task.id}`;
+            const ep = task.mode === 'midjourney' ? `/api/mj/task/${task.id}` :
+                task.mode === 'suno' ? `/api/suno/task/${task.id}` :
+                    task.mode === 'veo' ? `/api/veo/task/${task.id}` :
+                        `/api/market/task/${task.id}`;
             const resp = await fetch(`${API}${ep}`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const json = await resp.json();
@@ -1754,7 +1754,7 @@ function openHistoryLightbox(entry) {
                 if (catTab) catTab.click();
             }
             selectModelFromData(modelData);
-            
+
             if (entry.prompt && els.configPrompt) {
                 els.configPrompt.value = entry.prompt;
                 updateSubmitState();
@@ -1766,7 +1766,7 @@ function openHistoryLightbox(entry) {
                     if (ep.ar) { const el = document.querySelector(`input[name="mj-ar"][value="${ep.ar}"]`); if (el) el.click(); }
                     if (ep.speed) { const el = document.querySelector(`input[name="mj-speed"][value="${ep.speed}"]`); if (el) el.click(); }
                     if (ep.version) { const el = document.querySelector(`input[name="mj-version"][value="${ep.version}"]`); if (el) el.click(); }
-                    
+
                     // For other models
                     for (const [k, v] of Object.entries(ep)) {
                         // find input
@@ -1775,7 +1775,7 @@ function openHistoryLightbox(entry) {
                         const radioEl = els.configParams.querySelector(`input[type="radio"][name="param-${k}"][value="${v}"]`);
                         if (radioEl) { radioEl.click(); continue; }
                         const numEl = els.configParams.querySelector(`input[type="range"][data-param-key="${k}"], input[type="number"][data-param-key="${k}"]`);
-                        if (numEl) { numEl.value = v; numEl.dispatchEvent(new Event('input', {bubbles: true})); continue; }
+                        if (numEl) { numEl.value = v; numEl.dispatchEvent(new Event('input', { bubbles: true })); continue; }
                         const chkEl = els.configParams.querySelector(`input[type="checkbox"][data-param-key="${k}"]`);
                         if (chkEl) { chkEl.checked = v; continue; }
                         const txtEl = els.configParams.querySelector(`input[type="text"][data-param-key="${k}"]`);
@@ -1875,13 +1875,14 @@ document.body.addEventListener('click', async (e) => {
         fd.append('model', actionModel);
         fd.append('input_json', JSON.stringify({ taskId: originalTaskId }));
 
-        const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
+        // Veo actions use the dedicated Veo endpoint, not Market
+        const resp = await fetch(`${API}/api/veo/create`, { method: 'POST', body: fd });
         const json = await resp.json();
         if (!resp.ok) throw new Error(json.detail || 'Failed');
 
-        const taskId = json?.data?.taskId;
+        const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
         if (taskId) {
-            addTask(taskId, actionModel, 'market', existingTask?.inputFileUrl || null);
+            addTask(taskId, actionModel, 'veo', existingTask?.inputFileUrl || null);
             toast(`✅ ${actionModel.split('/').pop()} enviado!`, 'success');
 
             // Switch tab to active requests if clicking from history

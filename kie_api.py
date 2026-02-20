@@ -44,7 +44,7 @@ UPLOAD_URL_PATH = "/api/file-url-upload"
 
 def _auth_headers_json() -> Dict[str, str]:
     if not API_KEY:
-        raise SystemExit("KIE_API_KEY não definido no ambiente.")
+        raise ValueError("KIE_API_KEY não definido no ambiente.")
     return {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
@@ -53,7 +53,7 @@ def _auth_headers_json() -> Dict[str, str]:
 
 def _auth_headers_no_content_type() -> Dict[str, str]:
     if not API_KEY:
-        raise SystemExit("KIE_API_KEY não definido no ambiente.")
+        raise ValueError("KIE_API_KEY não definido no ambiente.")
     return {"Authorization": f"Bearer {API_KEY}"}
 
 
@@ -162,6 +162,8 @@ def market_wait(task_id: str, interval: float = 5.0, timeout_s: float = 1800.0) 
 # ==================== Suno ====================
 
 SUNO_API_PATHS: Dict[str, str] = {
+    "suno/generate-music": "/api/v1/generate",
+    "suno/generate-lyrics": "/api/v1/lyrics",
     "suno/extend-music": "/api/v1/generate/extend",
     "suno/upload-cover": "/api/v1/generate/upload-cover",
     "suno/add-instrumental": "/api/v1/generate/add-instrumental",

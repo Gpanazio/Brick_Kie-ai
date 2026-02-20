@@ -59,7 +59,7 @@ async def favicon():
 async def get_credits():
     try:
         return kie_api.credits()
-    except SystemExit as e:
+    except ValueError as e:
         raise HTTPException(status_code=503, detail=f"KIE_API_KEY não configurada: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
