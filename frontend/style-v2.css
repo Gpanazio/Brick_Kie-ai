@@ -404,7 +404,7 @@ body {
 /* ── Lobby Divider & Slim Card ── */
 .lobby-divider {
     margin-top: 48px;
-    margin-bottom: 24px;
+    margin-bottom: 36px;
     font-family: var(--mono);
     font-size: 10px;
     font-weight: 700;
@@ -436,8 +436,11 @@ body {
 }
 
 .lobby-slim-card:hover .lsc-arrow {
-    transform: translateX(4px);
     color: var(--accent);
+}
+
+.lobby-slim-card:hover .lsc-arrow svg {
+    transform: translateX(4px);
 }
 
 .lsc-left {
@@ -466,6 +469,8 @@ body {
     gap: 8px;
     flex: 2;
     justify-content: center;
+    transform: translateY(-1px);
+    /* Optical alignment refinement */
 }
 
 .lsc-pill {
@@ -505,7 +510,11 @@ body {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-dim);
-    transition: transform 0.2s ease, color 0.2s ease;
+    transition: color 0.2s ease;
+}
+
+.lsc-arrow svg {
+    transition: transform 0.25s ease;
 }
 
 /* ============================================================
