@@ -228,6 +228,7 @@ def veo_create_task(model: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
     if not mapping:
         raise ValueError(f"Modelo Veo desconhecido: {model}")
 
+    input_data.pop("enableFallback", None)
     input_data["model"] = mapping["model"]
     r = requests.post(
         _url(BASE_URL, mapping["path"]),

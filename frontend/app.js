@@ -500,6 +500,7 @@ function addToHistory(task) {
         urls: uniqueUrls,
         prompt: task._prompt || '',
         inputFileUrl: task._inputFileUrl || null,
+        extraParams: task._extraParams || null,
         timestamp: Date.now(),
         costTime: data.costTime || null,
     };
@@ -789,8 +790,9 @@ function selectModelFromData(data) {
     els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${currentCatLabel} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${data.name}</span>`;
 
     const isMj = selectedModel.input === 'mj';
-    const needsFile = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img');
-    const needsPrompt = selectedModel.input === 'text' || isMj || selectedModel.hasPrompt;
+    const isMix = selectedModel.input === 'mix';
+    const needsFile = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img') || isMix;
+    const needsPrompt = selectedModel.input === 'text' || isMj || selectedModel.hasPrompt || isMix;
 
     els.configPromptGrp.classList.toggle('hidden', !needsPrompt);
     els.uploadWrapper.classList.toggle('hidden', !needsFile);
@@ -1080,6 +1082,8 @@ async function handleSubmit() {
         if (selectedModel.input === 'mj') response = await submitMJ();
         else if (selectedModel.shortcut === 'recraft-rmbg') response = await submitShortcut('/api/shortcuts/recraft-rmbg', 'images');
         else if (selectedModel.shortcut === 'topaz-upscale') response = await submitShortcut('/api/shortcuts/topaz-upscale', 'videos');
+        else if (selectedModel.model.startsWith('suno/')) response = await submitSunoModel();
+        else if (selectedModel.model.startsWith('veo3/')) response = await submitVeoModel();
         else if (selectedModel.input === 'file') response = await submitFileModel();
         else response = await submitTextModel();
         if (response) {
@@ -1112,6 +1116,76 @@ async function submitShortcut(endpoint, uploadPath) {
     return json;
 }
 
+
+async function submitSunoModel() {
+    const fd = new FormData();
+    if (selectedFile) fd.append('file', selectedFile);
+    
+    let resolvedModel = selectedModel.model;
+    let extra = collectModelParams();
+    const prompt = els.configPrompt.value.trim();
+
+    // If "Generate Music" and there's a file, it means they want an audio Cover
+    if (resolvedModel === 'suno/generate-music' && selectedFile) {
+        resolvedModel = 'suno/upload-cover';
+    }
+
+    if (prompt) extra.prompt = prompt;
+    
+    if (!els.configExtraGrp.classList.contains('hidden')) {
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+    }
+
+    fd.append('model', resolvedModel);
+    fd.append('input_json', JSON.stringify(extra));
+
+    const resp = await fetch(`${API}/api/suno/create`, { method: 'POST', body: fd });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    
+    let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
+    if (tid) addTask(tid, resolvedModel, 'suno', json.uploaded_url, extra);
+    return json;
+}
+
+
+async function submitVeoModel() {
+    const fd = new FormData();
+    if (selectedFile) fd.append('file', selectedFile);
+    
+    let resolvedModel = selectedModel.model;
+    let extra = collectModelParams();
+    const prompt = els.configPrompt.value.trim();
+
+    // Veo 3 quality parsing logic from submitTextModel & submitFileModel
+    if (resolvedModel === 'veo3/image-to-video' || resolvedModel === 'veo3/text-to-video') {
+        const quality = (extra.quality || 'Fast').toLowerCase();
+        resolvedModel = `${resolvedModel}-${quality}`;
+        delete extra.quality;
+    }
+
+    if (prompt) extra.prompt = prompt;
+    
+    if (!els.configExtraGrp.classList.contains('hidden')) {
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+    }
+
+    // Strip enableFallback just in case it was passed by user JSON
+    delete extra.enableFallback;
+
+    fd.append('model', resolvedModel);
+    fd.append('input_json', JSON.stringify(extra));
+
+    const resp = await fetch(`${API}/api/veo/create`, { method: 'POST', body: fd });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    
+    let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
+    // Set task mode to veo so poll matches
+    if (tid) addTask(tid, resolvedModel, 'veo', json.uploaded_url, extra);
+    return json;
+}
+
 async function submitFileModel() {
     const fd = new FormData();
     fd.append('file', selectedFile);
@@ -1139,7 +1213,7 @@ async function submitFileModel() {
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
     const taskId = json?.task?.data?.taskId;
-    if (taskId) addTask(taskId, resolvedModel, 'market', json.uploaded_url);
+    if (taskId) addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
     return json;
 }
 
@@ -1168,7 +1242,7 @@ async function submitTextModel() {
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
     const taskId = json?.data?.taskId;
-    if (taskId) addTask(taskId, resolvedModel, 'market');
+    if (taskId) addTask(taskId, resolvedModel, 'market', null, extra);
     return json;
 }
 
@@ -1184,13 +1258,13 @@ async function submitMJ() {
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
     const taskId = json?.data?.taskId;
-    if (taskId) addTask(taskId, `MJ ${selectedModel.mjType}`, 'midjourney');
+    if (taskId) addTask(taskId, `MJ ${selectedModel.mjType}`, 'midjourney', null, { ar, speed, version });
     return json;
 }
 
 // ==================== Task Management ====================
 
-function addTask(taskId, model, mode, inputFileUrl = null) {
+function addTask(taskId, model, mode, inputFileUrl = null, extraParams = null) {
     const promptText = els.configPrompt?.value?.trim() || '';
     const task = {
         id: taskId,
@@ -1201,7 +1275,8 @@ function addTask(taskId, model, mode, inputFileUrl = null) {
         data: null,
         pollTimer: null,
         _prompt: promptText,
-        _inputFileUrl: inputFileUrl
+        _inputFileUrl: inputFileUrl,
+        _extraParams: extraParams
     };
     tasks.unshift(task);
     renderTaskCard(task);
@@ -1226,13 +1301,15 @@ function addTask(taskId, model, mode, inputFileUrl = null) {
     const newCard = document.getElementById(`task-${CSS.escape(taskId)}`);
     if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
-
 function startPolling(task) {
     let pollErrors = 0;
     const MAX_POLL_ERRORS = 5;
     const poll = async () => {
         try {
-            const ep = task.mode === 'midjourney' ? `/api/mj/task/${task.id}` : `/api/market/task/${task.id}`;
+            const ep = task.mode === 'midjourney' ? `/api/mj/task/${task.id}` : 
+               task.mode === 'suno'       ? `/api/suno/task/${task.id}` :
+               task.mode === 'veo'        ? `/api/veo/task/${task.id}`  :
+               `/api/market/task/${task.id}`;
             const resp = await fetch(`${API}${ep}`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const json = await resp.json();
@@ -1677,10 +1754,36 @@ function openHistoryLightbox(entry) {
                 if (catTab) catTab.click();
             }
             selectModelFromData(modelData);
+            
             if (entry.prompt && els.configPrompt) {
                 els.configPrompt.value = entry.prompt;
                 updateSubmitState();
             }
+            if (entry.extraParams) {
+                setTimeout(() => {
+                    const ep = entry.extraParams;
+                    // For Midjourney
+                    if (ep.ar) { const el = document.querySelector(`input[name="mj-ar"][value="${ep.ar}"]`); if (el) el.click(); }
+                    if (ep.speed) { const el = document.querySelector(`input[name="mj-speed"][value="${ep.speed}"]`); if (el) el.click(); }
+                    if (ep.version) { const el = document.querySelector(`input[name="mj-version"][value="${ep.version}"]`); if (el) el.click(); }
+                    
+                    // For other models
+                    for (const [k, v] of Object.entries(ep)) {
+                        // find input
+                        const selectEl = els.configParams.querySelector(`select[data-param-key="${k}"]`);
+                        if (selectEl) { selectEl.value = v; continue; }
+                        const radioEl = els.configParams.querySelector(`input[type="radio"][name="param-${k}"][value="${v}"]`);
+                        if (radioEl) { radioEl.click(); continue; }
+                        const numEl = els.configParams.querySelector(`input[type="range"][data-param-key="${k}"], input[type="number"][data-param-key="${k}"]`);
+                        if (numEl) { numEl.value = v; numEl.dispatchEvent(new Event('input', {bubbles: true})); continue; }
+                        const chkEl = els.configParams.querySelector(`input[type="checkbox"][data-param-key="${k}"]`);
+                        if (chkEl) { chkEl.checked = v; continue; }
+                        const txtEl = els.configParams.querySelector(`input[type="text"][data-param-key="${k}"]`);
+                        if (txtEl) { txtEl.value = v; continue; }
+                    }
+                }, 100);
+            }
+
             if (entry.inputFileUrl) {
                 try {
                     toast('Baixando mídia original...', 'info');
