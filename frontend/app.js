@@ -453,7 +453,7 @@ if (els.creditsBtn) els.creditsBtn.addEventListener('click', fetchCredits);
 // ==================== Lobby ====================
 
 function initLobby() {
-    $$('.lobby-card').forEach(card => {
+    $$('.lobby-card, .lobby-slim-card').forEach(card => {
         card.addEventListener('click', () => {
             const cat = card.dataset.lobbyCat;
             if (cat) enterWorkspace(cat);
