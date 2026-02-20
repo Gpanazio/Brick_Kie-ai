@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import time
+import mimetypes
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -76,8 +77,11 @@ def upload_stream(file_path: str, upload_path: str = "uploads", file_name: Optio
     if file_name:
         data["fileName"] = file_name
 
+    mime_type, _ = mimetypes.guess_type(file_name or p.name)
+    mime_type = mime_type or "application/octet-stream"
+
     with p.open("rb") as f:
-        files = {"file": (file_name or p.name, f)}
+        files = {"file": (file_name or p.name, f, mime_type)}
         r = requests.post(url, headers=_auth_headers_no_content_type(), files=files, data=data, timeout=300)
     r.raise_for_status()
     return r.json()
@@ -320,8 +324,8 @@ def mj_wait(task_id: str, interval: float = 5.0, timeout_s: float = 1800.0) -> D
 # ==================== Convenience wrappers ====================
 
 
-def recraft_remove_background_from_local(image_path: str, upload_path: str = "images", callback_url: Optional[str] = None) -> Dict[str, Any]:
-    up = upload_stream(image_path, upload_path=upload_path)
+def recraft_remove_background_from_local(image_path: str, upload_path: str = "images", callback_url: Optional[str] = None, file_name: Optional[str] = None) -> Dict[str, Any]:
+    up = upload_stream(image_path, upload_path=upload_path, file_name=file_name)
     image_url = _extract_uploaded_url(up)
     return market_create_task(
         model="recraft/remove-background",
@@ -330,8 +334,8 @@ def recraft_remove_background_from_local(image_path: str, upload_path: str = "im
     )
 
 
-def topaz_video_upscale_from_local(video_path: str, upscale_factor: str = "2", upload_path: str = "videos", callback_url: Optional[str] = None) -> Dict[str, Any]:
-    up = upload_stream(video_path, upload_path=upload_path)
+def topaz_video_upscale_from_local(video_path: str, upscale_factor: str = "2", upload_path: str = "videos", callback_url: Optional[str] = None, file_name: Optional[str] = None) -> Dict[str, Any]:
+    up = upload_stream(video_path, upload_path=upload_path, file_name=file_name)
     video_url = _extract_uploaded_url(up)
     return market_create_task(
         model="topaz/video-upscale",

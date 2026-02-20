@@ -161,7 +161,7 @@ async def shortcut_recraft_rmbg(
 
         try:
             resp = kie_api.recraft_remove_background_from_local(
-                tmp_path, upload_path=uploadPath, callback_url=callback
+                tmp_path, upload_path=uploadPath, callback_url=callback, file_name=file.filename
             )
             return resp
         finally:
@@ -186,7 +186,7 @@ async def shortcut_topaz_upscale(
 
         try:
             resp = kie_api.topaz_video_upscale_from_local(
-                tmp_path, upscale_factor=factor, upload_path=uploadPath, callback_url=callback
+                tmp_path, upscale_factor=factor, upload_path=uploadPath, callback_url=callback, file_name=file.filename
             )
             return resp
         finally:

@@ -24,7 +24,8 @@ const MODEL_COST_ESTIMATES = {
     // ── Image Tools ──
     'recraft/remove-background': 10,
     'recraft/crisp-upscale': 15,
-    'topaz/image-upscale': 15,
+    'topaz/image-upscale': 10,
+    'ideogram/v3-reframe': 15,
     'topaz/video-upscale': 100,
     // ── Video (costs vary by duration/resolution, showing default config) ──
     'sora-2-pro-text-to-video': 35,       // standard-10s = 30, stable-10s = 35
@@ -52,6 +53,8 @@ const MODEL_COST_ESTIMATES = {
     'suno/convert-wav': 1,                // 0.4 cr format conversion
     'suno/get-lyrics': 1,                 // 0.4 cr timestamped lyrics
     // ── Veo 3.1 (Google) ──
+    'veo3/text-to-video': 60,             // Base display cost 
+    'veo3/image-to-video': 80,            // Base display cost
     'veo3/text-to-video-fast': 60,        // 60 cr/video
     'veo3/text-to-video-quality': 250,    // 250 cr/video
     'veo3/image-to-video-fast': 80,       // 80 cr/video
@@ -111,6 +114,8 @@ const PROMPT_CHAR_LIMITS = {
     'suno/extend-music': 3000,
     'suno/upload-cover': 3000,
     'suno/add-vocals': 3000,
+    'veo3/text-to-video': 5000,
+    'veo3/image-to-video': 5000,
     'veo3/text-to-video-fast': 5000,
     'veo3/text-to-video-quality': 5000,
     'veo3/image-to-video-fast': 5000,
@@ -211,6 +216,15 @@ const MODEL_CONFIGS = {
     'topaz/image-upscale': {
         params: [
             { key: 'upscale_factor', label: 'Fator de Upscale', type: 'select', options: ['2', '4'], default: '2' },
+        ]
+    },
+    'ideogram/v3-reframe': {
+        params: [
+            { key: 'image_size', label: 'Tamanho', type: 'select', options: ['square', 'square_hd', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'square_hd' },
+            { key: 'rendering_speed', label: 'Velocidade', type: 'select', options: ['TURBO', 'BALANCED', 'QUALITY'], default: 'BALANCED' },
+            { key: 'style', label: 'Estilo', type: 'select', options: ['AUTO', 'GENERAL', 'REALISTIC', 'DESIGN'], default: 'AUTO' },
+            { key: 'num_images', label: 'Qtd. Imagens', type: 'select', options: ['1', '2', '3', '4'], default: '1' },
+            { key: 'seed', label: 'Seed (0 = Random)', type: 'number_input', default: '0' }
         ]
     },
     'topaz/video-upscale': { params: [] },
@@ -378,23 +392,15 @@ const MODEL_CONFIGS = {
     },
 
     // ──── VEO 3.1 (Google) ────
-    'veo3/text-to-video-fast': {
+    'veo3/text-to-video': {
         params: [
+            { key: 'quality', label: 'Quality', type: 'radio', options: ['Fast', 'Quality'], default: 'Fast' },
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
         ]
     },
-    'veo3/text-to-video-quality': {
+    'veo3/image-to-video': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
-        ]
-    },
-    'veo3/image-to-video-fast': {
-        params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
-        ]
-    },
-    'veo3/image-to-video-quality': {
-        params: [
+            { key: 'quality', label: 'Quality', type: 'radio', options: ['Fast', 'Quality'], default: 'Fast' },
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
         ]
     },
@@ -950,6 +956,12 @@ function renderModelParams(modelKey) {
             inp.value = p.default || ''; inp.placeholder = p.label;
             inp.dataset.paramKey = p.key;
             group.appendChild(inp);
+        } else if (p.type === 'number_input') {
+            const inp = document.createElement('input');
+            inp.type = 'number'; inp.className = 'form-input';
+            inp.value = p.default || '0'; inp.placeholder = p.label;
+            inp.dataset.paramKey = p.key;
+            group.appendChild(inp);
         }
 
         els.configParams.appendChild(group);
@@ -977,6 +989,9 @@ function collectModelParams() {
         } else if (p.type === 'text') {
             const el = els.configParams.querySelector(`input[type="text"][data-param-key="${p.key}"]`);
             if (el && el.value.trim()) params[p.key] = el.value.trim();
+        } else if (p.type === 'number_input') {
+            const el = els.configParams.querySelector(`input[type="number"][data-param-key="${p.key}"]`);
+            if (el && el.value.trim() !== '') params[p.key] = parseInt(el.value, 10);
         }
     });
 
@@ -1087,7 +1102,10 @@ async function submitShortcut(endpoint, uploadPath) {
     const resp = await fetch(`${API}${endpoint}`, { method: 'POST', body: fd });
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
-    const taskId = json?.data?.taskId;
+
+    // API might return standard structure (data.taskId) or wrapped structure (task.data.taskId) 
+    const taskId = json?.data?.taskId || json?.task?.data?.taskId;
+
     // Shortcuts might return the uploaded url if present, but we'll try to get it if they do.
     const uploadedUrl = json?.uploaded_url || null;
     if (taskId) addTask(taskId, selectedModel.model, 'market', uploadedUrl);
@@ -1097,11 +1115,20 @@ async function submitShortcut(endpoint, uploadPath) {
 async function submitFileModel() {
     const fd = new FormData();
     fd.append('file', selectedFile);
-    fd.append('model', selectedModel.model);
+    let resolvedModel = selectedModel.model;
+    let extra = collectModelParams();
+
+    // Transform Veo 3 base model to specific model based on quality param
+    if (resolvedModel === 'veo3/image-to-video' || resolvedModel === 'veo3/text-to-video') {
+        const quality = (extra.quality || 'Fast').toLowerCase();
+        resolvedModel = `${resolvedModel}-${quality}`;
+        delete extra.quality;
+    }
+
+    fd.append('model', resolvedModel);
     fd.append('file_field', selectedModel.field);
     fd.append('uploadPath', 'uploads');
     const prompt = els.configPrompt.value.trim();
-    let extra = collectModelParams();
     if (prompt) extra.prompt = prompt;
     // Merge manual JSON if visible
     if (!els.configExtraGrp.classList.contains('hidden')) {
@@ -1112,13 +1139,22 @@ async function submitFileModel() {
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
     const taskId = json?.task?.data?.taskId;
-    if (taskId) addTask(taskId, selectedModel.model, 'market', json.uploaded_url);
+    if (taskId) addTask(taskId, resolvedModel, 'market', json.uploaded_url);
     return json;
 }
 
 async function submitTextModel() {
     const prompt = els.configPrompt.value.trim();
     let extra = collectModelParams();
+    let resolvedModel = selectedModel.model;
+
+    // Transform Veo 3 base model to specific model based on quality param
+    if (resolvedModel === 'veo3/text-to-video' || resolvedModel === 'veo3/image-to-video') {
+        const quality = (extra.quality || 'Fast').toLowerCase();
+        resolvedModel = `${resolvedModel}-${quality}`;
+        delete extra.quality;
+    }
+
     if (selectedModel.field === 'text') extra.text = prompt;
     else extra.prompt = prompt;
     // Merge manual JSON
@@ -1126,13 +1162,13 @@ async function submitTextModel() {
         try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
     }
     const fd = new FormData();
-    fd.append('model', selectedModel.model);
+    fd.append('model', resolvedModel);
     fd.append('input_json', JSON.stringify(extra));
     const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
     const taskId = json?.data?.taskId;
-    if (taskId) addTask(taskId, selectedModel.model, 'market');
+    if (taskId) addTask(taskId, resolvedModel, 'market');
     return json;
 }
 
@@ -1376,6 +1412,14 @@ function renderTaskResult(task) {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 ${unique.length > 1 ? `Download ${i + 1}` : 'Download'}</a>`;
         });
+
+        if (task.model.startsWith('veo3/')) {
+            html += `<button class="btn-ghost btn-sm veo-action" data-action="veo3/get-1080p" data-task-id="${esc(task.id)}">HD</button>`;
+            html += `<button class="btn-ghost btn-sm veo-action" data-action="veo3/get-4k" data-task-id="${esc(task.id)}">4K</button>`;
+            html += `<button class="btn-ghost btn-sm veo-action" data-action="veo3/extend-fast" data-task-id="${esc(task.id)}">Extend</button>`;
+            html += `<button class="btn-ghost btn-sm veo-action" data-action="veo3/extend-quality" data-task-id="${esc(task.id)}">Extend (Pro)</button>`;
+        }
+
         html += '</div>';
     }
     // Cost/time info for completed tasks
@@ -1593,6 +1637,14 @@ function openHistoryLightbox(entry) {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     ${entry.urls.length > 1 ? `Download ${i + 1}` : 'Download'}
                 </a>`).join('')}
+                
+                ${entry.model.startsWith('veo3/') ? `
+                    <button class="btn-ghost btn-sm veo-action" data-action="veo3/get-1080p" data-task-id="${esc(entry.id)}">HD</button>
+                    <button class="btn-ghost btn-sm veo-action" data-action="veo3/get-4k" data-task-id="${esc(entry.id)}">4K</button>
+                    <button class="btn-ghost btn-sm veo-action" data-action="veo3/extend-fast" data-task-id="${esc(entry.id)}">Extend</button>
+                    <button class="btn-ghost btn-sm veo-action" data-action="veo3/extend-quality" data-task-id="${esc(entry.id)}">Extend (Pro)</button>
+                ` : ''}
+
                 <button class="btn-ghost btn-sm lightbox-reuse" data-id="${esc(entry.id)}" title="Reutilizar Prompt e Configurações">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
@@ -1691,3 +1743,53 @@ function toast(msg, type = 'info') {
 }
 
 function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+// ==================== Post-Generation Actions ====================
+document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.veo-action');
+    if (!btn) return;
+
+    const actionModel = btn.dataset.action;
+    const originalTaskId = btn.dataset.taskId;
+    if (!originalTaskId) return;
+
+    // Check if task exists locally or get from history
+    let existingTask = tasks.find(t => t.id === originalTaskId);
+    if (!existingTask) {
+        existingTask = loadHistory().find(h => h.id === originalTaskId);
+    }
+
+    // Disable button visually
+    const prevText = btn.textContent;
+    btn.textContent = 'Enviando...';
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    currentCat = 'veo3';
+
+    try {
+        const fd = new FormData();
+        fd.append('model', actionModel);
+        fd.append('input_json', JSON.stringify({ taskId: originalTaskId }));
+
+        const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.detail || 'Failed');
+
+        const taskId = json?.data?.taskId;
+        if (taskId) {
+            addTask(taskId, actionModel, 'market', existingTask?.inputFileUrl || null);
+            toast(`✅ ${actionModel.split('/').pop()} enviado!`, 'success');
+
+            // Switch tab to active requests if clicking from history
+            const targetLightbox = e.target.closest('#history-lightbox');
+            if (targetLightbox) closeLightbox(targetLightbox);
+        }
+    } catch (err) {
+        toast(`❌ Erro: ${err.message}`, 'error');
+    } finally {
+        btn.textContent = prevText;
+        btn.disabled = false;
+        btn.classList.remove('loading');
+    }
+});
