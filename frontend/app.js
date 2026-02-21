@@ -449,17 +449,22 @@ function clearAllPendingTasks() {
     localStorage.removeItem(PENDING_KEY);
 }
 
+// Stop all polling, clear the local tasks array, and remove task cards from the DOM
+function clearLocalTasks() {
+    tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
+    tasks = [];
+    els.tasksList.querySelectorAll('.task-card').forEach(el => el.remove());
+    updateTasksEmpty();
+    updateActiveCount();
+}
+
 // Sync pending-task state when another tab mutates localStorage
 window.addEventListener('storage', (e) => {
     if (e.key !== PENDING_KEY) return;
 
     // Handle clearAllPendingTasks() from another tab (localStorage.removeItem)
     if (e.newValue === null) {
-        tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
-        tasks = [];
-        els.tasksList.querySelectorAll('.task-card').forEach(el => el.remove());
-        updateTasksEmpty();
-        updateActiveCount();
+        clearLocalTasks();
         return;
     }
 
@@ -1550,12 +1555,8 @@ function updateTasksEmpty() { els.tasksEmpty.classList.toggle('hidden', tasks.le
 
 function initClearTasks() {
     els.btnClearTasks.addEventListener('click', () => {
-        tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
-        tasks = [];
         clearAllPendingTasks();
-        els.tasksList.querySelectorAll('.task-card').forEach(el => el.remove());
-        updateTasksEmpty();
-        updateActiveCount();
+        clearLocalTasks();
     });
 }
 
