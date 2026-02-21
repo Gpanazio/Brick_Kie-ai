@@ -1234,8 +1234,10 @@ function renderModelParams(modelKey) {
             // Suno custom_mode toggle: show/hide advanced-only fields
             if (isSunoGenerate && p.key === 'custom_mode') {
                 cb.addEventListener('change', () => {
+                    console.log('[Suno] custom_mode toggled:', cb.checked);
                     SUNO_CUSTOM_MODE_KEYS.forEach(k => {
                         const g = els.configParams.querySelector(`[data-group-key="${k}"]`);
+                        console.log(`[Suno] Looking for group [data-group-key="${k}"]:`, g);
                         if (g) g.classList.toggle('hidden', !cb.checked);
                     });
                     // Update prompt placeholder to reflect mode
@@ -2003,13 +2005,56 @@ function renderTaskResult(task) {
     const urls = _extractResultUrls(data);
     const unique = [...new Set(urls.filter(u => typeof u === 'string' && u.startsWith('http')))];
     if (unique.length > 0) {
-        const url = unique[0];
-        const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url);
-        const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(url);
+        const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(unique[0]);
+        const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(unique[0]);
         html += '<div class="task-result-media">';
-        if (isVid) html += `<video src="${esc(url)}" controls preload="metadata" style="width:100%"></video>`;
-        else if (isAud) html += `<audio src="${esc(url)}" controls style="width:100%"></audio>`;
-        else html += `<img src="${esc(url)}" alt="Result" loading="lazy">`;
+
+        // Suno rich track cards
+        const sunoTracks = data.response?.sunoData;
+        if (sunoTracks && Array.isArray(sunoTracks) && sunoTracks.length > 0) {
+            sunoTracks.forEach((track, i) => {
+                const audioSrc = track.audioUrl || track.sourceAudioUrl || unique[i] || '';
+                const coverSrc = track.imageUrl || track.sourceImageUrl || '';
+                const title = track.title || `Faixa ${i + 1}`;
+                const tags = track.tags || '';
+                const lyrics = track.prompt || '';
+                const dur = track.duration ? `${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : '';
+
+                html += `<div class="suno-track-card">
+                    <div class="suno-track-header">
+                        ${coverSrc ? `<img src="${esc(coverSrc)}" alt="${esc(title)}" class="suno-track-cover">` : ''}
+                        <div class="suno-track-info">
+                            <div class="suno-track-title">${esc(title)}</div>
+                            ${dur ? `<span class="suno-track-duration">${dur}</span>` : ''}
+                            ${tags ? `<div class="suno-track-tags">${esc(tags.substring(0, 120))}${tags.length > 120 ? '…' : ''}</div>` : ''}
+                        </div>
+                    </div>
+                    <audio src="${esc(audioSrc)}" controls style="width:100%"></audio>
+                    ${lyrics ? `<details class="suno-track-lyrics-wrap"><summary>Ver Letra</summary><pre class="suno-track-lyrics">${esc(lyrics)}</pre></details>` : ''}
+                </div>`;
+            });
+        } else if (unique.length > 1 && !isVid && !isAud) {
+            // Multi-image grid (e.g. MJ returns 4 images)
+            html += '<div class="task-result-grid">';
+            unique.forEach((u, i) => {
+                html += `<img src="${esc(u)}" alt="Result ${i + 1}" loading="lazy" class="task-result-grid-img">`;
+            });
+            html += '</div>';
+        } else if (unique.length > 1 && isAud) {
+            // Multi-audio generic
+            unique.forEach((u, i) => {
+                html += `<div class="task-result-audio-track">
+                    <span class="audio-track-label">Faixa ${i + 1}</span>
+                    <audio src="${esc(u)}" controls style="width:100%"></audio>
+                </div>`;
+            });
+        } else if (isVid) {
+            html += `<video src="${esc(unique[0])}" controls preload="metadata" style="width:100%"></video>`;
+        } else if (isAud) {
+            html += `<audio src="${esc(unique[0])}" controls style="width:100%"></audio>`;
+        } else {
+            html += `<img src="${esc(unique[0])}" alt="Result" loading="lazy">`;
+        }
         html += '</div>';
         html += '<div class="task-result-actions">';
         unique.forEach((u, i) => {
