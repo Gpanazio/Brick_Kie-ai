@@ -48,6 +48,7 @@ Bases configuráveis via `KIE_BASE_URL` e `KIE_UPLOAD_BASE_URL`.
 - **Nano Banana Pro** (Kie.ai) — text/image→image
 - **Nano Banana Edit** (Google) — edição de imagem
 - **ByteDance 4.5** — text→image
+- **Seedream 4.5 Edit** (ByteDance) — edição de imagem (2K/4K)
 - **Flux-2 Pro** — text→image
 - **Ideogram V3** — text→image
 - **Qwen** — text→image

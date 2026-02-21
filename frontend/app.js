@@ -15,6 +15,7 @@ const MODEL_COST_ESTIMATES = {
     'nano-banana-pro': 18,                // 1/2K = 18, 4K = 24
     'google/nano-banana-edit': 4,          // image editing
     'bytedance/4.5-text-to-image': 10,    // estimated
+    'seedream/4.5-edit': 10,              // estimated (image editing)
     'flux-2/pro-text-to-image': 5,        // 1K = 5, 2K = 7
     'google/imagen4': 10,                 // estimated
     'ideogram/v3-text-to-image': 10,      // v3 = 10, v3 pro = 20
@@ -101,6 +102,7 @@ const PROMPT_CHAR_LIMITS = {
     'flux-kontext-pro': 5000,
     'flux-kontext-max': 5000,
     'bytedance/4.5-text-to-image': 2000,
+    'seedream/4.5-edit': 3000,
     'flux-2/pro-text-to-image': 2000,
     'google/imagen4': 2000,
     'ideogram/v3-text-to-image': 2000,
@@ -195,6 +197,12 @@ const MODEL_CONFIGS = {
             { key: 'image_size', label: 'Tamanho', type: 'select', options: ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'square_hd' },
             { key: 'guidance_scale', label: 'Guidance', type: 'number', default: 2.5, min: 1, max: 20, step: 0.5 },
             { key: 'enable_safety_checker', label: 'Safety', type: 'bool', default: true },
+        ]
+    },
+    'seedream/4.5-edit': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], default: '1:1' },
+            { key: 'quality', label: 'Qualidade', type: 'select', options: ['basic', 'high'], default: 'basic' },
         ]
     },
     'flux-2/pro-text-to-image': {

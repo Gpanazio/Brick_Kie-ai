@@ -755,6 +755,7 @@ All use `POST /api/v1/jobs/createTask` with model-specific `input` parameters.
 | Seedream 4.0 Text-to-Image | `bytedance/seedream-v4-text-to-image` | https://docs.kie.ai/market/seedream/seedream-v4-text-to-image |
 | Seedream 4.0 Edit | `bytedance/seedream-v4-edit` | https://docs.kie.ai/market/seedream/seedream-v4-edit |
 | Seedream 4.5 Text-to-Image | `seedream/4.5-text-to-image` | https://docs.kie.ai/market/seedream/4.5-text-to-image |
+| Seedream 4.5 Edit | `seedream/4.5-edit` | https://docs.kie.ai/market/seedream/4.5-edit |
 | Flux-2 Pro Text-to-Image | (see docs) | https://docs.kie.ai/market/flux2/pro-text-to-image |
 | Flux-2 Pro Image-to-Image | (see docs) | https://docs.kie.ai/market/flux2/pro-image-to-image |
 | Flux-2 Flex Image-to-Image | (see docs) | https://docs.kie.ai/market/flux2/flex-image-to-image |
@@ -792,6 +793,40 @@ All use `POST /api/v1/jobs/createTask` with model-specific `input` parameters.
 | GPT (LLM) | (see docs) | (market) |
 | Claude (LLM) | (see docs) | (market) |
 | Gemini (LLM) | (see docs) | (market) |
+
+### Seedream 4.5 Edit (Detailed)
+
+Image editing model from ByteDance. Uses the Market `createTask` endpoint with model `seedream/4.5-edit`.
+
+**Capabilities:** Edit existing images based on text prompts (e.g., change materials, lighting, colors while preserving pose/composition).
+
+**Input Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `prompt` | string | Yes | Text description of the desired edit. Max 3000 chars |
+| `image_urls` | array | Yes | Array of input image URLs (upload via File Upload API first). Max 10MB per file. Accepts JPEG, PNG, WebP |
+| `aspect_ratio` | string | Yes | Output aspect ratio: `1:1`, `4:3`, `3:4`, `16:9`, `9:16`, `2:3`, `3:2`, `21:9`. Default: `1:1` |
+| `quality` | string | Yes | `basic` (2K output) or `high` (4K output). Default: `basic` |
+
+**Example Request:**
+```json
+POST https://api.kie.ai/api/v1/jobs/createTask
+
+{
+  "model": "seedream/4.5-edit",
+  "input": {
+    "prompt": "Keep the model's pose and the flowing shape of the liquid dress unchanged. Change the clothing material from silver metal to completely transparent clear water (or glass).",
+    "image_urls": ["https://your-uploaded-image-url.webp"],
+    "aspect_ratio": "1:1",
+    "quality": "basic"
+  }
+}
+```
+
+**Response:** Standard Market task response with `taskId`. Poll via `GET /api/v1/jobs/recordInfo?taskId=...` — result in `resultJson.resultUrls[]`.
+
+**Docs:** https://docs.kie.ai/market/seedream/4.5-edit
 
 ---
 
@@ -911,6 +946,7 @@ All use `POST /api/v1/jobs/createTask` with model-specific `input` parameters.
 - https://docs.kie.ai/market/seedream/seedream-v4-text-to-image
 - https://docs.kie.ai/market/seedream/seedream-v4-edit
 - https://docs.kie.ai/market/seedream/4.5-text-to-image
+- https://docs.kie.ai/market/seedream/4.5-edit
 - https://docs.kie.ai/market/flux2/pro-text-to-image
 - https://docs.kie.ai/market/flux2/pro-image-to-image
 - https://docs.kie.ai/market/flux2/flex-image-to-image
