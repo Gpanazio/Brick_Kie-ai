@@ -452,6 +452,17 @@ function clearAllPendingTasks() {
 // Sync pending-task state when another tab mutates localStorage
 window.addEventListener('storage', (e) => {
     if (e.key !== PENDING_KEY) return;
+
+    // Handle clearAllPendingTasks() from another tab (localStorage.removeItem)
+    if (e.newValue === null) {
+        tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
+        tasks = [];
+        els.tasksList.querySelectorAll('.task-card').forEach(el => el.remove());
+        updateTasksEmpty();
+        updateActiveCount();
+        return;
+    }
+
     const updated = loadPendingTasks();
     // Reconcile: start polling for tasks that exist in storage but not locally
     updated.forEach(p => {
