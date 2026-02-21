@@ -566,15 +566,17 @@ function saveHistory(history) {
     catch (e) { console.error('History save error:', e); }
 }
 
-function addToHistory(task) {
-    const data = task.data?.data || {};
-    // Collect URLs
+// Shared helper: extract all result URLs from any API response shape
+function _extractResultUrls(data) {
     const urls = [];
+    // Market / generic fields
     if (typeof data.output === 'string') urls.push(data.output);
     if (data.resultUrl) urls.push(data.resultUrl);
     if (data.downloadUrl) urls.push(data.downloadUrl);
     if (Array.isArray(data.resultUrls)) urls.push(...data.resultUrls);
     if (Array.isArray(data.output)) urls.push(...data.output);
+
+    // resultJson as string (Market sometimes)
     if (typeof data.resultJson === 'string' && data.resultJson) {
         try {
             const parsed = JSON.parse(data.resultJson);
@@ -582,7 +584,37 @@ function addToHistory(task) {
             if (parsed.resultUrl) urls.push(parsed.resultUrl);
             if (parsed.resultObject?.url) urls.push(parsed.resultObject.url);
         } catch { }
+    } else if (data._parsedResult) {
+        if (Array.isArray(data._parsedResult.resultUrls)) urls.push(...data._parsedResult.resultUrls);
+        if (data._parsedResult.resultUrl) urls.push(data._parsedResult.resultUrl);
     }
+
+    // Midjourney: resultInfoJson is an object with resultUrls array of {resultUrl: "..."}
+    if (data.resultInfoJson && typeof data.resultInfoJson === 'object') {
+        const rij = data.resultInfoJson;
+        if (Array.isArray(rij.resultUrls)) {
+            rij.resultUrls.forEach(item => {
+                if (typeof item === 'string') urls.push(item);
+                else if (item?.resultUrl) urls.push(item.resultUrl);
+            });
+        }
+        if (rij.resultUrl) urls.push(rij.resultUrl);
+    }
+
+    // Suno: response.sunoData[] with audioUrl
+    if (data.response && Array.isArray(data.response.sunoData)) {
+        data.response.sunoData.forEach(track => {
+            if (track.audioUrl) urls.push(track.audioUrl);
+            if (track.sourceAudioUrl && track.sourceAudioUrl !== track.audioUrl) urls.push(track.sourceAudioUrl);
+        });
+    }
+    return urls;
+}
+
+function addToHistory(task) {
+    const data = task.data?.data || {};
+    // Collect URLs
+    const urls = _extractResultUrls(data);
     const uniqueUrls = [...new Set(urls.filter(u => typeof u === 'string' && u.startsWith('http')))];
     if (uniqueUrls.length === 0 && task.state !== 'success') return; // Don't save failed tasks with no output
 
@@ -1109,14 +1141,25 @@ function initKeyboardShortcuts() {
 
 // ==================== Dynamic Model Params ====================
 
+// Keys that should only be visible when Suno custom_mode is ON
+const SUNO_CUSTOM_MODE_KEYS = new Set(['style', 'title', 'instrumental']);
+
 function renderModelParams(modelKey) {
     els.configParams.innerHTML = '';
     const cfg = MODEL_CONFIGS[modelKey];
     if (!cfg || cfg.params.length === 0) return;
 
+    const isSunoGenerate = modelKey === 'suno/generate-music';
+
     cfg.params.forEach(p => {
         const group = document.createElement('div');
         group.className = 'form-group';
+        group.dataset.groupKey = p.key;
+
+        // For suno/generate-music, hide advanced-only fields by default
+        if (isSunoGenerate && SUNO_CUSTOM_MODE_KEYS.has(p.key)) {
+            group.classList.add('hidden');
+        }
 
         const label = document.createElement('label');
         label.className = 'form-label';
@@ -1184,6 +1227,22 @@ function renderModelParams(modelKey) {
             lbl.appendChild(t);
             group.appendChild(lbl);
 
+            // Suno custom_mode toggle: show/hide advanced-only fields
+            if (isSunoGenerate && p.key === 'custom_mode') {
+                cb.addEventListener('change', () => {
+                    SUNO_CUSTOM_MODE_KEYS.forEach(k => {
+                        const g = els.configParams.querySelector(`[data-group-key="${k}"]`);
+                        if (g) g.classList.toggle('hidden', !cb.checked);
+                    });
+                    // Update prompt placeholder to reflect mode
+                    if (els.configPrompt) {
+                        els.configPrompt.placeholder = cb.checked
+                            ? 'Cole a letra da música aqui...'
+                            : 'Descreva o estilo de música que deseja gerar...';
+                    }
+                });
+            }
+
         } else if (p.type === 'text') {
             const inp = document.createElement('input');
             inp.type = 'text'; inp.className = 'form-input';
@@ -1208,6 +1267,10 @@ function collectModelParams() {
     if (!cfg) return params;
 
     cfg.params.forEach(p => {
+        // Skip params whose parent group is hidden (e.g. Suno advanced-only fields)
+        const groupEl = els.configParams.querySelector(`[data-group-key="${p.key}"]`);
+        if (groupEl && groupEl.classList.contains('hidden')) return;
+
         if (p.type === 'select') {
             const el = els.configParams.querySelector(`select[data-param-key="${p.key}"]`);
             if (el) params[p.key] = el.value;
@@ -1896,24 +1959,7 @@ function renderTaskResult(task) {
     }
 
     // Collect result URLs from all possible locations
-    const urls = [];
-    if (typeof data.output === 'string') urls.push(data.output);
-    if (data.resultUrl) urls.push(data.resultUrl);
-    if (data.downloadUrl) urls.push(data.downloadUrl);
-    if (Array.isArray(data.resultUrls)) urls.push(...data.resultUrls);
-    if (Array.isArray(data.output)) urls.push(...data.output);
-    // Parse resultJson (API may return it as a JSON string)
-    if (typeof data.resultJson === 'string' && data.resultJson) {
-        try {
-            const parsed = JSON.parse(data.resultJson);
-            if (Array.isArray(parsed.resultUrls)) urls.push(...parsed.resultUrls);
-            if (parsed.resultUrl) urls.push(parsed.resultUrl);
-            if (parsed.resultObject?.url) urls.push(parsed.resultObject.url);
-        } catch { }
-    } else if (data._parsedResult) {
-        if (Array.isArray(data._parsedResult.resultUrls)) urls.push(...data._parsedResult.resultUrls);
-        if (data._parsedResult.resultUrl) urls.push(data._parsedResult.resultUrl);
-    }
+    const urls = _extractResultUrls(data);
     const unique = [...new Set(urls.filter(u => typeof u === 'string' && u.startsWith('http')))];
     if (unique.length > 0) {
         const url = unique[0];
