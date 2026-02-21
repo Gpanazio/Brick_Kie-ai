@@ -449,9 +449,14 @@ function clearAllPendingTasks() {
     localStorage.removeItem(PENDING_KEY);
 }
 
+// Stop all active polling timers
+function stopAllPolling() {
+    tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
+}
+
 // Stop all polling, clear the local tasks array, and remove task cards from the DOM
 function clearLocalTasks() {
-    tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
+    stopAllPolling();
     tasks = [];
     els.tasksList.querySelectorAll('.task-card').forEach(el => el.remove());
     updateTasksEmpty();
@@ -782,8 +787,7 @@ function exitWorkspace() {
     _currentCatItems = [];
     clearFile();
     closeModelPickerModal();
-    // Clean up polling timers to avoid memory leaks
-    tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
+    stopAllPolling();
 }
 
 // ==================== Model Picker Modal ====================
