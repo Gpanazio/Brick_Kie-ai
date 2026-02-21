@@ -1397,9 +1397,14 @@ async function submitVeoModel() {
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.detail || 'Failed');
 
-    let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
+    let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId
+        || json?.data?.task_id || json?.task_id;
+    if (!tid) {
+        console.error('[Veo] taskId not found in response:', JSON.stringify(json).slice(0, 500));
+        toast('⚠️ Tarefa criada mas sem taskId — não será possível acompanhar o progresso', 'error');
+    }
     // Set task mode to veo so poll matches
-    if (tid) addTask(tid, resolvedModel, 'veo', json.uploaded_url, extra);
+    if (tid) addTask(tid, resolvedModel, 'veo', json.uploaded_url || null, extra);
     return json;
 }
 

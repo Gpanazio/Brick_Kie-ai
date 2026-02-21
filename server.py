@@ -334,6 +334,9 @@ async def veo_create(
                 Path(tmp_path).unlink(missing_ok=True)
 
         resp = kie_api.veo_create_task(model, input_data)
+        # Attach uploaded_url so frontend can display the input image (like gpt4o/flux)
+        if isinstance(resp, dict) and file and file.filename:
+            resp["uploaded_url"] = upload_url
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")
