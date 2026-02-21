@@ -733,34 +733,52 @@ function initSocketCallbacks() {
     });
 
     socket.on('kie:task-update', (body) => {
+        // taskId normalized to camelCase by server (handles Suno/Runway snake_case)
         const taskId = body?.data?.taskId;
         if (!taskId) return;
 
         const task = tasks.find(t => t.id === taskId);
         if (!task) return; // Not one of ours
 
-        console.log(`[Callback] ${taskId} code=${body.code}`);
+        // Suno sends multi-stage callbacks: text → first → complete
+        // Only treat 'complete' (or absent callbackType) as final
+        const callbackType = body?.data?.callbackType;
+        const isSunoPartial = callbackType && callbackType !== 'complete';
+
+        console.log(`[Callback] ${taskId} code=${body.code}${callbackType ? ` stage=${callbackType}` : ''}`);
 
         // Map callback code to task state
         const code = body.code;
         let state;
-        if (code === 200) state = 'success';
+        if (isSunoPartial) state = 'processing'; // Suno intermediate stage
+        else if (code === 200) state = 'success';
         else if (code === 400 || code === 422 || code === 500 || code === 501) state = 'fail';
         else state = 'processing';
 
         // Build a data envelope matching what poll expects
         const data = body.data || {};
-        if (body.msg) data.failMsg = code !== 200 ? body.msg : undefined;
-        // Normalize result URLs into data for the card renderer
+        if (body.msg && code !== 200) data.failMsg = body.msg;
+        // Normalize result URLs from different callback formats
         const info = data.info || {};
+        // Veo / Market: info.resultUrls (array)
         if (info.resultUrls) data.resultUrls = info.resultUrls;
         if (info.originUrls) data.originUrls = info.originUrls;
         if (info.resolution) data.resolution = info.resolution;
+        // 4o Image: info.result_urls (snake_case array)
+        if (info.result_urls) data.resultUrls = info.result_urls;
+        // Flux Kontext: info.resultImageUrl (single string → wrap in array)
+        if (info.resultImageUrl) data.resultUrls = [info.resultImageUrl];
+        // Runway: flat video_url
+        if (data.video_url) data.resultUrls = [data.video_url];
+        // Suno: data.data[] with audio_url
+        if (Array.isArray(data.data)) {
+            data.resultUrls = data.data.filter(d => d.audio_url).map(d => d.audio_url);
+        }
 
         task.data = { code, msg: body.msg, data };
         task.state = state;
 
-        // Stop polling — callback is authoritative
+        // Stop polling — callback is authoritative (only for final states)
         if (state === 'success' || state === 'fail') {
             if (task.pollTimer) { clearInterval(task.pollTimer); task.pollTimer = null; }
             removePendingTask(task.id);
