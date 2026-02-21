@@ -63,6 +63,10 @@ const MODEL_COST_ESTIMATES = {
     'veo3/get-4k': 120,                   // 120 cr/video
     // ── MJ ──
     'mj': 8,                              // relaxed=3, fast=8, turbo=16
+    'mj-txt': 8,                          // relaxed=3, fast=8, turbo=16
+    'mj-img': 8,                          // relaxed=3, fast=8, turbo=16
+    'mj-video': 16,                       // video = turbo only
+    'mj-ref': 8,                          // relaxed=3, fast=8, turbo=16
 };
 
 // ==================== BRAND SVG LOGOS ====================
@@ -1371,6 +1375,29 @@ function formatSize(b) {
 
 // ==================== Submit ====================
 
+function _getCurrentModelCost() {
+    if (!selectedModel) return null;
+    let model = selectedModel.model;
+
+    // MJ: cost depends on speed setting
+    if (selectedModel.input === 'mj') {
+        const speed = document.querySelector('input[name="mj-speed"]:checked')?.value || 'relaxed';
+        if (speed === 'relaxed') return 3;
+        if (speed === 'turbo') return 16;
+        return 8; // fast
+    }
+
+    // Veo: resolve virtual models to actual cost keys
+    if (model === 'veo3/text-to-video' || model === 'veo3/image-to-video') {
+        const q = document.querySelector('input[name="param-quality"]:checked')?.value || 'Fast';
+        const suffix = q === 'Quality' ? '-quality' : '-fast';
+        const base = model.replace('veo3/', 'veo3/').replace('-video', `-video${suffix}`);
+        return getModelCost(base) || getModelCost(model);
+    }
+
+    return getModelCost(model);
+}
+
 function updateSubmitState() {
     if (!selectedModel) { els.btnSubmit.disabled = true; return; }
     const isMj = selectedModel.input === 'mj';
@@ -1389,11 +1416,25 @@ function updateSubmitState() {
         if (needsPrompt && !selectedModel.hasPrompt && !els.configPrompt.value.trim()) ok = false;
     }
     els.btnSubmit.disabled = !ok;
+
+    // Update button label with cost
+    const btnLabel = els.btnSubmit.querySelector('span');
+    if (btnLabel && selectedModel) {
+        const cost = _getCurrentModelCost();
+        btnLabel.textContent = cost ? `Gerar (~${cost} cr)` : 'Gerar';
+    }
 }
 
 function initSubmit() {
     els.btnSubmit.addEventListener('click', handleSubmit);
     els.configPrompt.addEventListener('input', updateSubmitState);
+
+    // Update cost in button when MJ speed or any param radio changes
+    document.querySelectorAll('input[name="mj-speed"]').forEach(r => r.addEventListener('change', updateSubmitState));
+    // Also listen to param changes (delegated) for dynamic cost models like Veo quality
+    document.addEventListener('change', e => {
+        if (e.target.matches('.config-model-params input[type="radio"]')) updateSubmitState();
+    });
 }
 
 async function handleSubmit() {
