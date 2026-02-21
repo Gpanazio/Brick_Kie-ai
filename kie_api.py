@@ -230,7 +230,6 @@ def veo_create_task(model: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
     if not mapping:
         raise ValueError(f"Modelo Veo desconhecido: {model}")
 
-    input_data.pop("enableFallback", None)
     input_data["model"] = mapping["model"]
     r = requests.post(
         _url(BASE_URL, mapping["path"]),
@@ -283,9 +282,34 @@ def veo_task_info(task_id: str) -> Dict[str, Any]:
 
 # ==================== MJ (Midjourney) ====================
 
+MJ_UPSCALE_PATH = "/api/v1/mj/generateUpscale"
+MJ_VARY_PATH = "/api/v1/mj/generateVary"
+MJ_VIDEO_EXTEND_PATH = "/api/v1/mj/generateVideoExtend"
+
 
 def mj_generate(payload: Dict[str, Any]) -> Dict[str, Any]:
     r = requests.post(_url(BASE_URL, MJ_GENERATE_PATH), headers=_auth_headers_json(), data=json.dumps(payload), timeout=180)
+    r.raise_for_status()
+    return r.json()
+
+
+def mj_upscale(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Upscale a previously generated MJ image. Payload: {taskId, imageIndex, waterMark?, callBackUrl?}"""
+    r = requests.post(_url(BASE_URL, MJ_UPSCALE_PATH), headers=_auth_headers_json(), data=json.dumps(payload), timeout=180)
+    r.raise_for_status()
+    return r.json()
+
+
+def mj_vary(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate variations of a previously generated MJ image. Payload: {taskId, imageIndex, waterMark?, callBackUrl?}"""
+    r = requests.post(_url(BASE_URL, MJ_VARY_PATH), headers=_auth_headers_json(), data=json.dumps(payload), timeout=180)
+    r.raise_for_status()
+    return r.json()
+
+
+def mj_video_extend(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Extend a previously generated MJ video. Payload: {taskId, index, taskType, prompt?, waterMark?, callBackUrl?}"""
+    r = requests.post(_url(BASE_URL, MJ_VIDEO_EXTEND_PATH), headers=_auth_headers_json(), data=json.dumps(payload), timeout=180)
     r.raise_for_status()
     return r.json()
 
@@ -333,7 +357,7 @@ def mj_wait(task_id: str, interval: float = 5.0, timeout_s: float = 1800.0) -> D
 # ==================== GPT 4o Image ====================
 
 GPT4O_IMAGE_GENERATE = "/api/v1/gpt4o-image/generate"
-GPT4O_IMAGE_RECORD = "/api/v1/gpt4o-image/record-info"
+GPT4O_IMAGE_RECORD = "/api/v1/gpt4o-image/record-info"  # docs also list /get-details
 GPT4O_IMAGE_DOWNLOAD = "/api/v1/gpt4o-image/download-url"
 
 
@@ -364,7 +388,7 @@ def gpt4o_image_task_info(task_id: str) -> Dict[str, Any]:
 # ==================== Flux Kontext ====================
 
 FLUX_KONTEXT_GENERATE = "/api/v1/flux/kontext/generate"
-FLUX_KONTEXT_RECORD = "/api/v1/flux/kontext/record-info"
+FLUX_KONTEXT_RECORD = "/api/v1/flux/kontext/record-info"  # docs also list /get-details
 
 
 def flux_kontext_generate(input_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -386,6 +410,46 @@ def flux_kontext_task_info(task_id: str) -> Dict[str, Any]:
         headers=_auth_headers_json(),
         params={"taskId": task_id},
         timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+# ==================== Common API ====================
+
+
+DOWNLOAD_URL_PATH = "/api/v1/common/download-url"
+
+
+def download_url(file_url: str) -> Dict[str, Any]:
+    """Get a temporary download URL for a KIE-generated file (valid ~20 min)."""
+    r = requests.post(
+        _url(BASE_URL, DOWNLOAD_URL_PATH),
+        headers=_auth_headers_json(),
+        data=json.dumps({"url": file_url}),
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+# ==================== Upload (Base64) ====================
+
+
+UPLOAD_BASE64_PATH = "/api/file-base64-upload"
+
+
+def upload_base64(base64_data: str, upload_path: str = "uploads", file_name: Optional[str] = None) -> Dict[str, Any]:
+    """Upload a base64-encoded file. Suitable for small files (<10 MB encoded)."""
+    payload: Dict[str, Any] = {"base64Data": base64_data, "uploadPath": upload_path}
+    if file_name:
+        payload["fileName"] = file_name
+
+    r = requests.post(
+        _url(UPLOAD_BASE_URL, UPLOAD_BASE64_PATH),
+        headers=_auth_headers_json(),
+        data=json.dumps(payload),
+        timeout=120,
     )
     r.raise_for_status()
     return r.json()

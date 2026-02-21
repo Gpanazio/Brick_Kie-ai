@@ -153,6 +153,54 @@ async def mj_task(task_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/mj/upscale")
+async def mj_upscale(
+    payload_json: str = Form(...),
+):
+    """Upscale a previously generated MJ image."""
+    try:
+        payload = json.loads(payload_json)
+        _ensure_callback_url(payload)
+        resp = kie_api.mj_upscale(payload)
+        return resp
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/mj/vary")
+async def mj_vary(
+    payload_json: str = Form(...),
+):
+    """Generate variations of a previously generated MJ image."""
+    try:
+        payload = json.loads(payload_json)
+        _ensure_callback_url(payload)
+        resp = kie_api.mj_vary(payload)
+        return resp
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/mj/video-extend")
+async def mj_video_extend(
+    payload_json: str = Form(...),
+):
+    """Extend a previously generated MJ video."""
+    try:
+        payload = json.loads(payload_json)
+        _ensure_callback_url(payload)
+        resp = kie_api.mj_video_extend(payload)
+        return resp
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== Perfect Shortcuts ====================
 
 
@@ -379,7 +427,7 @@ async def veo_1080p(task_id: str):
 async def veo_4k(task_id: str = Form(...)):
     """Get 4K version of a Veo video."""
     try:
-        return kie_api.veo_get_4k(task_id)
+        return kie_api.veo_get_4k(task_id, callback_url=CALLBACK_URL)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

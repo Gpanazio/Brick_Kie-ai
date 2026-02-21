@@ -1938,6 +1938,34 @@ function renderTaskResult(task) {
             html += `<button class="btn-ghost btn-sm veo-action" data-action="veo3/extend-quality" data-task-id="${esc(task.id)}">Extend (Pro)</button>`;
         }
 
+        // MJ post-generation actions (Upscale, Vary, Video Extend)
+        if (task.mode === 'midjourney' && task.state === 'success') {
+            const isMjVideo = task.model === 'mj-video';
+            html += '<div class="mj-actions-grid">';
+            if (!isMjVideo) {
+                // Upscale U1–U4 (imageIndex 0-3 per docs)
+                html += '<div class="mj-action-row">';
+                for (let i = 0; i < 4; i++) {
+                    html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="upscale" data-mj-index="${i}" data-task-id="${esc(task.id)}" title="Upscale imagem ${i + 1}">U${i + 1}</button>`;
+                }
+                html += '</div>';
+                // Vary V1–V4 (imageIndex 1-4 per docs)
+                html += '<div class="mj-action-row">';
+                for (let i = 1; i <= 4; i++) {
+                    html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="vary" data-mj-index="${i}" data-task-id="${esc(task.id)}" title="Variação da imagem ${i}">V${i}</button>`;
+                }
+                html += '</div>';
+            }
+            if (isMjVideo) {
+                // Video extend options
+                html += '<div class="mj-action-row">';
+                html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_auto" data-mj-index="0" data-task-id="${esc(task.id)}">Extend (Auto)</button>`;
+                html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_manual" data-mj-index="0" data-task-id="${esc(task.id)}">Extend (Manual)</button>`;
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+
         html += '</div>';
     }
     // Cost/time info for completed tasks
@@ -2163,6 +2191,20 @@ function openHistoryLightbox(entry) {
                     <button class="btn-ghost btn-sm veo-action" data-action="veo3/extend-quality" data-task-id="${esc(entry.id)}">Extend (Pro)</button>
                 ` : ''}
 
+                ${entry.model.startsWith('mj-') ? (() => {
+            const isMjVideo = entry.model === 'mj-video';
+            let btns = '';
+            if (!isMjVideo) {
+                for (let i = 0; i < 4; i++) btns += `<button class="btn-ghost btn-sm mj-action" data-mj-op="upscale" data-mj-index="${i}" data-task-id="${esc(entry.id)}">U${i + 1}</button>`;
+                for (let i = 1; i <= 4; i++) btns += `<button class="btn-ghost btn-sm mj-action" data-mj-op="vary" data-mj-index="${i}" data-task-id="${esc(entry.id)}">V${i}</button>`;
+            }
+            if (isMjVideo) {
+                btns += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_auto" data-mj-index="0" data-task-id="${esc(entry.id)}">Extend (Auto)</button>`;
+                btns += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_manual" data-mj-index="0" data-task-id="${esc(entry.id)}">Extend (Manual)</button>`;
+            }
+            return btns;
+        })() : ''}
+
                 <button class="btn-ghost btn-sm lightbox-reuse" data-id="${esc(entry.id)}" title="Reutilizar Prompt e Configurações">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
@@ -2289,6 +2331,8 @@ function toast(msg, type = 'info') {
 function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 
 // ==================== Post-Generation Actions ====================
+
+// Veo post-actions (HD, 4K, Extend)
 document.body.addEventListener('click', async (e) => {
     const btn = e.target.closest('.veo-action');
     if (!btn) return;
@@ -2332,6 +2376,74 @@ document.body.addEventListener('click', async (e) => {
         }
     } catch (err) {
         toast(`❌ Erro: ${err.message}`, 'error');
+    } finally {
+        btn.textContent = prevText;
+        btn.disabled = false;
+        btn.classList.remove('loading');
+    }
+});
+
+// MJ post-actions (Upscale, Vary, Video Extend)
+document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.mj-action');
+    if (!btn) return;
+
+    const op = btn.dataset.mjOp;            // 'upscale' | 'vary' | 'video-extend'
+    const index = parseInt(btn.dataset.mjIndex, 10);
+    const originalTaskId = btn.dataset.taskId;
+    if (!originalTaskId || !op) return;
+
+    // Disable button visually
+    const prevText = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+        let payload, endpoint, opLabel;
+
+        if (op === 'upscale') {
+            payload = { taskId: originalTaskId, imageIndex: index };
+            endpoint = '/api/mj/upscale';
+            opLabel = `Upscale U${index + 1}`;
+        } else if (op === 'vary') {
+            payload = { taskId: originalTaskId, imageIndex: index };
+            endpoint = '/api/mj/vary';
+            opLabel = `Variação V${index}`;
+        } else if (op === 'video-extend') {
+            const extendType = btn.dataset.mjExtendType || 'mj_video_extend_auto';
+            payload = { taskId: originalTaskId, index: index, taskType: extendType };
+            // If manual, prompt from the prompt field (if visible)
+            if (extendType === 'mj_video_extend_manual') {
+                const manualPrompt = prompt('Digite o prompt para extensão manual do vídeo:', '');
+                if (manualPrompt === null) { btn.textContent = prevText; btn.disabled = false; btn.classList.remove('loading'); return; }
+                payload.prompt = manualPrompt;
+            }
+            endpoint = '/api/mj/video-extend';
+            opLabel = extendType === 'mj_video_extend_auto' ? 'Extend (Auto)' : 'Extend (Manual)';
+        } else {
+            return;
+        }
+
+        const fd = new FormData();
+        fd.append('payload_json', JSON.stringify(payload));
+
+        const resp = await fetch(`${API}${endpoint}`, { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.detail || 'Falha ao executar ação MJ');
+
+        const taskId = json?.data?.taskId;
+        if (taskId) {
+            currentCat = 'mj';
+            addTask(taskId, `mj-${op}`, 'midjourney', null, { parentTaskId: originalTaskId, op, index });
+            toast(`✅ ${opLabel} enviado!`, 'success');
+
+            // Close lightbox if clicking from history
+            const targetLightbox = e.target.closest('#history-lightbox');
+            if (targetLightbox) closeLightbox(targetLightbox);
+        }
+    } catch (err) {
+        toast(`❌ Erro MJ: ${err.message}`, 'error');
     } finally {
         btn.textContent = prevText;
         btn.disabled = false;
