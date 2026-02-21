@@ -718,6 +718,33 @@ function restorePendingTasks() {
     updateActiveCount();
 }
 
+// ==================== URL Extraction Helper ====================
+
+/**
+ * Collect result URLs from all possible callback/response formats.
+ * Returns a de-duplicated array of unique URLs.
+ */
+function extractResultUrls(data) {
+    const urls = [];
+    const info = data.info || {};
+
+    // Veo / Market: info.resultUrls (array)
+    if (Array.isArray(info.resultUrls)) urls.push(...info.resultUrls);
+    // 4o Image: info.result_urls (snake_case array)
+    if (Array.isArray(info.result_urls)) urls.push(...info.result_urls);
+    // Flux Kontext: info.resultImageUrl (single string)
+    if (info.resultImageUrl) urls.push(info.resultImageUrl);
+    // Runway: flat video_url
+    if (data.video_url) urls.push(data.video_url);
+    // Suno: data.data[] with audio_url
+    if (Array.isArray(data.data)) {
+        urls.push(...data.data.filter(d => d.audio_url).map(d => d.audio_url));
+    }
+
+    // Return unique URLs only
+    return [...new Set(urls)];
+}
+
 // ==================== Socket.IO Callbacks ====================
 
 function initSocketCallbacks() {
@@ -725,7 +752,10 @@ function initSocketCallbacks() {
         console.warn('[Socket] socket.io client not loaded, callbacks disabled');
         return;
     }
-    const apiKey = localStorage.getItem('kie-api-key') || 'brick-squad-2026';
+    const apiKey = localStorage.getItem('kie-api-key');
+    if (!apiKey) {
+        console.warn('[Socket] No API key found in localStorage, socket auth may fail');
+    }
     const socket = io({ auth: { apiKey }, transports: ['websocket', 'polling'] });
 
     socket.on('connect', () => {
@@ -752,7 +782,7 @@ function initSocketCallbacks() {
         let state;
         if (isSunoPartial) state = 'processing'; // Suno intermediate stage
         else if (code === 200) state = 'success';
-        else if (code === 400 || code === 422 || code === 500 || code === 501) state = 'fail';
+        else if (code >= 400) state = 'fail';
         else state = 'processing';
 
         // Build a data envelope matching what poll expects
@@ -760,20 +790,9 @@ function initSocketCallbacks() {
         if (body.msg && code !== 200) data.failMsg = body.msg;
         // Normalize result URLs from different callback formats
         const info = data.info || {};
-        // Veo / Market: info.resultUrls (array)
-        if (info.resultUrls) data.resultUrls = info.resultUrls;
         if (info.originUrls) data.originUrls = info.originUrls;
         if (info.resolution) data.resolution = info.resolution;
-        // 4o Image: info.result_urls (snake_case array)
-        if (info.result_urls) data.resultUrls = info.result_urls;
-        // Flux Kontext: info.resultImageUrl (single string → wrap in array)
-        if (info.resultImageUrl) data.resultUrls = [info.resultImageUrl];
-        // Runway: flat video_url
-        if (data.video_url) data.resultUrls = [data.video_url];
-        // Suno: data.data[] with audio_url
-        if (Array.isArray(data.data)) {
-            data.resultUrls = data.data.filter(d => d.audio_url).map(d => d.audio_url);
-        }
+        data.resultUrls = extractResultUrls(data);
 
         task.data = { code, msg: body.msg, data };
         task.state = state;

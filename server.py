@@ -25,6 +25,13 @@ FRONTEND_DIR = Path(__file__).parent / "frontend"
 ROOT_PATH = os.environ.get("ROOT_PATH", "")
 # Callback URL for KIE.ai webhooks (set by parent Node.js server from RAILWAY_PUBLIC_DOMAIN)
 CALLBACK_URL = os.environ.get("KIE_CALLBACK_URL", "")
+
+def _ensure_callback_url(payload: dict) -> dict:
+    """Inject default callback URL if not already set."""
+    if CALLBACK_URL and "callBackUrl" not in payload:
+        payload["callBackUrl"] = CALLBACK_URL
+    return payload
+
 app = FastAPI(title="KIE AI Frontend Server", version="1.0.0", root_path=ROOT_PATH)
 
 # CORS for dev
@@ -129,8 +136,7 @@ async def mj_create(
 ):
     try:
         payload = json.loads(payload_json)
-        if CALLBACK_URL and "callBackUrl" not in payload:
-            payload["callBackUrl"] = CALLBACK_URL
+        _ensure_callback_url(payload)
         resp = kie_api.mj_generate(payload)
         return resp
     except json.JSONDecodeError:
@@ -294,8 +300,7 @@ async def suno_create(
             finally:
                 Path(tmp_path).unlink(missing_ok=True)
 
-        if CALLBACK_URL and "callBackUrl" not in input_data:
-            input_data["callBackUrl"] = CALLBACK_URL
+        _ensure_callback_url(input_data)
         resp = kie_api.suno_create_task(model, input_data)
         return resp
     except json.JSONDecodeError:
@@ -327,6 +332,7 @@ async def veo_create(
         input_data = json.loads(input_json)
 
         # If a file was uploaded (image-to-video), upload it first then add to imageUrls
+        upload_url = None
         if file and file.filename:
             suffix = Path(file.filename).suffix or ".tmp"
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -339,8 +345,7 @@ async def veo_create(
             finally:
                 Path(tmp_path).unlink(missing_ok=True)
 
-        if CALLBACK_URL and "callBackUrl" not in input_data:
-            input_data["callBackUrl"] = CALLBACK_URL
+        _ensure_callback_url(input_data)
         resp = kie_api.veo_create_task(model, input_data)
         # Attach uploaded_url so frontend can display the input image (like gpt4o/flux)
         if isinstance(resp, dict) and file and file.filename:
@@ -410,8 +415,7 @@ async def gpt4o_image_create(
             finally:
                 Path(tmp_path).unlink(missing_ok=True)
 
-        if CALLBACK_URL and "callBackUrl" not in input_data:
-            input_data["callBackUrl"] = CALLBACK_URL
+        _ensure_callback_url(input_data)
         resp = kie_api.gpt4o_image_generate(input_data)
         if isinstance(resp, dict) and upload_url:
             resp["uploaded_url"] = upload_url
@@ -462,8 +466,7 @@ async def flux_kontext_create(
         if "model" not in input_data:
             input_data["model"] = model
 
-        if CALLBACK_URL and "callBackUrl" not in input_data:
-            input_data["callBackUrl"] = CALLBACK_URL
+        _ensure_callback_url(input_data)
         resp = kie_api.flux_kontext_generate(input_data)
         if isinstance(resp, dict) and upload_url:
             resp["uploaded_url"] = upload_url
