@@ -2012,12 +2012,14 @@ function renderTaskResult(task) {
         // Suno rich track cards
         const sunoTracks = data.response?.sunoData;
         if (sunoTracks && Array.isArray(sunoTracks) && sunoTracks.length > 0) {
+            const parentTaskId = data.taskId || task.id;
             sunoTracks.forEach((track, i) => {
                 const audioSrc = track.audioUrl || track.sourceAudioUrl || unique[i] || '';
                 const coverSrc = track.imageUrl || track.sourceImageUrl || '';
                 const title = track.title || `Faixa ${i + 1}`;
                 const tags = track.tags || '';
                 const lyrics = track.prompt || '';
+                const audioId = track.id || '';
                 const dur = track.duration ? `${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : '';
 
                 html += `<div class="suno-track-card">
@@ -2031,6 +2033,16 @@ function renderTaskResult(task) {
                     </div>
                     <audio src="${esc(audioSrc)}" controls style="width:100%"></audio>
                     ${lyrics ? `<details class="suno-track-lyrics-wrap"><summary>Ver Letra</summary><pre class="suno-track-lyrics">${esc(lyrics)}</pre></details>` : ''}
+                    <div class="suno-actions-row">
+                        <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/extend-music" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Estender a música">🔁 Extend</button>
+                        <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/add-instrumental" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Adicionar instrumental">🎸 +Instr</button>
+                        <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/add-vocals" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Adicionar vocais">🎤 +Vocal</button>
+                        <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/separate-vocals" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Separar vocais/instrumental">✂️ Separar</button>
+                    </div>
+                    <div class="suno-actions-row">
+                        <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/music-video" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Gerar clipe">🎬 Clipe</button>
+                        <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/convert-wav" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Converter para WAV">📄 WAV</button>
+                    </div>
                 </div>`;
             });
         } else if (unique.length > 1 && !isVid && !isAud) {
@@ -2280,10 +2292,31 @@ function openHistoryLightbox(entry) {
     const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(url);
 
     let mediaHtml;
-    if (isVid) mediaHtml = `<video src="${esc(url)}" controls autoplay preload="auto" class="lightbox-media" playsinline></video>`;
-    else if (isAud) mediaHtml = `<audio src="${esc(url)}" controls autoplay class="lightbox-audio"></audio>`;
-    else if (url) mediaHtml = `<img src="${esc(url)}" alt="Result" class="lightbox-media">`;
-    else mediaHtml = '<p style="color:var(--text-muted)">Sem mídia disponível</p>';
+    if (entry.urls.length > 1 && !isVid && !isAud) {
+        // Multi-image grid (MJ 4 images etc.)
+        mediaHtml = '<div class="task-result-grid lightbox-grid">';
+        entry.urls.forEach((u, i) => {
+            mediaHtml += `<img src="${esc(u)}" alt="Result ${i + 1}" loading="lazy" class="task-result-grid-img lightbox-media">`;
+        });
+        mediaHtml += '</div>';
+    } else if (entry.urls.length > 1 && isAud) {
+        // Multi-audio (Suno 2 tracks)
+        mediaHtml = '';
+        entry.urls.forEach((u, i) => {
+            mediaHtml += `<div class="task-result-audio-track">
+                <span class="audio-track-label">Faixa ${i + 1}</span>
+                <audio src="${esc(u)}" controls style="width:100%"></audio>
+            </div>`;
+        });
+    } else if (isVid) {
+        mediaHtml = `<video src="${esc(url)}" controls autoplay preload="auto" class="lightbox-media" playsinline></video>`;
+    } else if (isAud) {
+        mediaHtml = `<audio src="${esc(url)}" controls autoplay class="lightbox-audio"></audio>`;
+    } else if (url) {
+        mediaHtml = `<img src="${esc(url)}" alt="Result" class="lightbox-media">`;
+    } else {
+        mediaHtml = '<p style="color:var(--text-muted)">Sem mídia disponível</p>';
+    }
 
     const promptHtml = entry.prompt ? `<p class="lightbox-prompt">${esc(entry.prompt)}</p>` : '';
     const costHtml = entry.costTime ? `<span class="lightbox-cost">⏱ ${(entry.costTime / 1000).toFixed(1)}s</span>` : '';
@@ -2576,6 +2609,64 @@ document.body.addEventListener('click', async (e) => {
         }
     } catch (err) {
         toast(`❌ Erro MJ: ${err.message}`, 'error');
+    } finally {
+        btn.textContent = prevText;
+        btn.disabled = false;
+        btn.classList.remove('loading');
+    }
+});
+
+// Suno post-actions (Extend, Add Instrumental, Add Vocals, Separate, Music Video, WAV)
+document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.suno-action');
+    if (!btn) return;
+
+    const model = btn.dataset.sunoModel;
+    const audioId = btn.dataset.audioId;
+    const taskId = btn.dataset.taskId;
+    if (!model || !taskId) return;
+
+    const prevText = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+        const extra = {};
+        if (audioId) extra.audioId = audioId;
+        if (taskId) extra.taskId = taskId;
+
+        // For extend-music, ask for style/tags optionally
+        if (model === 'suno/extend-music') {
+            const style = window.prompt('Estilo musical para extensão (opcional, deixe vazio para manter):');
+            if (style === null) { btn.textContent = prevText; btn.disabled = false; btn.classList.remove('loading'); return; }
+            if (style.trim()) extra.style = style.trim();
+        }
+
+        // For separate-vocals, set type=both by default
+        if (model === 'suno/separate-vocals') {
+            extra.type = 'both';
+        }
+
+        const fd = new FormData();
+        fd.append('model', model);
+        fd.append('input_json', JSON.stringify(extra));
+
+        const resp = await fetch(`${API}/api/suno/create`, { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.detail || 'Falha ao executar ação Suno');
+
+        const newTaskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
+        if (newTaskId) {
+            const label = model.split('/').pop().replace(/-/g, ' ');
+            addTask(newTaskId, model, 'suno', null, { parentTaskId: taskId, audioId });
+            toast(`✅ Suno ${label} enviado!`, 'success');
+
+            const targetLightbox = e.target.closest('#history-lightbox');
+            if (targetLightbox) closeLightbox(targetLightbox);
+        }
+    } catch (err) {
+        toast(`❌ Erro Suno: ${err.message}`, 'error');
     } finally {
         btn.textContent = prevText;
         btn.disabled = false;

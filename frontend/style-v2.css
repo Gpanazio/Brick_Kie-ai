@@ -2569,6 +2569,54 @@ body {
     border: 1px solid var(--border);
 }
 
+/* ── Suno Action Buttons ── */
+.suno-actions-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.suno-actions-row .suno-action {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    padding: 6px 6px;
+    font-size: 10px;
+    font-family: var(--mono);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.suno-actions-row .suno-action:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(220, 38, 38, 0.08);
+}
+
+.suno-actions-row .suno-action.loading {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* ── Lightbox Grid ── */
+.lightbox-grid {
+    max-width: 100%;
+}
+
+.lightbox-grid .task-result-grid-img {
+    max-height: none;
+    aspect-ratio: 1;
+    object-fit: cover;
+    cursor: default;
+}
+
 .task-result-actions {
     display: flex;
     gap: 8px;
