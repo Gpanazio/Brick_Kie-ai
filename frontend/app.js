@@ -414,7 +414,7 @@ const PENDING_KEY = 'kie-pending-tasks';
 
 function loadPendingTasks() {
     try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }
-    catch { return []; }
+    catch (e) { console.error('Pending tasks load error:', e); return []; }
 }
 
 function savePendingTasks(pending) {
@@ -423,8 +423,8 @@ function savePendingTasks(pending) {
 }
 
 function addPendingTask(task) {
+    // Re-read from localStorage to get latest state (minimise cross-tab race window)
     const pending = loadPendingTasks();
-    // Avoid duplicates
     if (pending.some(p => p.id === task.id)) return;
     pending.push({
         id: task.id,
@@ -440,6 +440,7 @@ function addPendingTask(task) {
 }
 
 function removePendingTask(taskId) {
+    // Re-read from localStorage to get latest state (minimise cross-tab race window)
     const pending = loadPendingTasks().filter(p => p.id !== taskId);
     savePendingTasks(pending);
 }
@@ -447,6 +448,27 @@ function removePendingTask(taskId) {
 function clearAllPendingTasks() {
     localStorage.removeItem(PENDING_KEY);
 }
+
+// Sync pending-task state when another tab mutates localStorage
+window.addEventListener('storage', (e) => {
+    if (e.key !== PENDING_KEY) return;
+    const updated = loadPendingTasks();
+    // Reconcile: start polling for tasks that exist in storage but not locally
+    updated.forEach(p => {
+        if (tasks.some(t => t.id === p.id)) return;
+        const task = {
+            id: p.id, model: p.model, mode: p.mode, cat: p.cat,
+            state: 'processing', data: null, pollTimer: null,
+            _prompt: p._prompt || '', _inputFileUrl: p._inputFileUrl || null,
+            _extraParams: p._extraParams || null
+        };
+        tasks.unshift(task);
+        renderTaskCard(task);
+        startPolling(task);
+    });
+    updateTasksEmpty();
+    updateActiveCount();
+});
 
 // ==================== History (localStorage) ====================
 const HISTORY_KEY = 'kie-history';
