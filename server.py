@@ -279,7 +279,8 @@ async def suno_create(
 
         # If a file was uploaded, stream it to KIE upload API first
         if file and file.filename:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+            suffix = Path(file.filename).suffix or ".tmp"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 tmp.write(await file.read())
                 tmp_path = tmp.name
             try:
@@ -321,7 +322,8 @@ async def veo_create(
 
         # If a file was uploaded (image-to-video), upload it first then add to imageUrls
         if file and file.filename:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+            suffix = Path(file.filename).suffix or ".tmp"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 tmp.write(await file.read())
                 tmp_path = tmp.name
             try:
@@ -380,8 +382,10 @@ async def gpt4o_image_create(
         input_data = json.loads(input_json)
 
         # If a file was uploaded, upload it first then add to filesUrl
+        upload_url = None
         if file and file.filename:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+            suffix = Path(file.filename).suffix or ".tmp"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 tmp.write(await file.read())
                 tmp_path = tmp.name
             try:
@@ -396,6 +400,8 @@ async def gpt4o_image_create(
                 Path(tmp_path).unlink(missing_ok=True)
 
         resp = kie_api.gpt4o_image_generate(input_data)
+        if isinstance(resp, dict) and upload_url:
+            resp["uploaded_url"] = upload_url
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")
@@ -426,8 +432,10 @@ async def flux_kontext_create(
         input_data = json.loads(input_json)
 
         # If a file was uploaded, upload it first then set inputImage
+        upload_url = None
         if file and file.filename:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+            suffix = Path(file.filename).suffix or ".tmp"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 tmp.write(await file.read())
                 tmp_path = tmp.name
             try:
@@ -442,6 +450,8 @@ async def flux_kontext_create(
             input_data["model"] = model
 
         resp = kie_api.flux_kontext_generate(input_data)
+        if isinstance(resp, dict) and upload_url:
+            resp["uploaded_url"] = upload_url
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")

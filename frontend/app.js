@@ -1208,7 +1208,7 @@ function updateSubmitState() {
     if (isMix) {
         // Mix models: need at least a file OR a prompt
         const hasFile = !!selectedFile;
-        const hasPrompt = !!els.configPrompt.value.trim() || selectedModel.hasPrompt;
+        const hasPrompt = !!els.configPrompt.value.trim();
         if (!hasFile && !hasPrompt) ok = false;
     } else {
         if (needsFileStrict && !selectedFile) ok = false;
@@ -1439,7 +1439,7 @@ async function submitGpt4oImage() {
     if (!resp.ok) throw new Error(json.detail || 'Failed');
 
     let tid = json?.data?.taskId || json?.taskId;
-    if (tid) addTask(tid, 'gpt4o-image', 'gpt4o-image', null, extra);
+    if (tid) addTask(tid, 'gpt4o-image', 'gpt4o-image', json.uploaded_url || null, extra);
     return json;
 }
 
@@ -1467,7 +1467,7 @@ async function submitFluxKontext() {
     if (!resp.ok) throw new Error(json.detail || 'Failed');
 
     let tid = json?.data?.taskId || json?.taskId;
-    if (tid) addTask(tid, resolvedModel, 'flux-kontext', null, extra);
+    if (tid) addTask(tid, resolvedModel, 'flux-kontext', json.uploaded_url || null, extra);
     return json;
 }
 
