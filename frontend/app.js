@@ -686,6 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initPromptCounter();
     initResetButtons();
     initKeyboardShortcuts();
+    initSocketCallbacks();
 });
 
 function restorePendingTasks() {
@@ -715,6 +716,70 @@ function restorePendingTasks() {
     });
     updateTasksEmpty();
     updateActiveCount();
+}
+
+// ==================== Socket.IO Callbacks ====================
+
+function initSocketCallbacks() {
+    if (typeof io === 'undefined') {
+        console.warn('[Socket] socket.io client not loaded, callbacks disabled');
+        return;
+    }
+    const apiKey = localStorage.getItem('kie-api-key') || 'brick-squad-2026';
+    const socket = io({ auth: { apiKey }, transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+        console.log('[Socket] Connected for KIE callbacks');
+    });
+
+    socket.on('kie:task-update', (body) => {
+        const taskId = body?.data?.taskId;
+        if (!taskId) return;
+
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return; // Not one of ours
+
+        console.log(`[Callback] ${taskId} code=${body.code}`);
+
+        // Map callback code to task state
+        const code = body.code;
+        let state;
+        if (code === 200) state = 'success';
+        else if (code === 400 || code === 422 || code === 500 || code === 501) state = 'fail';
+        else state = 'processing';
+
+        // Build a data envelope matching what poll expects
+        const data = body.data || {};
+        if (body.msg) data.failMsg = code !== 200 ? body.msg : undefined;
+        // Normalize result URLs into data for the card renderer
+        const info = data.info || {};
+        if (info.resultUrls) data.resultUrls = info.resultUrls;
+        if (info.originUrls) data.originUrls = info.originUrls;
+        if (info.resolution) data.resolution = info.resolution;
+
+        task.data = { code, msg: body.msg, data };
+        task.state = state;
+
+        // Stop polling — callback is authoritative
+        if (state === 'success' || state === 'fail') {
+            if (task.pollTimer) { clearInterval(task.pollTimer); task.pollTimer = null; }
+            removePendingTask(task.id);
+            const failInfo = data.failMsg ? ` — ${data.failMsg}` : '';
+            toast(
+                state === 'success' ? `✅ ${task.model} concluído!` : `❌ ${task.model} falhou${failInfo}`,
+                state === 'success' ? 'success' : 'error'
+            );
+            if (state === 'success') addToHistory(task);
+            fetchCredits();
+        }
+
+        updateTaskCard(task);
+        updateActiveCount();
+    });
+
+    socket.on('disconnect', () => {
+        console.log('[Socket] Disconnected — polling continues as fallback');
+    });
 }
 
 // ==================== Credits ====================

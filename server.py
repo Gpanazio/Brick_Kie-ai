@@ -23,6 +23,8 @@ FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 # root_path for reverse proxy subpath (e.g. /kie-ai)
 ROOT_PATH = os.environ.get("ROOT_PATH", "")
+# Callback URL for KIE.ai webhooks (set by parent Node.js server from RAILWAY_PUBLIC_DOMAIN)
+CALLBACK_URL = os.environ.get("KIE_CALLBACK_URL", "")
 app = FastAPI(title="KIE AI Frontend Server", version="1.0.0", root_path=ROOT_PATH)
 
 # CORS for dev
@@ -102,7 +104,7 @@ async def market_create(
 ):
     try:
         input_data = json.loads(input_json)
-        resp = kie_api.market_create_task(model, input_data, callback_url=callback)
+        resp = kie_api.market_create_task(model, input_data, callback_url=callback or CALLBACK_URL)
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")
@@ -127,6 +129,8 @@ async def mj_create(
 ):
     try:
         payload = json.loads(payload_json)
+        if CALLBACK_URL and "callBackUrl" not in payload:
+            payload["callBackUrl"] = CALLBACK_URL
         resp = kie_api.mj_generate(payload)
         return resp
     except json.JSONDecodeError:
@@ -161,7 +165,7 @@ async def shortcut_recraft_rmbg(
 
         try:
             resp = kie_api.recraft_remove_background_from_local(
-                tmp_path, upload_path=uploadPath, callback_url=callback, file_name=file.filename
+                tmp_path, upload_path=uploadPath, callback_url=callback or CALLBACK_URL, file_name=file.filename
             )
             return resp
         finally:
@@ -186,7 +190,7 @@ async def shortcut_topaz_upscale(
 
         try:
             resp = kie_api.topaz_video_upscale_from_local(
-                tmp_path, upscale_factor=factor, upload_path=uploadPath, callback_url=callback, file_name=file.filename
+                tmp_path, upscale_factor=factor, upload_path=uploadPath, callback_url=callback or CALLBACK_URL, file_name=file.filename
             )
             return resp
         finally:
@@ -230,7 +234,7 @@ async def process_file(
                 extra[file_field] = file_url
 
             # Step 3: Create task
-            task_resp = kie_api.market_create_task(model, extra)
+            task_resp = kie_api.market_create_task(model, extra, callback_url=CALLBACK_URL)
 
             return {
                 "success": True,
@@ -256,7 +260,7 @@ async def market_create_json_body(
     """Create a Market task from JSON input only (no file upload needed)."""
     try:
         input_data = json.loads(input_json)
-        resp = kie_api.market_create_task(model, input_data)
+        resp = kie_api.market_create_task(model, input_data, callback_url=CALLBACK_URL)
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")
@@ -290,6 +294,8 @@ async def suno_create(
             finally:
                 Path(tmp_path).unlink(missing_ok=True)
 
+        if CALLBACK_URL and "callBackUrl" not in input_data:
+            input_data["callBackUrl"] = CALLBACK_URL
         resp = kie_api.suno_create_task(model, input_data)
         return resp
     except json.JSONDecodeError:
@@ -333,6 +339,8 @@ async def veo_create(
             finally:
                 Path(tmp_path).unlink(missing_ok=True)
 
+        if CALLBACK_URL and "callBackUrl" not in input_data:
+            input_data["callBackUrl"] = CALLBACK_URL
         resp = kie_api.veo_create_task(model, input_data)
         # Attach uploaded_url so frontend can display the input image (like gpt4o/flux)
         if isinstance(resp, dict) and file and file.filename:
@@ -402,6 +410,8 @@ async def gpt4o_image_create(
             finally:
                 Path(tmp_path).unlink(missing_ok=True)
 
+        if CALLBACK_URL and "callBackUrl" not in input_data:
+            input_data["callBackUrl"] = CALLBACK_URL
         resp = kie_api.gpt4o_image_generate(input_data)
         if isinstance(resp, dict) and upload_url:
             resp["uploaded_url"] = upload_url
@@ -452,6 +462,8 @@ async def flux_kontext_create(
         if "model" not in input_data:
             input_data["model"] = model
 
+        if CALLBACK_URL and "callBackUrl" not in input_data:
+            input_data["callBackUrl"] = CALLBACK_URL
         resp = kie_api.flux_kontext_generate(input_data)
         if isinstance(resp, dict) and upload_url:
             resp["uploaded_url"] = upload_url
