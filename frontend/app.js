@@ -21,6 +21,9 @@ const MODEL_COST_ESTIMATES = {
     'qwen/text-to-image': 4,             // qwen image = 4
     'grok-imagine/text-to-image': 4,     // 4 cr/image
     'grok-imagine/image-to-image': 4,    // 4 cr/image
+    'gpt4o-image': 30,                   // ~30 cr/image
+    'flux-kontext-pro': 10,              // ~10 cr/image
+    'flux-kontext-max': 20,              // ~20 cr/image
     // ── Image Tools ──
     'recraft/remove-background': 10,
     'recraft/crisp-upscale': 15,
@@ -94,6 +97,9 @@ const PROMPT_CHAR_LIMITS = {
     'google/nano-banana-edit': 5000,
     'grok-imagine/text-to-image': 5000,
     'grok-imagine/image-to-image': 5000,
+    'gpt4o-image': 5000,
+    'flux-kontext-pro': 5000,
+    'flux-kontext-max': 5000,
     'bytedance/4.5-text-to-image': 2000,
     'flux-2/pro-text-to-image': 2000,
     'google/imagen4': 2000,
@@ -160,6 +166,29 @@ const MODEL_CONFIGS = {
     },
     'grok-imagine/image-to-image': {
         params: []
+    },
+    'gpt4o-image': {
+        params: [
+            { key: 'size', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '1:1' },
+            { key: 'nVariants', label: 'Variantes', type: 'select', options: ['1', '2', '3', '4'], default: '1' },
+            { key: 'isEnhance', label: 'Enhance Prompt', type: 'bool', default: false },
+        ]
+    },
+    'flux-kontext-pro': {
+        params: [
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
+            { key: 'outputFormat', label: 'Formato', type: 'select', options: ['jpeg', 'png'], default: 'jpeg' },
+            { key: 'promptUpsampling', label: 'Prompt Upsampling', type: 'bool', default: false },
+            { key: 'safetyTolerance', label: 'Safety Tolerance', type: 'number', default: 2, min: 0, max: 6, step: 1 },
+        ]
+    },
+    'flux-kontext-max': {
+        params: [
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
+            { key: 'outputFormat', label: 'Formato', type: 'select', options: ['jpeg', 'png'], default: 'jpeg' },
+            { key: 'promptUpsampling', label: 'Prompt Upsampling', type: 'bool', default: false },
+            { key: 'safetyTolerance', label: 'Safety Tolerance', type: 'number', default: 2, min: 0, max: 6, step: 1 },
+        ]
     },
     'bytedance/4.5-text-to-image': {
         params: [
@@ -892,6 +921,7 @@ function selectModelFromData(data) {
 
     if (selectedModel.field === 'video_url') els.fileInput.accept = 'video/*';
     else if (selectedModel.field === 'audio_url') els.fileInput.accept = 'audio/*';
+    else if (['filesUrl', 'inputImage', 'image_url', 'image_urls', 'image'].includes(selectedModel.field)) els.fileInput.accept = 'image/*';
     else els.fileInput.accept = 'image/*,video/*,audio/*';
 
     // Enable multi-file selection for batch-capable models
@@ -1172,12 +1202,19 @@ function updateSubmitState() {
     if (!selectedModel) { els.btnSubmit.disabled = true; return; }
     const isMj = selectedModel.input === 'mj';
     const isMix = selectedModel.input === 'mix';
-    const needsFile = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img') || isMix;
+    const needsFileStrict = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img');
     const needsPrompt = selectedModel.input === 'text' || isMj || isMix;
     let ok = true;
-    if (needsFile && !selectedFile) ok = false;
-    // Prompt is required for text-only & MJ, but optional for file+prompt models
-    if (needsPrompt && !selectedModel.hasPrompt && !els.configPrompt.value.trim()) ok = false;
+    if (isMix) {
+        // Mix models: need at least a file OR a prompt
+        const hasFile = !!selectedFile;
+        const hasPrompt = !!els.configPrompt.value.trim() || selectedModel.hasPrompt;
+        if (!hasFile && !hasPrompt) ok = false;
+    } else {
+        if (needsFileStrict && !selectedFile) ok = false;
+        // Prompt is required for text-only & MJ, but optional for file+prompt models
+        if (needsPrompt && !selectedModel.hasPrompt && !els.configPrompt.value.trim()) ok = false;
+    }
     els.btnSubmit.disabled = !ok;
 }
 
@@ -1227,6 +1264,9 @@ async function handleSubmit() {
             }
             else if (selectedModel.model.startsWith('suno/')) response = await submitSunoModel();
             else if (selectedModel.model.startsWith('veo3/')) response = await submitVeoModel();
+            else if (selectedModel.model === 'gpt4o-image') response = await submitGpt4oImage();
+            else if (selectedModel.model.startsWith('flux-kontext')) response = await submitFluxKontext();
+            else if (selectedModel.input === 'mix') response = await submitMixMarketModel();
             else if (selectedModel.input === 'file') response = await submitFileModel();
             else response = await submitTextModel();
             if (response) {
@@ -1379,6 +1419,97 @@ async function submitFileModel() {
     return json;
 }
 
+async function submitGpt4oImage() {
+    const fd = new FormData();
+    if (selectedFile) fd.append('file', selectedFile);
+
+    let extra = collectModelParams();
+    const prompt = els.configPrompt.value.trim();
+    if (prompt) extra.prompt = prompt;
+
+    if (!els.configExtraGrp.classList.contains('hidden')) {
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+    }
+
+    fd.append('model', 'gpt4o-image');
+    fd.append('input_json', JSON.stringify(extra));
+
+    const resp = await fetch(`${API}/api/gpt4o-image/create`, { method: 'POST', body: fd });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.detail || 'Failed');
+
+    let tid = json?.data?.taskId || json?.taskId;
+    if (tid) addTask(tid, 'gpt4o-image', 'gpt4o-image', null, extra);
+    return json;
+}
+
+async function submitFluxKontext() {
+    const fd = new FormData();
+    if (selectedFile) fd.append('file', selectedFile);
+
+    const resolvedModel = selectedModel.model; // flux-kontext-pro or flux-kontext-max
+    let extra = collectModelParams();
+    const prompt = els.configPrompt.value.trim();
+    if (prompt) extra.prompt = prompt;
+
+    // Set the API model name (flux-kontext-pro or flux-kontext-max)
+    extra.model = resolvedModel;
+
+    if (!els.configExtraGrp.classList.contains('hidden')) {
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+    }
+
+    fd.append('model', resolvedModel);
+    fd.append('input_json', JSON.stringify(extra));
+
+    const resp = await fetch(`${API}/api/flux-kontext/create`, { method: 'POST', body: fd });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.detail || 'Failed');
+
+    let tid = json?.data?.taskId || json?.taskId;
+    if (tid) addTask(tid, resolvedModel, 'flux-kontext', null, extra);
+    return json;
+}
+
+async function submitMixMarketModel() {
+    const fd = new FormData();
+    if (selectedFile) fd.append('file', selectedFile);
+
+    let resolvedModel = selectedModel.model;
+    let extra = collectModelParams();
+    const prompt = els.configPrompt.value.trim();
+    if (prompt) extra.prompt = prompt;
+
+    if (!els.configExtraGrp.classList.contains('hidden')) {
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+    }
+
+    // If there's a file, use /api/process which handles upload + task creation
+    if (selectedFile) {
+        fd.append('model', resolvedModel);
+        fd.append('file_field', selectedModel.field);
+        fd.append('uploadPath', 'images');
+        fd.append('input_json', JSON.stringify(extra));
+        const resp = await fetch(`${API}/api/process`, { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.detail || 'Failed');
+        const taskId = json?.task?.data?.taskId;
+        if (taskId) addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
+        return json;
+    } else {
+        // Text-only: use create-json
+        const fd2 = new FormData();
+        fd2.append('model', resolvedModel);
+        fd2.append('input_json', JSON.stringify(extra));
+        const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd2 });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.detail || 'Failed');
+        const taskId = json?.data?.taskId;
+        if (taskId) addTask(taskId, resolvedModel, 'market', null, extra);
+        return json;
+    }
+}
+
 async function submitTextModel() {
     const prompt = els.configPrompt.value.trim();
     let extra = collectModelParams();
@@ -1496,7 +1627,9 @@ function startPolling(task) {
             const ep = task.mode === 'midjourney' ? `/api/mj/task/${task.id}` :
                 task.mode === 'suno' ? `/api/suno/task/${task.id}` :
                     task.mode === 'veo' ? `/api/veo/task/${task.id}` :
-                        `/api/market/task/${task.id}`;
+                        task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${task.id}` :
+                            task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${task.id}` :
+                                `/api/market/task/${task.id}`;
             const resp = await fetch(`${API}${ep}`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const json = await resp.json();

@@ -330,6 +330,67 @@ def mj_wait(task_id: str, interval: float = 5.0, timeout_s: float = 1800.0) -> D
         time.sleep(interval)
 
 
+# ==================== GPT 4o Image ====================
+
+GPT4O_IMAGE_GENERATE = "/api/v1/gpt4o-image/generate"
+GPT4O_IMAGE_RECORD = "/api/v1/gpt4o-image/record-info"
+GPT4O_IMAGE_DOWNLOAD = "/api/v1/gpt4o-image/download-url"
+
+
+def gpt4o_image_generate(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate an image using GPT 4o Image API."""
+    r = requests.post(
+        _url(BASE_URL, GPT4O_IMAGE_GENERATE),
+        headers=_auth_headers_json(),
+        data=json.dumps(input_data),
+        timeout=180,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def gpt4o_image_task_info(task_id: str) -> Dict[str, Any]:
+    """Get GPT 4o Image task details."""
+    r = requests.get(
+        _url(BASE_URL, GPT4O_IMAGE_RECORD),
+        headers=_auth_headers_json(),
+        params={"taskId": task_id},
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+# ==================== Flux Kontext ====================
+
+FLUX_KONTEXT_GENERATE = "/api/v1/flux/kontext/generate"
+FLUX_KONTEXT_RECORD = "/api/v1/flux/kontext/record-info"
+
+
+def flux_kontext_generate(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate or edit an image using Flux Kontext API."""
+    r = requests.post(
+        _url(BASE_URL, FLUX_KONTEXT_GENERATE),
+        headers=_auth_headers_json(),
+        data=json.dumps(input_data),
+        timeout=180,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def flux_kontext_task_info(task_id: str) -> Dict[str, Any]:
+    """Get Flux Kontext task details."""
+    r = requests.get(
+        _url(BASE_URL, FLUX_KONTEXT_RECORD),
+        headers=_auth_headers_json(),
+        params={"taskId": task_id},
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
 # ==================== Convenience wrappers ====================
 
 

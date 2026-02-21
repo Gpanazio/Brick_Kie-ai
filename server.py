@@ -366,6 +366,98 @@ async def veo_4k(task_id: str = Form(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== GPT 4o Image API proxy ====================
+
+
+@app.post("/api/gpt4o-image/create")
+async def gpt4o_image_create(
+    model: str = Form(...),
+    input_json: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+):
+    """Proxy to GPT 4o Image API. Supports optional image upload via filesUrl."""
+    try:
+        input_data = json.loads(input_json)
+
+        # If a file was uploaded, upload it first then add to filesUrl
+        if file and file.filename:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+                tmp.write(await file.read())
+                tmp_path = tmp.name
+            try:
+                up_resp = kie_api.upload_stream(tmp_path, upload_path="images")
+                upload_url = kie_api._extract_uploaded_url(up_resp)
+                existing = input_data.get("filesUrl", [])
+                if not isinstance(existing, list):
+                    existing = []
+                existing.append(upload_url)
+                input_data["filesUrl"] = existing
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
+
+        resp = kie_api.gpt4o_image_generate(input_data)
+        return resp
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid input JSON")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/gpt4o-image/task/{task_id}")
+async def gpt4o_image_task(task_id: str):
+    """Get GPT 4o Image task status."""
+    try:
+        return kie_api.gpt4o_image_task_info(task_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== Flux Kontext API proxy ====================
+
+
+@app.post("/api/flux-kontext/create")
+async def flux_kontext_create(
+    model: str = Form(...),
+    input_json: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+):
+    """Proxy to Flux Kontext API. Supports optional image upload via inputImage."""
+    try:
+        input_data = json.loads(input_json)
+
+        # If a file was uploaded, upload it first then set inputImage
+        if file and file.filename:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+                tmp.write(await file.read())
+                tmp_path = tmp.name
+            try:
+                up_resp = kie_api.upload_stream(tmp_path, upload_path="images")
+                upload_url = kie_api._extract_uploaded_url(up_resp)
+                input_data["inputImage"] = upload_url
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
+
+        # Ensure model is set in input_data
+        if "model" not in input_data:
+            input_data["model"] = model
+
+        resp = kie_api.flux_kontext_generate(input_data)
+        return resp
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid input JSON")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/flux-kontext/task/{task_id}")
+async def flux_kontext_task(task_id: str):
+    """Get Flux Kontext task status."""
+    try:
+        return kie_api.flux_kontext_task_info(task_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 
