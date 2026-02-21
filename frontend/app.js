@@ -633,6 +633,9 @@ function addToHistory(task) {
         extraParams: task._extraParams || null,
         timestamp: Date.now(),
         costTime: data.costTime || null,
+        // Suno cover art for thumbnail display
+        coverUrl: data.response?.sunoData?.[0]?.imageUrl || null,
+        trackTitle: data.response?.sunoData?.[0]?.title || null,
     };
 
     const history = loadHistory();
@@ -2224,17 +2227,30 @@ function renderHistoryGallery() {
         const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(url);
 
         let thumbHtml;
-        if (isVid) {
+        if (entry.urls.length > 1 && !isVid && !isAud) {
+            // Multi-image mini-grid (MJ 4 images)
+            thumbHtml = '<div class="history-thumb-grid">';
+            entry.urls.slice(0, 4).forEach(u => {
+                thumbHtml += `<img src="${esc(u)}" alt="" loading="lazy" class="history-thumb-grid-img">`;
+            });
+            thumbHtml += '</div>';
+        } else if (isVid) {
             thumbHtml = `<video src="${esc(url)}#t=0.001" muted preload="metadata" class="history-thumb-media"></video>
                          <div class="history-play-icon">
                              <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21"/></svg>
                          </div>`;
         } else if (isAud) {
-            thumbHtml = `<div class="history-thumb-audio">
-                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5">
-                                 <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-                             </svg>
-                         </div>`;
+            if (entry.coverUrl) {
+                // Suno: show cover art as thumbnail
+                thumbHtml = `<img src="${esc(entry.coverUrl)}" alt="" loading="lazy" class="history-thumb-media">
+                             <div class="history-thumb-audio-badge">♫</div>`;
+            } else {
+                thumbHtml = `<div class="history-thumb-audio">
+                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5">
+                                     <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                                 </svg>
+                             </div>`;
+            }
         } else if (url) {
             thumbHtml = `<img src="${esc(url)}" alt="" loading="lazy" class="history-thumb-media">`;
         } else {
