@@ -409,6 +409,45 @@ let currentCatLabel = '';
 let currentCat = ''; // Store the current internal category ID
 let tasks = [];
 
+// ==================== Pending Tasks (localStorage) ====================
+const PENDING_KEY = 'kie-pending-tasks';
+
+function loadPendingTasks() {
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }
+    catch { return []; }
+}
+
+function savePendingTasks(pending) {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify(pending)); }
+    catch (e) { console.error('Pending tasks save error:', e); }
+}
+
+function addPendingTask(task) {
+    const pending = loadPendingTasks();
+    // Avoid duplicates
+    if (pending.some(p => p.id === task.id)) return;
+    pending.push({
+        id: task.id,
+        model: task.model,
+        mode: task.mode,
+        cat: task.cat,
+        _prompt: task._prompt || '',
+        _inputFileUrl: task._inputFileUrl || null,
+        _extraParams: task._extraParams || null,
+        createdAt: Date.now()
+    });
+    savePendingTasks(pending);
+}
+
+function removePendingTask(taskId) {
+    const pending = loadPendingTasks().filter(p => p.id !== taskId);
+    savePendingTasks(pending);
+}
+
+function clearAllPendingTasks() {
+    localStorage.removeItem(PENDING_KEY);
+}
+
 // ==================== History (localStorage) ====================
 const HISTORY_KEY = 'kie-history';
 const HISTORY_MAX = 200;
@@ -562,11 +601,41 @@ document.addEventListener('DOMContentLoaded', () => {
     initClearTasks();
     initTabs();
     initHistory();
+    restorePendingTasks();
     fetchCredits();
     initPromptCounter();
     initResetButtons();
     initKeyboardShortcuts();
 });
+
+function restorePendingTasks() {
+    const pending = loadPendingTasks();
+    if (!pending.length) return;
+    // Discard tasks older than 1 hour (likely already expired on the API side)
+    const ONE_HOUR = 60 * 60 * 1000;
+    const now = Date.now();
+    const valid = pending.filter(p => (now - (p.createdAt || 0)) < ONE_HOUR);
+    if (valid.length !== pending.length) savePendingTasks(valid);
+    valid.forEach(p => {
+        const task = {
+            id: p.id,
+            model: p.model,
+            mode: p.mode,
+            cat: p.cat,
+            state: 'processing',
+            data: null,
+            pollTimer: null,
+            _prompt: p._prompt || '',
+            _inputFileUrl: p._inputFileUrl || null,
+            _extraParams: p._extraParams || null
+        };
+        tasks.unshift(task);
+        renderTaskCard(task);
+        startPolling(task);
+    });
+    updateTasksEmpty();
+    updateActiveCount();
+}
 
 // ==================== Credits ====================
 
@@ -1344,6 +1413,7 @@ function addTask(taskId, model, mode, inputFileUrl = null, extraParams = null) {
         _extraParams: extraParams
     };
     tasks.unshift(task);
+    addPendingTask(task);
     renderTaskCard(task);
     startPolling(task);
     updateTasksEmpty();
@@ -1415,6 +1485,7 @@ function startPolling(task) {
             updateTaskCard(task);
             if (state === 'success' || state === 'fail') {
                 clearInterval(task.pollTimer); task.pollTimer = null;
+                removePendingTask(task.id);
                 const failInfo = data.failMsg ? ` — ${data.failMsg}` : '';
                 toast(
                     state === 'success' ? `✅ ${task.model} concluído!` : `❌ ${task.model} falhou${failInfo}`,
@@ -1430,6 +1501,7 @@ function startPolling(task) {
             console.error(`Poll error (${pollErrors}/${MAX_POLL_ERRORS}):`, err);
             if (pollErrors >= MAX_POLL_ERRORS) {
                 clearInterval(task.pollTimer); task.pollTimer = null;
+                removePendingTask(task.id);
                 task.state = 'fail';
                 task.data = { data: { failMsg: `Erro de rede: ${err.message}`, failCode: 'NETWORK_ERROR' } };
                 updateTaskCard(task);
@@ -1447,6 +1519,7 @@ function initClearTasks() {
     els.btnClearTasks.addEventListener('click', () => {
         tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
         tasks = [];
+        clearAllPendingTasks();
         els.tasksList.querySelectorAll('.task-card').forEach(el => el.remove());
         updateTasksEmpty();
         updateActiveCount();
