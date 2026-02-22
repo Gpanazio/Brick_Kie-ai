@@ -2539,18 +2539,21 @@ function openHistoryLightbox(entry) {
             }
 
             if (entry.inputFileUrl) {
+                // Support both single URL string and array of URLs
+                const inputUrls = Array.isArray(entry.inputFileUrl) ? entry.inputFileUrl : [entry.inputFileUrl];
                 try {
                     toast('Baixando mídia original...', 'info');
-                    const resp = await fetch(entry.inputFileUrl);
+                    const firstUrl = inputUrls[0];
+                    const resp = await fetch(firstUrl);
                     if (!resp.ok) throw new Error('Download failed');
                     const blob = await resp.blob();
 
                     // Determine filename and type from URL if possible
                     let ext = 'jpg';
-                    if (entry.inputFileUrl.includes('.mp4')) ext = 'mp4';
-                    else if (entry.inputFileUrl.includes('.png')) ext = 'png';
-                    else if (entry.inputFileUrl.includes('.webm')) ext = 'webm';
-                    else if (entry.inputFileUrl.includes('.mp3')) ext = 'mp3';
+                    if (firstUrl.includes('.mp4')) ext = 'mp4';
+                    else if (firstUrl.includes('.png')) ext = 'png';
+                    else if (firstUrl.includes('.webm')) ext = 'webm';
+                    else if (firstUrl.includes('.mp3')) ext = 'mp3';
 
                     const file = new File([blob], `input.${ext}`, { type: blob.type });
                     handleFileSelect(file);
@@ -2638,7 +2641,8 @@ document.body.addEventListener('click', async (e) => {
 
         const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
         if (taskId) {
-            addTask(taskId, actionModel, 'veo', existingTask?.inputFileUrl || null);
+            const veoInputUrl = Array.isArray(existingTask?.inputFileUrl) ? existingTask.inputFileUrl[0] : (existingTask?.inputFileUrl || null);
+            addTask(taskId, actionModel, 'veo', veoInputUrl);
             toast(`✅ ${actionModel.split('/').pop()} enviado!`, 'success');
 
             // Switch tab to active requests if clicking from history
@@ -2917,8 +2921,9 @@ window.mockSunoGeneration = function () {
         if (e.dataTransfer.files.length) v2AddFiles(Array.from(e.dataTransfer.files));
     });
     v2.fileInput.addEventListener('change', () => {
-        if (v2.fileInput.files.length) v2AddFiles(Array.from(v2.fileInput.files));
-        v2.fileInput.value = ''; // reset so same files can be re-added
+        const selectedFiles = Array.from(v2.fileInput.files);
+        v2.fileInput.value = ''; // reset early so same files can be re-added
+        if (selectedFiles.length) v2AddFiles(selectedFiles);
     });
 
     function v2AddFiles(newFiles) {
@@ -3088,8 +3093,8 @@ window.mockSunoGeneration = function () {
             if (prompt) extra.prompt = prompt;
             if (v2Settings.seed !== null && !isNaN(v2Settings.seed)) extra.seed = v2Settings.seed;
             // Append filter as style hint in prompt if not 'none'
-            if (v2Settings.filter !== 'none' && extra.prompt) {
-                extra.prompt = `${extra.prompt}, ${v2Settings.filter} style`;
+            if (v2Settings.filter !== 'none') {
+                extra.prompt = extra.prompt ? `${extra.prompt}, ${v2Settings.filter} style` : `${v2Settings.filter} style`;
             }
 
             const resolvedModel = 'nano-banana-pro';
@@ -3117,7 +3122,7 @@ window.mockSunoGeneration = function () {
             if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
             const taskId = json?.data?.taskId;
             if (!taskId) throw new Error(json.msg || 'No taskId returned');
-            addTask(taskId, resolvedModel, 'market', extra.image_input?.[0] || null, extra);
+            addTask(taskId, resolvedModel, 'market', extra.image_input?.length ? extra.image_input : null, extra);
             v2Tasks.push(taskId);
 
             toast(`✅ Task created!${v2Files.length ? ` (${v2Files.length} ref image${v2Files.length > 1 ? 's' : ''})` : ''}`, 'success');
