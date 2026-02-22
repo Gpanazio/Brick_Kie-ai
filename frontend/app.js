@@ -726,7 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
         const savedCat = sessionStorage.getItem('kie-workspace-cat');
         if (savedCat && CAT_LABELS[savedCat]) enterWorkspace(savedCat);
-    } catch (_) {}
+    } catch (e) { console.warn('Could not restore workspace from sessionStorage:', e); }
     fetchCredits();
     initPromptCounter();
     initResetButtons();
@@ -914,7 +914,7 @@ function enterWorkspace(cat) {
     // Save category globally
     currentCat = cat;
     // Persist current workspace so F5 / Ctrl+R restores it
-    try { sessionStorage.setItem('kie-workspace-cat', cat); } catch (_) {}
+    try { sessionStorage.setItem('kie-workspace-cat', cat); } catch (e) { console.warn('Could not persist workspace to sessionStorage:', e); }
 
     // Hide lobby, show workspace
     els.lobby.classList.add('exit');
@@ -975,7 +975,7 @@ function exitWorkspace() {
     closeModelPickerModal();
     stopAllPolling();
     // Clear persisted workspace so reload goes to lobby
-    try { sessionStorage.removeItem('kie-workspace-cat'); } catch (_) {}
+    try { sessionStorage.removeItem('kie-workspace-cat'); } catch (e) { console.warn('Could not clear workspace from sessionStorage:', e); }
 }
 
 // ==================== Model Picker Modal ====================
