@@ -1068,6 +1068,10 @@ function openModelPickerModal() {
         card.addEventListener('click', () => {
             selectModelFromData(data);
             closeModelPickerModal();
+            // Open V2 workspace for all image models
+            if (currentCat === 'image' && typeof window._v2ShowWorkspace === 'function') {
+                window._v2ShowWorkspace(data);
+            }
         });
         els.mpmGrid.appendChild(card);
     });
@@ -2838,7 +2842,7 @@ window.mockSunoGeneration = function () {
 };
 
 // ============================================================
-//  NANO BANANA V2 — WORKSPACE OVERLAY CONTROLLER
+//  IMAGE V2 — WORKSPACE OVERLAY CONTROLLER
 //  Fully functional: connects to existing submit infrastructure
 // ============================================================
 
@@ -2883,14 +2887,54 @@ window.mockSunoGeneration = function () {
     };
     let v2Tasks = []; // Track tasks spawned from V2 workspace
 
+    // ── Current model state for V2 workspace ──
+    let v2Model = null; // Will hold { model, name, provider, icon, input, field, color, ... }
+
     // ── Show / Hide ──
-    window._v2ShowWorkspace = function () {
+    window._v2ShowWorkspace = function (modelData) {
+        if (modelData) {
+            v2Model = modelData;
+            v2UpdateModelUI(modelData);
+        }
         ws.classList.remove('hidden');
         document.getElementById('app-main').classList.add('hidden');
         v2.prompt.focus();
         updateV2GenerateState();
         refreshV2Gallery();
     };
+
+    // ── Update workspace UI to reflect selected model ──
+    function v2UpdateModelUI(data) {
+        // Model badge
+        const badgeIcon = ws.querySelector('.v2-model-badge-icon');
+        const badgeName = ws.querySelector('.v2-model-badge-name');
+        const badgeProvider = ws.querySelector('.v2-model-badge-provider');
+        const badgeTag = ws.querySelector('.v2-model-badge-tag');
+        if (badgeIcon) badgeIcon.innerHTML = data.icon || '';
+        if (badgeName) badgeName.textContent = data.name || '';
+        if (badgeProvider) badgeProvider.textContent = data.provider || '';
+        if (badgeTag) badgeTag.textContent = data.provider || '';
+
+        // Model info at bottom of right panel
+        const modelInfoValue = ws.querySelector('.v2-model-info-value');
+        if (modelInfoValue) modelInfoValue.textContent = data.model || '';
+
+        // Update cost estimate
+        const cost = typeof getModelCost === 'function' ? getModelCost(data.model) : null;
+        if (v2.creditsAmount) {
+            v2.creditsAmount.textContent = cost ? `~${cost} credits` : '—';
+        }
+
+        // Show/hide upload zone based on input type
+        const uploadGroup = v2.uploadZone?.closest('.v2-form-group');
+        const needsFile = data.input === 'file' || data.input === 'mix';
+        if (uploadGroup) uploadGroup.style.display = needsFile ? '' : 'none';
+
+        // Show/hide prompt based on input type
+        const promptGroup = v2.prompt?.closest('.v2-form-group');
+        const needsPrompt = data.input === 'text' || data.input === 'mix' || data.prompt === 'true';
+        if (promptGroup) promptGroup.style.display = needsPrompt ? '' : 'none';
+    }
 
     window._v2HideWorkspace = function () {
         ws.classList.add('hidden');
@@ -3098,7 +3142,7 @@ window.mockSunoGeneration = function () {
                 extra.prompt = extra.prompt ? `${extra.prompt}, ${v2Settings.filter} style` : `${v2Settings.filter} style`;
             }
 
-            const resolvedModel = 'nano-banana-pro';
+            const resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
 
             // Upload reference images if any (up to 8)
             if (v2Files.length > 0) {
@@ -3109,7 +3153,9 @@ window.mockSunoGeneration = function () {
                     const url = await v2UploadSingleFile(v2Files[i], i, v2Files.length);
                     imageUrls.push(url);
                 }
-                extra.image_input = imageUrls;
+                // Use the model's expected field name for images
+                const imgField = v2Model?.field || selectedModel?.field || 'image_input';
+                extra[imgField] = imageUrls;
                 btnSpan.textContent = 'Creating task...';
             }
 
@@ -3123,7 +3169,8 @@ window.mockSunoGeneration = function () {
             if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
             const taskId = json?.data?.taskId;
             if (!taskId) throw new Error(json.msg || 'No taskId returned');
-            addTask(taskId, resolvedModel, 'market', extra.image_input?.length ? extra.image_input : null, extra);
+            const imgField = v2Model?.field || selectedModel?.field || 'image_input';
+            addTask(taskId, resolvedModel, 'market', extra[imgField]?.length ? extra[imgField] : null, extra);
             v2Tasks.push(taskId);
 
             toast(`✅ Task created!${v2Files.length ? ` (${v2Files.length} ref image${v2Files.length > 1 ? 's' : ''})` : ''}`, 'success');
@@ -3280,5 +3327,5 @@ window.mockSunoGeneration = function () {
         }
     });
 
-    console.log('[V2] Nano Banana V2 workspace initialized');
+    console.log('[V2] Image workspace initialized');
 })();
