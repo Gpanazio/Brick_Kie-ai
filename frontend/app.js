@@ -13,6 +13,7 @@ const API = '/kie-ai';
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
     'nano-banana-pro': 18,                // 1/2K = 18, 4K = 24
+    'nano-banana-v2': 18,                 // experimental v2 design
     'google/nano-banana-edit': 4,          // image editing
     'bytedance/4.5-text-to-image': 10,    // estimated
     'seedream/4.5-edit': 10,              // estimated (image editing)
@@ -99,6 +100,7 @@ const PROMPT_CHAR_LIMITS = {
     'wan/2-2-a14b-text-to-video-turbo': 2000,
     'hailuo/2-3-image-to-video-pro': 2000,
     'nano-banana-pro': 2000,
+    'nano-banana-v2': 2000,
     'google/nano-banana-edit': 5000,
     'grok-imagine/text-to-image': 5000,
     'grok-imagine/image-to-image': 5000,
@@ -153,6 +155,13 @@ function updateCostBadge(el, cost, baseClass, suffix) {
 const MODEL_CONFIGS = {
     // ──── IMAGE MODELS ────
     'nano-banana-pro': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
+            { key: 'output_format', label: 'Formato', type: 'select', options: ['png', 'jpg'], default: 'png' },
+        ]
+    },
+    'nano-banana-v2': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
@@ -1007,28 +1016,57 @@ function openModelPickerModal() {
         const cost = getModelCost(data.model);
         const isActive = selectedModel?.model === data.model;
         const card = document.createElement('button');
-        card.className = `mpm-card${isActive ? ' active' : ''}`;
+        const isV2 = data.design === 'v2';
+        card.className = `mpm-card${isActive ? ' active' : ''}${isV2 ? ' mpm-card-v2' : ''}`;
         card.dataset.model = data.model;
+        if (data.color) card.dataset.color = data.color;
 
         const inputTypeTag = data.input === 'file' ? 'Image/File' : data.input === 'mj' ? 'Midjourney' : 'Text';
         const costHtml = cost ? `<span class="mpm-card-cost ${costColorClass(cost)}">~${cost} cr</span>` : '';
 
-        card.innerHTML = `
-            <div class="mpm-card-accent ${data.color || ''}"></div>
-            <div class="mpm-card-top">
-                <div class="mpm-card-icon ${data.color}">${data.icon}</div>
-                ${costHtml}
-            </div>
-            <div>
-                <div class="mpm-card-name">${esc(data.name)}</div>
-                <div class="mpm-card-provider">${esc(data.provider)}</div>
-            </div>
-            <div class="mpm-card-desc">${esc(data.desc || '')}</div>
-            <div class="mpm-card-footer">
-                <span class="mpm-card-tag">${esc(inputTypeTag)}</span>
-            </div>
-            <div class="mpm-card-glow"></div>
-        `;
+        if (isV2) {
+            card.innerHTML = `
+                <div class="mpm-v2-glow-border"></div>
+                <div class="mpm-v2-inner">
+                    <div class="mpm-v2-header">
+                        <div class="mpm-v2-icon">${data.icon}</div>
+                        <div class="mpm-v2-badge">EXPERIMENTAL</div>
+                    </div>
+                    <div class="mpm-v2-body">
+                        <div class="mpm-v2-name">${esc(data.name)}</div>
+                        <div class="mpm-v2-provider">${esc(data.provider)}</div>
+                        <div class="mpm-v2-desc">${esc(data.desc || '')}</div>
+                    </div>
+                    <div class="mpm-v2-footer">
+                        <span class="mpm-v2-tag">${esc(inputTypeTag)}</span>
+                        ${cost ? `<span class="mpm-v2-cost">~${cost} cr</span>` : ''}
+                    </div>
+                    <div class="mpm-v2-features">
+                        <div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>Prompt + Referência</div>
+                        <div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>Até 4K</div>
+                        <div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>Multi-formato</div>
+                    </div>
+                </div>
+                <div class="mpm-v2-ambient"></div>
+            `;
+        } else {
+            card.innerHTML = `
+                <div class="mpm-card-accent ${data.color || ''}"></div>
+                <div class="mpm-card-top">
+                    <div class="mpm-card-icon ${data.color}">${data.icon}</div>
+                    ${costHtml}
+                </div>
+                <div>
+                    <div class="mpm-card-name">${esc(data.name)}</div>
+                    <div class="mpm-card-provider">${esc(data.provider)}</div>
+                </div>
+                <div class="mpm-card-desc">${esc(data.desc || '')}</div>
+                <div class="mpm-card-footer">
+                    <span class="mpm-card-tag">${esc(inputTypeTag)}</span>
+                </div>
+                <div class="mpm-card-glow"></div>
+            `;
+        }
         card.addEventListener('click', () => {
             selectModelFromData(data);
             closeModelPickerModal();
