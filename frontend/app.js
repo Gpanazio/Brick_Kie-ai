@@ -636,6 +636,7 @@ function addToHistory(task) {
         // Suno cover art for thumbnail display
         coverUrl: data.response?.sunoData?.[0]?.imageUrl || null,
         trackTitle: data.response?.sunoData?.[0]?.title || null,
+        sunoData: data.response?.sunoData || null,
     };
 
     const history = loadHistory();
@@ -2223,23 +2224,12 @@ function renderHistoryGallery() {
         card.dataset.historyId = entry.id;
 
         const url = entry.urls[0] || '';
-        const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url);
-        const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(url);
+        const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url) || entry.model === 'mj-video' || entry.model.startsWith('veo3/');
+        const isSuno = entry.model.startsWith('suno/');
+        const isMj = entry.model.startsWith('mj-');
 
         let thumbHtml;
-        if (entry.urls.length > 1 && !isVid && !isAud) {
-            // Multi-image mini-grid (MJ 4 images)
-            thumbHtml = '<div class="history-thumb-grid">';
-            entry.urls.slice(0, 4).forEach(u => {
-                thumbHtml += `<img src="${esc(u)}" alt="" loading="lazy" class="history-thumb-grid-img">`;
-            });
-            thumbHtml += '</div>';
-        } else if (isVid) {
-            thumbHtml = `<video src="${esc(url)}#t=0.001" muted preload="metadata" class="history-thumb-media"></video>
-                         <div class="history-play-icon">
-                             <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21"/></svg>
-                         </div>`;
-        } else if (isAud) {
+        if (isSuno) {
             if (entry.coverUrl) {
                 // Suno: show cover art as thumbnail
                 thumbHtml = `<img src="${esc(entry.coverUrl)}" alt="" loading="lazy" class="history-thumb-media">
@@ -2251,6 +2241,18 @@ function renderHistoryGallery() {
                                  </svg>
                              </div>`;
             }
+        } else if (isMj && entry.urls.length > 1 && !isVid) {
+            // Multi-image mini-grid (MJ 4 images)
+            thumbHtml = '<div class="history-thumb-grid">';
+            entry.urls.slice(0, 4).forEach(u => {
+                thumbHtml += `<img src="${esc(u)}" alt="" loading="lazy" class="history-thumb-grid-img">`;
+            });
+            thumbHtml += '</div>';
+        } else if (isVid) {
+            thumbHtml = `<video src="${esc(url)}#t=0.001" muted preload="metadata" class="history-thumb-media"></video>
+                         <div class="history-play-icon">
+                             <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21"/></svg>
+                         </div>`;
         } else if (url) {
             thumbHtml = `<img src="${esc(url)}" alt="" loading="lazy" class="history-thumb-media">`;
         } else {
@@ -2315,15 +2317,40 @@ function openHistoryLightbox(entry) {
             mediaHtml += `<img src="${esc(u)}" alt="Result ${i + 1}" loading="lazy" class="task-result-grid-img lightbox-media">`;
         });
         mediaHtml += '</div>';
-    } else if (entry.urls.length > 1 && isAud) {
-        // Multi-audio (Suno 2 tracks)
-        mediaHtml = '';
-        entry.urls.forEach((u, i) => {
-            mediaHtml += `<div class="task-result-audio-track">
-                <span class="audio-track-label">Faixa ${i + 1}</span>
-                <audio src="${esc(u)}" controls style="width:100%"></audio>
+    } else if (entry.model && entry.model.startsWith('suno/')) {
+        // Multi-audio (Suno tracks) with premium layout
+        mediaHtml = '<div style="display:flex; flex-direction:column; gap:16px;">';
+        const sunoArr = entry.sunoData || [];
+
+        // Backward compatibility for old history items
+        if (sunoArr.length === 0 && entry.urls) {
+            entry.urls.forEach((u, i) => {
+                sunoArr.push({ audioUrl: u, imageUrl: entry.coverUrl || '', title: entry.trackTitle || `Faixa ${i + 1}` });
+            });
+        }
+
+        sunoArr.forEach((track, i) => {
+            const audioSrc = track.audioUrl || track.sourceAudioUrl || '';
+            const coverSrc = track.imageUrl || track.sourceImageUrl || '';
+            const title = track.title || `Faixa ${i + 1}`;
+            const tags = track.tags || '';
+            const dur = track.duration ? `${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : '';
+            const lyrics = track.prompt || '';
+
+            mediaHtml += `<div class="suno-track-card" style="border: 1px solid var(--border); border-radius: 8px;">
+                <div class="suno-track-header">
+                    ${coverSrc ? `<img src="${esc(coverSrc)}" alt="${esc(title)}" class="suno-track-cover">` : ''}
+                    <div class="suno-track-info">
+                        <div class="suno-track-title">${esc(title)}</div>
+                        ${dur ? `<span class="suno-track-duration">${dur}</span>` : ''}
+                        ${tags ? `<div class="suno-track-tags">${esc(tags.substring(0, 120))}${tags.length > 120 ? '…' : ''}</div>` : ''}
+                    </div>
+                </div>
+                <audio src="${esc(audioSrc)}" controls style="width:100%"></audio>
+                ${lyrics ? `<details class="suno-track-lyrics-wrap"><summary>Ver Letra</summary><pre class="suno-track-lyrics">${esc(lyrics)}</pre></details>` : ''}
             </div>`;
         });
+        mediaHtml += '</div>';
     } else if (isVid) {
         mediaHtml = `<video src="${esc(url)}" controls autoplay preload="auto" class="lightbox-media" playsinline></video>`;
     } else if (isAud) {
@@ -2689,3 +2716,55 @@ document.body.addEventListener('click', async (e) => {
         btn.classList.remove('loading');
     }
 });
+
+// ==================== DEBUG / MOCK ====================
+// Run mockSunoGeneration() in console to test the UI without spending credits!
+window.mockSunoGeneration = function () {
+    const mockTask = {
+        id: 'mock-suno-task-' + Date.now(),
+        model: 'suno/suno-v4',
+        state: 'success',
+        cat: currentCat,
+        _prompt: 'Uma música épica de teste',
+        timestamp: Date.now(),
+        data: {
+            data: {
+                costTime: 12500,
+                response: {
+                    sunoData: [
+                        {
+                            id: 'track-1',
+                            title: 'Cyberpunk Awakening',
+                            tags: 'synthwave, cyberpunk, epic, bass',
+                            lyrics: '[Verse 1]\nCity lights flashing in the dark\nNeon glowing like a spark\n\n[Chorus]\nWake up to the future now\nWe are breaking all the bounds',
+                            imageUrl: 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=400&auto=format&fit=crop',
+                            audioUrl: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3',
+                            videoUrl: ''
+                        },
+                        {
+                            id: 'track-2',
+                            title: 'Cyberpunk Awakening (Acoustic)',
+                            tags: 'acoustic, chill, synth',
+                            lyrics: '[Verse 1]\nCity lights flashing in the dark\nQuiet neon like a spark...',
+                            imageUrl: 'https://images.unsplash.com/photo-1557672172-298e090bd0f1?q=80&w=400&auto=format&fit=crop',
+                            audioUrl: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/WFMU/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3',
+                            videoUrl: ''
+                        }
+                    ]
+                }
+            }
+        }
+    };
+
+    // Salva globalmente (memoria) e visualmente
+    if (typeof window.kieActiveTasks === 'undefined') window.kieActiveTasks = {};
+    window.kieActiveTasks[mockTask.id] = mockTask;
+
+    addPendingTask(mockTask);
+    addToHistory(mockTask);
+
+    // renderTaskCard handles all DOM injection safely
+    renderTaskCard(mockTask);
+
+    toast('Simulação Suno criada! Vá para a aba Ativas.', 'success');
+};
