@@ -983,6 +983,8 @@ function exitWorkspace() {
     clearFile();
     closeModelPickerModal();
     stopAllPolling();
+    // Hide V2 workspace if open
+    if (typeof window._v2HideWorkspace === 'function') window._v2HideWorkspace();
     // Clear persisted workspace so reload goes to lobby
     try { sessionStorage.removeItem('kie-workspace-cat'); } catch (e) { console.warn('Could not clear workspace from sessionStorage:', e); }
 }
@@ -1070,6 +1072,10 @@ function openModelPickerModal() {
         card.addEventListener('click', () => {
             selectModelFromData(data);
             closeModelPickerModal();
+            // If V2 design, open the V2 workspace overlay
+            if (data.design === 'v2' && typeof window._v2ShowWorkspace === 'function') {
+                window._v2ShowWorkspace();
+            }
         });
         els.mpmGrid.appendChild(card);
     });
@@ -2834,3 +2840,387 @@ window.mockSunoGeneration = function () {
 
     toast('Simulação Suno criada! Vá para a aba Ativas.', 'success');
 };
+
+// ============================================================
+//  NANO BANANA V2 — WORKSPACE OVERLAY CONTROLLER
+//  Fully functional: connects to existing submit infrastructure
+// ============================================================
+
+(function initV2Workspace() {
+    const ws = document.getElementById('v2-workspace');
+    if (!ws) return;
+
+    // ── DOM references ──
+    const v2 = {
+        ws,
+        prompt: document.getElementById('v2-prompt'),
+        charCounter: document.getElementById('v2-char-counter'),
+        uploadZone: document.getElementById('v2-upload-zone'),
+        fileInput: document.getElementById('v2-file-input'),
+        filePreview: document.getElementById('v2-file-preview'),
+        fileThumb: document.getElementById('v2-file-thumb'),
+        fileName: document.getElementById('v2-file-name'),
+        fileRemove: document.getElementById('v2-file-remove'),
+        filter: document.getElementById('v2-filter'),
+        btnGenerate: document.getElementById('v2-btn-generate'),
+        btnBack: document.getElementById('v2-btn-back'),
+        btnReset: document.getElementById('v2-btn-reset'),
+        gallery: document.getElementById('v2-gallery'),
+        galleryEmpty: document.getElementById('v2-gallery-empty'),
+        galleryCount: document.getElementById('v2-gallery-count'),
+        valDimensions: document.getElementById('v2-val-dimensions'),
+        valResolution: document.getElementById('v2-val-resolution'),
+        valFormat: document.getElementById('v2-val-format'),
+        valSeed: document.getElementById('v2-val-seed'),
+        seedInput: document.getElementById('v2-seed'),
+        creditsAmount: document.getElementById('v2-credits'),
+    };
+
+    // ── State ──
+    let v2File = null;
+    let v2Settings = {
+        aspect_ratio: '1:1',
+        resolution: '1K',
+        output_format: 'png',
+        seed: null,
+        filter: 'none'
+    };
+    let v2Tasks = []; // Track tasks spawned from V2 workspace
+
+    // ── Show / Hide ──
+    window._v2ShowWorkspace = function () {
+        ws.classList.remove('hidden');
+        document.getElementById('app-main').classList.add('hidden');
+        v2.prompt.focus();
+        updateV2GenerateState();
+        refreshV2Gallery();
+    };
+
+    window._v2HideWorkspace = function () {
+        ws.classList.add('hidden');
+        document.getElementById('app-main').classList.remove('hidden');
+    };
+
+    // ── Back button ──
+    v2.btnBack.addEventListener('click', () => {
+        window._v2HideWorkspace();
+    });
+
+    // ── Prompt ──
+    v2.prompt.addEventListener('input', () => {
+        const len = v2.prompt.value.length;
+        v2.charCounter.textContent = `${len.toLocaleString('pt-BR')} / 2.000`;
+        updateV2GenerateState();
+    });
+
+    // ── Upload Zone ──
+    v2.uploadZone.addEventListener('click', () => v2.fileInput.click());
+    v2.uploadZone.addEventListener('dragover', e => { e.preventDefault(); v2.uploadZone.classList.add('dragover'); });
+    v2.uploadZone.addEventListener('dragleave', () => v2.uploadZone.classList.remove('dragover'));
+    v2.uploadZone.addEventListener('drop', e => {
+        e.preventDefault();
+        v2.uploadZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) v2HandleFile(e.dataTransfer.files[0]);
+    });
+    v2.fileInput.addEventListener('change', () => {
+        if (v2.fileInput.files.length) v2HandleFile(v2.fileInput.files[0]);
+    });
+    v2.fileRemove.addEventListener('click', () => v2ClearFile());
+
+    function v2HandleFile(file) {
+        v2File = file;
+        v2.fileThumb.src = URL.createObjectURL(file);
+        v2.fileName.textContent = file.name;
+        v2.uploadZone.style.display = 'none';
+        v2.filePreview.classList.remove('hidden');
+        updateV2GenerateState();
+    }
+
+    function v2ClearFile() {
+        v2File = null;
+        v2.fileInput.value = '';
+        v2.uploadZone.style.display = '';
+        v2.filePreview.classList.add('hidden');
+        updateV2GenerateState();
+    }
+
+    // ── Settings: Dimension buttons ──
+    ws.querySelectorAll('.v2-dim-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            ws.querySelectorAll('.v2-dim-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            v2Settings.aspect_ratio = btn.dataset.ar;
+            v2.valDimensions.textContent = btn.dataset.dim;
+        });
+    });
+
+    // ── Settings: Resolution buttons ──
+    ws.querySelectorAll('.v2-res-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            ws.querySelectorAll('.v2-res-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            v2Settings.resolution = btn.dataset.res;
+            v2.valResolution.textContent = btn.dataset.res;
+            // Update cost estimate
+            const costMap = { '1K': 18, '2K': 18, '4K': 24 };
+            v2.creditsAmount.textContent = `~${costMap[btn.dataset.res] || 18} credits`;
+        });
+    });
+
+    // ── Settings: Format buttons ──
+    ws.querySelectorAll('.v2-fmt-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            ws.querySelectorAll('.v2-fmt-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            v2Settings.output_format = btn.dataset.fmt;
+            v2.valFormat.textContent = btn.dataset.fmt.toUpperCase();
+        });
+    });
+
+    // ── Settings: Seed ──
+    v2.seedInput.addEventListener('input', () => {
+        const val = v2.seedInput.value.trim();
+        v2Settings.seed = val ? parseInt(val, 10) : null;
+        v2.valSeed.textContent = val || 'Random';
+    });
+
+    // ── Settings: Reset ──
+    v2.btnReset.addEventListener('click', () => {
+        v2Settings = { aspect_ratio: '1:1', resolution: '1K', output_format: 'png', seed: null, filter: 'none' };
+        ws.querySelectorAll('.v2-dim-btn').forEach(b => b.classList.remove('active'));
+        ws.querySelector('.v2-dim-btn[data-ar="1:1"]').classList.add('active');
+        ws.querySelectorAll('.v2-res-btn').forEach(b => b.classList.remove('active'));
+        ws.querySelector('.v2-res-btn[data-res="1K"]').classList.add('active');
+        ws.querySelectorAll('.v2-fmt-btn').forEach(b => b.classList.remove('active'));
+        ws.querySelector('.v2-fmt-btn[data-fmt="png"]').classList.add('active');
+        v2.seedInput.value = '';
+        v2.filter.value = 'none';
+        v2.valDimensions.textContent = '1024 × 1024';
+        v2.valResolution.textContent = '1K';
+        v2.valFormat.textContent = 'PNG';
+        v2.valSeed.textContent = 'Random';
+        v2.creditsAmount.textContent = '~18 credits';
+    });
+
+    // ── Generate button state ──
+    function updateV2GenerateState() {
+        const hasPrompt = v2.prompt.value.trim().length > 0;
+        const hasFile = !!v2File;
+        v2.btnGenerate.disabled = !(hasPrompt || hasFile);
+    }
+
+    // ── GENERATE — Functional submit using existing API infrastructure ──
+    v2.btnGenerate.addEventListener('click', async () => {
+        if (v2.btnGenerate.disabled) return;
+
+        const prompt = v2.prompt.value.trim();
+        const btnSpan = v2.btnGenerate.querySelector('span');
+        const origText = btnSpan.textContent;
+
+        v2.btnGenerate.classList.add('loading');
+        v2.btnGenerate.disabled = true;
+        btnSpan.textContent = 'Generating...';
+
+        try {
+            const extra = {
+                aspect_ratio: v2Settings.aspect_ratio,
+                resolution: v2Settings.resolution,
+                output_format: v2Settings.output_format
+            };
+            if (prompt) extra.prompt = prompt;
+            if (v2Settings.seed !== null && !isNaN(v2Settings.seed)) extra.seed = v2Settings.seed;
+            // Append filter as style hint in prompt if not 'none'
+            if (v2Settings.filter !== 'none' && prompt) {
+                extra.prompt = `${prompt}, ${v2Settings.filter} style`;
+            }
+
+            const resolvedModel = 'nano-banana-v2';
+            let json;
+
+            if (v2File) {
+                // File + prompt: use /api/process
+                const fd = new FormData();
+                fd.append('file', v2File);
+                fd.append('model', resolvedModel);
+                fd.append('file_field', 'image_url');
+                fd.append('uploadPath', 'images');
+                fd.append('input_json', JSON.stringify(extra));
+                const resp = await fetch(`${API}/api/process`, { method: 'POST', body: fd });
+                json = await resp.json();
+                if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+                if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
+                const taskId = json?.task?.data?.taskId;
+                if (!taskId) throw new Error(json.msg || json?.task?.msg || 'No taskId returned');
+                addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
+                v2Tasks.push(taskId);
+            } else {
+                // Text-only: use create-json
+                const fd = new FormData();
+                fd.append('model', resolvedModel);
+                fd.append('input_json', JSON.stringify(extra));
+                const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
+                json = await resp.json();
+                if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+                if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
+                const taskId = json?.data?.taskId;
+                if (!taskId) throw new Error(json.msg || 'No taskId returned');
+                addTask(taskId, resolvedModel, 'market', null, extra);
+                v2Tasks.push(taskId);
+            }
+
+            toast('✅ Task created!', 'success');
+            v2ClearFile();
+            v2.prompt.value = '';
+            v2.charCounter.textContent = '0 / 2.000';
+            updateV2GenerateState();
+
+            // Add a processing item to V2 gallery immediately
+            addV2GalleryItem(v2Tasks[v2Tasks.length - 1], 'processing');
+
+        } catch (err) {
+            toast(`❌ Error: ${err.message}`, 'error');
+        } finally {
+            v2.btnGenerate.classList.remove('loading');
+            btnSpan.textContent = origText;
+            updateV2GenerateState();
+        }
+    });
+
+    // ── V2 Gallery Management ──
+    function addV2GalleryItem(taskId, state, imageUrl) {
+        v2.galleryEmpty.style.display = 'none';
+
+        const item = document.createElement('div');
+        item.className = `v2-gallery-item ${state}`;
+        item.id = `v2-item-${CSS.escape(taskId)}`;
+        item.dataset.taskId = taskId;
+
+        if (state === 'success' && imageUrl) {
+            item.innerHTML = `<img src="${imageUrl}" alt="Generated"><div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Completed</span></div>`;
+        } else if (state === 'failed') {
+            item.innerHTML = '<span>Failed</span>';
+        }
+        // processing state uses CSS ::after spinner
+
+        v2.gallery.insertBefore(item, v2.gallery.firstChild);
+        updateV2GalleryCount();
+    }
+
+    function updateV2GalleryItem(taskId, state, imageUrl) {
+        const item = document.getElementById(`v2-item-${CSS.escape(taskId)}`);
+        if (!item) return;
+
+        item.className = `v2-gallery-item ${state}`;
+
+        if (state === 'success' && imageUrl) {
+            item.innerHTML = `<img src="${imageUrl}" alt="Generated"><div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Completed</span></div>`;
+        } else if (state === 'fail' || state === 'failed') {
+            item.className = 'v2-gallery-item failed';
+            item.innerHTML = '<span>Failed</span>';
+        }
+        updateV2GalleryCount();
+    }
+
+    function updateV2GalleryCount() {
+        const count = v2.gallery.querySelectorAll('.v2-gallery-item').length;
+        v2.galleryCount.textContent = `${count} image${count !== 1 ? 's' : ''}`;
+    }
+
+    // ── Poll observer: watch tasks for state changes and update V2 gallery ──
+    // Override the global updateTaskCard to also push updates to V2 gallery
+    const _origUpdateTaskCard = window.updateTaskCard || (typeof updateTaskCard === 'function' ? updateTaskCard : null);
+
+    // Patch: after each updateTaskCard call, check if the task is ours
+    const checkV2TaskUpdate = (task) => {
+        if (!v2Tasks.includes(task.id)) return;
+
+        if (task.state === 'success') {
+            const data = task.data?.data || {};
+            const urls = _extractResultUrls(data);
+            if (urls.length > 0) {
+                // Remove the processing placeholder
+                const existing = document.getElementById(`v2-item-${CSS.escape(task.id)}`);
+                if (existing) existing.remove();
+                // Add items for each result URL
+                urls.forEach((url, i) => {
+                    addV2GalleryItem(`${task.id}-${i}`, 'success', url);
+                });
+            } else {
+                updateV2GalleryItem(task.id, 'success');
+            }
+        } else if (task.state === 'fail') {
+            updateV2GalleryItem(task.id, 'failed');
+        }
+    };
+
+    // Install a MutationObserver on task cards to detect state changes
+    // This is non-invasive: watches the DOM instead of patching functions
+    const tasksList = document.getElementById('tasks-list');
+    if (tasksList) {
+        const observer = new MutationObserver(() => {
+            v2Tasks.forEach(taskId => {
+                const taskObj = tasks.find(t => t.id === taskId);
+                if (taskObj && (taskObj.state === 'success' || taskObj.state === 'fail')) {
+                    checkV2TaskUpdate(taskObj);
+                }
+            });
+        });
+        observer.observe(tasksList, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    }
+
+    // ── Refresh gallery from existing tasks (on show) ──
+    function refreshV2Gallery() {
+        // Clear everything except the empty state
+        v2.gallery.querySelectorAll('.v2-gallery-item').forEach(el => el.remove());
+
+        // Find all nano-banana-v2 tasks
+        const v2TaskList = tasks.filter(t => t.model === 'nano-banana-v2');
+        if (v2TaskList.length === 0) {
+            v2.galleryEmpty.style.display = '';
+            updateV2GalleryCount();
+            return;
+        }
+
+        v2.galleryEmpty.style.display = 'none';
+
+        v2TaskList.forEach(task => {
+            // Ensure tracked
+            if (!v2Tasks.includes(task.id)) v2Tasks.push(task.id);
+
+            if (task.state === 'success') {
+                const data = task.data?.data || {};
+                const urls = _extractResultUrls(data);
+                if (urls.length > 0) {
+                    urls.forEach((url, i) => {
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url);
+                    });
+                }
+            } else if (task.state === 'fail') {
+                addV2GalleryItem(task.id, 'failed');
+            } else {
+                addV2GalleryItem(task.id, 'processing');
+            }
+        });
+        updateV2GalleryCount();
+    }
+
+    // ── Keyboard shortcut: Cmd/Ctrl+Enter to generate ──
+    v2.prompt.addEventListener('keydown', e => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.preventDefault();
+            if (!v2.btnGenerate.disabled) v2.btnGenerate.click();
+        }
+    });
+
+    // ── Escape to go back ──
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !ws.classList.contains('hidden')) {
+            // Only if no modal is open on top
+            const picker = document.getElementById('modal-model-picker');
+            if (picker && !picker.classList.contains('hidden')) return;
+            window._v2HideWorkspace();
+        }
+    });
+
+    console.log('[V2] Nano Banana V2 workspace initialized');
+})();
