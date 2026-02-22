@@ -13,7 +13,6 @@ const API = '/kie-ai';
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
     'nano-banana-pro': 18,                // 1/2K = 18, 4K = 24
-    'nano-banana-v2': 18,                 // experimental v2 design
     'google/nano-banana-edit': 4,          // image editing
     'bytedance/4.5-text-to-image': 10,    // estimated
     'seedream/4.5-edit': 10,              // estimated (image editing)
@@ -100,7 +99,6 @@ const PROMPT_CHAR_LIMITS = {
     'wan/2-2-a14b-text-to-video-turbo': 2000,
     'hailuo/2-3-image-to-video-pro': 2000,
     'nano-banana-pro': 2000,
-    'nano-banana-v2': 2000,
     'google/nano-banana-edit': 5000,
     'grok-imagine/text-to-image': 5000,
     'grok-imagine/image-to-image': 5000,
@@ -155,13 +153,6 @@ function updateCostBadge(el, cost, baseClass, suffix) {
 const MODEL_CONFIGS = {
     // ──── IMAGE MODELS ────
     'nano-banana-pro': {
-        params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
-            { key: 'output_format', label: 'Formato', type: 'select', options: ['png', 'jpg'], default: 'png' },
-        ]
-    },
-    'nano-banana-v2': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
@@ -3101,7 +3092,7 @@ window.mockSunoGeneration = function () {
                 extra.prompt = `${extra.prompt}, ${v2Settings.filter} style`;
             }
 
-            const resolvedModel = 'nano-banana-v2';
+            const resolvedModel = 'nano-banana-pro';
 
             // Upload reference images if any (up to 8)
             if (v2Files.length > 0) {
@@ -3234,8 +3225,8 @@ window.mockSunoGeneration = function () {
         // Clear everything except the empty state
         v2.gallery.querySelectorAll('.v2-gallery-item').forEach(el => el.remove());
 
-        // Find all nano-banana-v2 tasks
-        const v2TaskList = tasks.filter(t => t.model === 'nano-banana-v2');
+        // Find all tasks created via V2 workspace (tracked by v2Tasks array)
+        const v2TaskList = tasks.filter(t => v2Tasks.includes(t.id));
         if (v2TaskList.length === 0) {
             v2.galleryEmpty.style.display = '';
             updateV2GalleryCount();
