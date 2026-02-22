@@ -2857,10 +2857,8 @@ window.mockSunoGeneration = function () {
         charCounter: document.getElementById('v2-char-counter'),
         uploadZone: document.getElementById('v2-upload-zone'),
         fileInput: document.getElementById('v2-file-input'),
-        filePreview: document.getElementById('v2-file-preview'),
-        fileThumb: document.getElementById('v2-file-thumb'),
-        fileName: document.getElementById('v2-file-name'),
-        fileRemove: document.getElementById('v2-file-remove'),
+        filesGrid: document.getElementById('v2-files-grid'),
+        fileCounter: document.getElementById('v2-file-counter'),
         filter: document.getElementById('v2-filter'),
         btnGenerate: document.getElementById('v2-btn-generate'),
         btnBack: document.getElementById('v2-btn-back'),
@@ -2876,8 +2874,10 @@ window.mockSunoGeneration = function () {
         creditsAmount: document.getElementById('v2-credits'),
     };
 
+    const MAX_IMAGES = 8;
+
     // ── State ──
-    let v2File = null;
+    let v2Files = []; // Array of File objects (up to 8)
     let v2Settings = {
         aspect_ratio: '1:1',
         resolution: '1K',
@@ -2913,35 +2913,90 @@ window.mockSunoGeneration = function () {
         updateV2GenerateState();
     });
 
-    // ── Upload Zone ──
-    v2.uploadZone.addEventListener('click', () => v2.fileInput.click());
+    // ── Upload Zone (multi-image, up to 8) ──
+    v2.uploadZone.addEventListener('click', () => {
+        if (v2Files.length >= MAX_IMAGES) return;
+        v2.fileInput.click();
+    });
     v2.uploadZone.addEventListener('dragover', e => { e.preventDefault(); v2.uploadZone.classList.add('dragover'); });
     v2.uploadZone.addEventListener('dragleave', () => v2.uploadZone.classList.remove('dragover'));
     v2.uploadZone.addEventListener('drop', e => {
         e.preventDefault();
         v2.uploadZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) v2HandleFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length) v2AddFiles(Array.from(e.dataTransfer.files));
     });
     v2.fileInput.addEventListener('change', () => {
-        if (v2.fileInput.files.length) v2HandleFile(v2.fileInput.files[0]);
+        if (v2.fileInput.files.length) v2AddFiles(Array.from(v2.fileInput.files));
+        v2.fileInput.value = ''; // reset so same files can be re-added
     });
-    v2.fileRemove.addEventListener('click', () => v2ClearFile());
 
-    function v2HandleFile(file) {
-        v2File = file;
-        v2.fileThumb.src = URL.createObjectURL(file);
-        v2.fileName.textContent = file.name;
-        v2.uploadZone.style.display = 'none';
-        v2.filePreview.classList.remove('hidden');
+    function v2AddFiles(newFiles) {
+        // Filter to images only
+        const images = newFiles.filter(f => f.type.startsWith('image/'));
+        if (!images.length) return;
+
+        const remaining = MAX_IMAGES - v2Files.length;
+        if (remaining <= 0) {
+            toast('Limite de 8 imagens atingido', 'error');
+            return;
+        }
+        const toAdd = images.slice(0, remaining);
+        if (images.length > remaining) {
+            toast(`Apenas ${remaining} imagem(ns) adicionada(s) — limite: ${MAX_IMAGES}`, 'error');
+        }
+        v2Files.push(...toAdd);
+        v2RenderFilesGrid();
         updateV2GenerateState();
     }
 
-    function v2ClearFile() {
-        v2File = null;
-        v2.fileInput.value = '';
-        v2.uploadZone.style.display = '';
-        v2.filePreview.classList.add('hidden');
+    function v2RemoveFile(index) {
+        v2Files.splice(index, 1);
+        v2RenderFilesGrid();
         updateV2GenerateState();
+    }
+
+    function v2ClearAllFiles() {
+        v2Files = [];
+        v2.fileInput.value = '';
+        v2RenderFilesGrid();
+        updateV2GenerateState();
+    }
+
+    function v2RenderFilesGrid() {
+        v2.filesGrid.innerHTML = '';
+
+        v2Files.forEach((file, i) => {
+            const card = document.createElement('div');
+            card.className = 'v2-file-card';
+
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.alt = file.name;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'v2-file-card-remove';
+            removeBtn.title = 'Remover';
+            removeBtn.innerHTML = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+            removeBtn.addEventListener('click', e => { e.stopPropagation(); v2RemoveFile(i); });
+
+            const index = document.createElement('span');
+            index.className = 'v2-file-card-index';
+            index.textContent = i + 1;
+
+            card.appendChild(img);
+            card.appendChild(removeBtn);
+            card.appendChild(index);
+            v2.filesGrid.appendChild(card);
+        });
+
+        // Update counter
+        const count = v2Files.length;
+        v2.fileCounter.textContent = `${count} / ${MAX_IMAGES}`;
+        v2.fileCounter.classList.toggle('has-files', count > 0);
+        v2.fileCounter.classList.toggle('full', count >= MAX_IMAGES);
+
+        // Disable upload zone if full
+        v2.uploadZone.classList.toggle('v2-upload-full', count >= MAX_IMAGES);
     }
 
     // ── Settings: Dimension buttons ──
@@ -3000,16 +3055,28 @@ window.mockSunoGeneration = function () {
         v2.valFormat.textContent = 'PNG';
         v2.valSeed.textContent = 'Random';
         v2.creditsAmount.textContent = '~18 credits';
+        v2ClearAllFiles();
     });
 
     // ── Generate button state ──
     function updateV2GenerateState() {
         const hasPrompt = v2.prompt.value.trim().length > 0;
-        const hasFile = !!v2File;
-        v2.btnGenerate.disabled = !(hasPrompt || hasFile);
+        const hasFiles = v2Files.length > 0;
+        v2.btnGenerate.disabled = !(hasPrompt || hasFiles);
     }
 
-    // ── GENERATE — Functional submit using existing API infrastructure ──
+    // ── Helper: upload a single file via /api/upload and return URL ──
+    async function v2UploadSingleFile(file, index, total) {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('uploadPath', 'images');
+        const resp = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!resp.ok || !json.success) throw new Error(json.detail || json.msg || `Upload failed (${file.name})`);
+        return json.url;
+    }
+
+    // ── GENERATE — Functional submit with multi-image support ──
     v2.btnGenerate.addEventListener('click', async () => {
         if (v2.btnGenerate.disabled) return;
 
@@ -3030,46 +3097,40 @@ window.mockSunoGeneration = function () {
             if (prompt) extra.prompt = prompt;
             if (v2Settings.seed !== null && !isNaN(v2Settings.seed)) extra.seed = v2Settings.seed;
             // Append filter as style hint in prompt if not 'none'
-            if (v2Settings.filter !== 'none' && prompt) {
-                extra.prompt = `${prompt}, ${v2Settings.filter} style`;
+            if (v2Settings.filter !== 'none' && extra.prompt) {
+                extra.prompt = `${extra.prompt}, ${v2Settings.filter} style`;
             }
 
             const resolvedModel = 'nano-banana-v2';
-            let json;
 
-            if (v2File) {
-                // File + prompt: use /api/process
-                const fd = new FormData();
-                fd.append('file', v2File);
-                fd.append('model', resolvedModel);
-                fd.append('file_field', 'image_url');
-                fd.append('uploadPath', 'images');
-                fd.append('input_json', JSON.stringify(extra));
-                const resp = await fetch(`${API}/api/process`, { method: 'POST', body: fd });
-                json = await resp.json();
-                if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-                if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
-                const taskId = json?.task?.data?.taskId;
-                if (!taskId) throw new Error(json.msg || json?.task?.msg || 'No taskId returned');
-                addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
-                v2Tasks.push(taskId);
-            } else {
-                // Text-only: use create-json
-                const fd = new FormData();
-                fd.append('model', resolvedModel);
-                fd.append('input_json', JSON.stringify(extra));
-                const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
-                json = await resp.json();
-                if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-                if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
-                const taskId = json?.data?.taskId;
-                if (!taskId) throw new Error(json.msg || 'No taskId returned');
-                addTask(taskId, resolvedModel, 'market', null, extra);
-                v2Tasks.push(taskId);
+            // Upload reference images if any (up to 8)
+            if (v2Files.length > 0) {
+                btnSpan.textContent = `Uploading 0/${v2Files.length}...`;
+                const imageUrls = [];
+                for (let i = 0; i < v2Files.length; i++) {
+                    btnSpan.textContent = `Uploading ${i + 1}/${v2Files.length}...`;
+                    const url = await v2UploadSingleFile(v2Files[i], i, v2Files.length);
+                    imageUrls.push(url);
+                }
+                extra.image_input = imageUrls;
+                btnSpan.textContent = 'Creating task...';
             }
 
-            toast('✅ Task created!', 'success');
-            v2ClearFile();
+            // Always use create-json (with image_input array in input_json)
+            const fd = new FormData();
+            fd.append('model', resolvedModel);
+            fd.append('input_json', JSON.stringify(extra));
+            const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
+            const json = await resp.json();
+            if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+            if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
+            const taskId = json?.data?.taskId;
+            if (!taskId) throw new Error(json.msg || 'No taskId returned');
+            addTask(taskId, resolvedModel, 'market', extra.image_input?.[0] || null, extra);
+            v2Tasks.push(taskId);
+
+            toast(`✅ Task created!${v2Files.length ? ` (${v2Files.length} ref image${v2Files.length > 1 ? 's' : ''})` : ''}`, 'success');
+            v2ClearAllFiles();
             v2.prompt.value = '';
             v2.charCounter.textContent = '0 / 2.000';
             updateV2GenerateState();
