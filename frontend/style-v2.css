@@ -3298,9 +3298,12 @@ body {
     }
 
     /* ── Header — compact mobile ── */
+    :root {
+        --header-h: 48px;
+    }
+
     #app-header {
         height: 48px;
-        --header-h: 48px;
     }
 
     .header-left {
@@ -3474,15 +3477,8 @@ body {
     }
 
     .mpm-card {
-        flex-direction: row;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 10px;
-        padding: 12px;
-    }
-
-    .mpm-card-top {
-        width: 100%;
+        padding: 10px;
+        gap: 8px;
     }
 
     .mpm-card-desc {
