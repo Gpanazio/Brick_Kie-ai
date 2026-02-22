@@ -1513,14 +1513,16 @@ async function submitShortcut(endpoint, uploadPath, extraFields = {}) {
     }
     const resp = await fetch(`${API}${endpoint}`, { method: 'POST', body: fd });
     const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
 
-    // API might return standard structure (data.taskId) or wrapped structure (task.data.taskId) 
+    // API might return standard structure (data.taskId) or wrapped structure (task.data.taskId)
     const taskId = json?.data?.taskId || json?.task?.data?.taskId;
 
     // Shortcuts might return the uploaded url if present, but we'll try to get it if they do.
     const uploadedUrl = json?.uploaded_url || null;
-    if (taskId) addTask(taskId, selectedModel.model, 'market', uploadedUrl);
+    if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
+    addTask(taskId, selectedModel.model, 'market', uploadedUrl);
     return json;
 }
 
@@ -1570,10 +1572,12 @@ async function submitSunoModel() {
 
     const resp = await fetch(`${API}/api/suno/create`, { method: 'POST', body: fd });
     const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
 
     let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
-    if (tid) addTask(tid, resolvedModel, 'suno', json.uploaded_url, extra);
+    if (!tid) throw new Error(json.msg || 'Nenhum taskId retornado');
+    addTask(tid, resolvedModel, 'suno', json.uploaded_url, extra);
     return json;
 }
 
@@ -1607,16 +1611,17 @@ async function submitVeoModel() {
 
     const resp = await fetch(`${API}/api/veo/create`, { method: 'POST', body: fd });
     const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
 
     let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId
         || json?.data?.task_id || json?.task_id;
     if (!tid) {
         console.error('[Veo] taskId not found in response:', JSON.stringify(json).slice(0, 500));
-        toast('⚠️ Tarefa criada mas sem taskId — não será possível acompanhar o progresso', 'error');
+        throw new Error(json.msg || 'Nenhum taskId retornado');
     }
     // Set task mode to veo so poll matches
-    if (tid) addTask(tid, resolvedModel, 'veo', json.uploaded_url || null, extra);
+    addTask(tid, resolvedModel, 'veo', json.uploaded_url || null, extra);
     return json;
 }
 
@@ -1638,9 +1643,11 @@ async function submitFileModel() {
     fd.append('input_json', JSON.stringify(extra));
     const resp = await fetch(`${API}/api/process`, { method: 'POST', body: fd });
     const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
     const taskId = json?.task?.data?.taskId;
-    if (taskId) addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
+    if (!taskId) throw new Error(json.msg || json?.task?.msg || 'Nenhum taskId retornado');
+    addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
     return json;
 }
 
@@ -1661,10 +1668,12 @@ async function submitGpt4oImage() {
 
     const resp = await fetch(`${API}/api/gpt4o-image/create`, { method: 'POST', body: fd });
     const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
 
     let tid = json?.data?.taskId || json?.taskId;
-    if (tid) addTask(tid, 'gpt4o-image', 'gpt4o-image', json.uploaded_url || null, extra);
+    if (!tid) throw new Error(json.msg || 'Nenhum taskId retornado — verifique o prompt e a imagem');
+    addTask(tid, 'gpt4o-image', 'gpt4o-image', json.uploaded_url || null, extra);
     return json;
 }
 
@@ -1689,10 +1698,12 @@ async function submitFluxKontext() {
 
     const resp = await fetch(`${API}/api/flux-kontext/create`, { method: 'POST', body: fd });
     const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
 
     let tid = json?.data?.taskId || json?.taskId;
-    if (tid) addTask(tid, resolvedModel, 'flux-kontext', json.uploaded_url || null, extra);
+    if (!tid) throw new Error(json.msg || 'Nenhum taskId retornado — verifique o prompt e a imagem');
+    addTask(tid, resolvedModel, 'flux-kontext', json.uploaded_url || null, extra);
     return json;
 }
 
@@ -1717,9 +1728,11 @@ async function submitMixMarketModel() {
         fd.append('input_json', JSON.stringify(extra));
         const resp = await fetch(`${API}/api/process`, { method: 'POST', body: fd });
         const json = await resp.json();
-        if (!resp.ok) throw new Error(json.detail || 'Failed');
+        if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+        if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
         const taskId = json?.task?.data?.taskId;
-        if (taskId) addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
+        if (!taskId) throw new Error(json.msg || json?.task?.msg || 'Nenhum taskId retornado');
+        addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
         return json;
     } else {
         // Text-only: use create-json
@@ -1728,9 +1741,11 @@ async function submitMixMarketModel() {
         fd2.append('input_json', JSON.stringify(extra));
         const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd2 });
         const json = await resp.json();
-        if (!resp.ok) throw new Error(json.detail || 'Failed');
+        if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+        if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
         const taskId = json?.data?.taskId;
-        if (taskId) addTask(taskId, resolvedModel, 'market', null, extra);
+        if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
+        addTask(taskId, resolvedModel, 'market', null, extra);
         return json;
     }
 }
@@ -1751,9 +1766,11 @@ async function submitTextModel() {
     fd.append('input_json', JSON.stringify(extra));
     const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
     const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
     const taskId = json?.data?.taskId;
-    if (taskId) addTask(taskId, resolvedModel, 'market', null, extra);
+    if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
+    addTask(taskId, resolvedModel, 'market', null, extra);
     return json;
 }
 
@@ -1788,9 +1805,11 @@ async function submitMJ() {
     fd.append('payload_json', JSON.stringify(payload));
     const resp = await fetch(`${API}/api/mj/generate`, { method: 'POST', body: fd });
     const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || 'Failed');
+    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
     const taskId = json?.data?.taskId;
-    if (taskId) addTask(taskId, selectedModel.model, 'midjourney', null, { ar, speed, version });
+    if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
+    addTask(taskId, selectedModel.model, 'midjourney', null, { ar, speed, version });
     return json;
 }
 

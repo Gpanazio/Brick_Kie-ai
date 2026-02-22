@@ -32,6 +32,15 @@ def _ensure_callback_url(payload: dict) -> dict:
         payload["callBackUrl"] = CALLBACK_URL
     return payload
 
+def _validate_api_response(resp: dict) -> dict:
+    """Check API-level error codes in JSON body (KIE returns HTTP 200 with error codes in body)."""
+    if isinstance(resp, dict):
+        code = resp.get("code")
+        if code is not None and code != 200:
+            msg = resp.get("msg", f"API error (code {code})")
+            raise HTTPException(status_code=code if 400 <= code < 600 else 502, detail=msg)
+    return resp
+
 app = FastAPI(title="KIE AI Frontend Server", version="1.0.0", root_path=ROOT_PATH)
 
 # CORS for dev
@@ -112,9 +121,12 @@ async def market_create(
     try:
         input_data = json.loads(input_json)
         resp = kie_api.market_create_task(model, input_data, callback_url=callback or CALLBACK_URL)
+        _validate_api_response(resp)
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -465,11 +477,14 @@ async def gpt4o_image_create(
 
         _ensure_callback_url(input_data)
         resp = kie_api.gpt4o_image_generate(input_data)
+        _validate_api_response(resp)
         if isinstance(resp, dict) and upload_url:
             resp["uploaded_url"] = upload_url
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -516,11 +531,14 @@ async def flux_kontext_create(
 
         _ensure_callback_url(input_data)
         resp = kie_api.flux_kontext_generate(input_data)
+        _validate_api_response(resp)
         if isinstance(resp, dict) and upload_url:
             resp["uploaded_url"] = upload_url
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
