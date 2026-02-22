@@ -721,6 +721,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     initHistory();
     restorePendingTasks();
+    // If user was in a workspace before refresh, go back there
+    try {
+        const savedCat = sessionStorage.getItem('kie-workspace-cat');
+        if (savedCat && CAT_LABELS[savedCat]) enterWorkspace(savedCat);
+    } catch (_) {}
     fetchCredits();
     initPromptCounter();
     initResetButtons();
@@ -907,6 +912,8 @@ function initLobby() {
 function enterWorkspace(cat) {
     // Save category globally
     currentCat = cat;
+    // Persist current workspace so F5 / Ctrl+R restores it
+    try { sessionStorage.setItem('kie-workspace-cat', cat); } catch (_) {}
 
     // Hide lobby, show workspace
     els.lobby.classList.add('exit');
@@ -966,6 +973,8 @@ function exitWorkspace() {
     clearFile();
     closeModelPickerModal();
     stopAllPolling();
+    // Clear persisted workspace so reload goes to lobby
+    try { sessionStorage.removeItem('kie-workspace-cat'); } catch (_) {}
 }
 
 // ==================== Model Picker Modal ====================
