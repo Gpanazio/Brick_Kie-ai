@@ -723,10 +723,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initHistory();
     restorePendingTasks();
     // If user was in a workspace before refresh, go back there
-    try {
-        const savedCat = sessionStorage.getItem('kie-workspace-cat');
-        if (savedCat && CAT_LABELS[savedCat]) enterWorkspace(savedCat);
-    } catch (e) { console.warn('Could not restore workspace from sessionStorage:', e); }
+    let savedCat;
+    try { savedCat = sessionStorage.getItem('kie-workspace-cat'); }
+    catch (e) { console.warn('Could not read from sessionStorage:', e); }
+    if (savedCat && CAT_LABELS[savedCat]) enterWorkspace(savedCat);
     fetchCredits();
     initPromptCounter();
     initResetButtons();
