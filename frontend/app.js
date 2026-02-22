@@ -1009,21 +1009,30 @@ function openModelPickerModal() {
         const cost = getModelCost(data.model);
         const isActive = selectedModel?.model === data.model;
         const card = document.createElement('button');
-        const isV2 = data.design === 'v2';
+        const isV2 = currentCat === 'image';
         card.className = `mpm-card${isActive ? ' active' : ''}${isV2 ? ' mpm-card-v2' : ''}`;
         card.dataset.model = data.model;
         if (data.color) card.dataset.color = data.color;
 
-        const inputTypeTag = data.input === 'file' ? 'Image/File' : data.input === 'mj' ? 'Midjourney' : 'Text';
+        const inputTypeTag = data.input === 'file' ? 'Image/File' : data.input === 'mj' ? 'Midjourney' : data.input === 'mix' ? 'Mix' : 'Text';
         const costHtml = cost ? `<span class="mpm-card-cost ${costColorClass(cost)}">~${cost} cr</span>` : '';
 
         if (isV2) {
+            // Build feature tags from input type
+            const features = [];
+            if (data.input === 'text' || data.input === 'mix' || data.prompt === 'true') features.push('Prompt');
+            if (data.input === 'file' || data.input === 'mix') features.push('Referência');
+            const featuresHtml = features.length ? `
+                    <div class="mpm-v2-features">
+                        ${features.map(f => `<div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>${f}</div>`).join('')}
+                    </div>` : '';
+
             card.innerHTML = `
                 <div class="mpm-v2-glow-border"></div>
                 <div class="mpm-v2-inner">
                     <div class="mpm-v2-header">
                         <div class="mpm-v2-icon">${data.icon}</div>
-                        <div class="mpm-v2-badge">EXPERIMENTAL</div>
+                        <div class="mpm-v2-badge">${esc(data.provider)}</div>
                     </div>
                     <div class="mpm-v2-body">
                         <div class="mpm-v2-name">${esc(data.name)}</div>
@@ -1034,11 +1043,7 @@ function openModelPickerModal() {
                         <span class="mpm-v2-tag">${esc(inputTypeTag)}</span>
                         ${cost ? `<span class="mpm-v2-cost">~${cost} cr</span>` : ''}
                     </div>
-                    <div class="mpm-v2-features">
-                        <div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>Prompt + Referência</div>
-                        <div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>Até 4K</div>
-                        <div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>Multi-formato</div>
-                    </div>
+                    ${featuresHtml}
                 </div>
                 <div class="mpm-v2-ambient"></div>
             `;
@@ -1063,10 +1068,6 @@ function openModelPickerModal() {
         card.addEventListener('click', () => {
             selectModelFromData(data);
             closeModelPickerModal();
-            // If V2 design, open the V2 workspace overlay
-            if (data.design === 'v2' && typeof window._v2ShowWorkspace === 'function') {
-                window._v2ShowWorkspace();
-            }
         });
         els.mpmGrid.appendChild(card);
     });
