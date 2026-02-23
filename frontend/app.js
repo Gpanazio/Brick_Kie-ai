@@ -9,6 +9,10 @@ const API = '/kie-ai';
 // Each model defines its 'params' — array of { key, label, type, options, default, min, max, step }
 // 'cost' is the estimated credits per generation (from KIE API docs)
 
+// Shared category constants
+const V2_CATS = ['image', 'vid-txt', 'vid-img', 'veo3', 'mj'];
+const VIDEO_CATS = ['vid-txt', 'vid-img', 'veo3'];
+
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
@@ -1037,7 +1041,7 @@ function openModelPickerModal() {
         const cost = getModelCost(data.model);
         const isActive = selectedModel?.model === data.model;
         const card = document.createElement('button');
-        const isV2 = ['image', 'vid-txt', 'vid-img', 'veo3', 'mj'].includes(currentCat);
+        const isV2 = V2_CATS.includes(currentCat);
         card.className = `mpm-card${isActive ? ' active' : ''}${isV2 ? ' mpm-card-v2' : ''}`;
         card.dataset.model = data.model;
         if (data.color) card.dataset.color = data.color;
@@ -1097,7 +1101,7 @@ function openModelPickerModal() {
             selectModelFromData(data);
             closeModelPickerModal();
             // Open V2 workspace for V2 categories
-            if (['image', 'vid-txt', 'vid-img', 'veo3', 'mj'].includes(currentCat) && typeof window._v2ShowWorkspace === 'function') {
+            if (V2_CATS.includes(currentCat) && typeof window._v2ShowWorkspace === 'function') {
                 window._v2ShowWorkspace(data);
             }
         });
@@ -2920,9 +2924,6 @@ window.mockSunoGeneration = function () {
         refreshV2Gallery();
     };
 
-    // Categories that use the V2 workspace
-    const V2_CATS = ['image', 'vid-txt', 'vid-img', 'veo3', 'mj'];
-
     // Helper: detect video URL by extension
     function isVideoUrl(url) {
         return /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url);
@@ -2930,7 +2931,7 @@ window.mockSunoGeneration = function () {
 
     // ── Update workspace UI to reflect selected model ──
     function v2UpdateModelUI(data) {
-        const isVideo = ['vid-txt', 'vid-img', 'veo3'].includes(currentCat);
+        const isVideo = VIDEO_CATS.includes(currentCat);
         const isMj = currentCat === 'mj';
         const isMjNeedsFile = isMj && data.mjType && data.mjType !== 'mj_txt2img';
 
@@ -3004,12 +3005,11 @@ window.mockSunoGeneration = function () {
     }
 
     // Helper: get MJ cost from V2 speed setting
+    const MJ_SPEED_COSTS = { relaxed: 3, fast: 8, turbo: 16 };
     function _getMjCostFromV2() {
         const params = v2CollectModelParams();
         const speed = params.speed || 'relaxed';
-        if (speed === 'relaxed') return 3;
-        if (speed === 'turbo') return 16;
-        return 8;
+        return MJ_SPEED_COSTS[speed] || MJ_SPEED_COSTS.fast;
     }
 
     // ── Dynamic V2 Model Params ──
@@ -3393,7 +3393,7 @@ window.mockSunoGeneration = function () {
         btnSpan.textContent = 'Gerando...';
 
         try {
-            const isVideo = ['vid-txt', 'vid-img', 'veo3'].includes(currentCat);
+            const isVideo = VIDEO_CATS.includes(currentCat);
             const isMj = currentCat === 'mj';
 
             const modelParams = v2CollectModelParams();
