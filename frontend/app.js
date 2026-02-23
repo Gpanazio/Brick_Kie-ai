@@ -34,7 +34,7 @@ const MODEL_COST_ESTIMATES = {
     'recraft/crisp-upscale': 15,
     'topaz/image-upscale': 10,
     'ideogram/v3-reframe': 15,
-    'topaz/video-upscale': 100,
+    'topaz/video-upscale': 12,             // 12 cr/s
     // ── Video (costs vary by duration/resolution, showing default config) ──
     'sora-2-pro-text-to-video': 35,       // standard-10s = 30, stable-10s = 35
     'sora-2-pro-image-to-video': 35,      // standard-10s = 30, stable-10s = 35
@@ -653,6 +653,11 @@ function _extractResultUrls(data) {
         if (rij.resultUrl) urls.push(rij.resultUrl);
     }
 
+    // Veo 3: response.resultUrls / response.originUrls
+    if (data.response) {
+        if (Array.isArray(data.response.resultUrls)) urls.push(...data.response.resultUrls);
+        if (Array.isArray(data.response.originUrls)) urls.push(...data.response.originUrls);
+    }
     // Suno: response.sunoData[] with audioUrl
     if (data.response && Array.isArray(data.response.sunoData)) {
         data.response.sunoData.forEach(track => {
@@ -1984,15 +1989,23 @@ function startPolling(task) {
                 try { data._parsedResult = JSON.parse(data.resultJson); } catch { }
             }
 
+            // Normalize failMsg from various API response formats (like callback handler does)
+            if (!data.failMsg) {
+                data.failMsg = data.failReason || data.errorMessage || data.error_msg
+                    || (json.msg && json.code !== 200 ? json.msg : '') || '';
+            }
+            if (!data.failCode && data.errorCode) data.failCode = data.errorCode;
+
             let state;
-            if (task.mode === 'midjourney') {
+            if (task.mode === 'midjourney' || task.mode === 'veo') {
+                // Veo 3 and MJ both use successFlag: 0=processing, 1=success, 2/3=fail
                 const sf = data.successFlag;
-                // successFlag: 1 = success, 2/3 = fail, 0/null = processing
-                if (sf === 1 || data.resultUrls || data.resultInfoJson) state = 'success';
+                const respUrls = data.response?.resultUrls || data.resultUrls;
+                if (sf === 1 || respUrls?.length || data.resultInfoJson) state = 'success';
                 else if (sf > 1 || data.errorCode) state = 'fail';
                 else state = 'processing';
             } else {
-                // Veo/Suno APIs use 'status', Market uses 'state'
+                // Suno/Market APIs use 'status' or 'state'
                 const raw = (data.status || data.state || 'processing').toString().toLowerCase();
                 if (raw === 'success' || raw === 'succeeded' || raw === 'completed') state = 'success';
                 else if (raw === 'fail' || raw === 'failed' || raw === 'error') state = 'fail';
