@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Brick AI Launch Campaign</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <!-- Usa o CSS principal para puxar os tokens de cor, fontes (Inter/JetBrains) e identidade visual -->
+    <link rel="stylesheet" href="style-v2.css">
+    <style>
+        /* 
+           Overrides de body para focar na visualização dos cards 1:1 
+        */
+        body {
+            background-color: var(--bg);
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 80px;
+            padding: 80px;
+            justify-content: flex-start;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: var(--sans);
+            overflow: auto !important;
+            height: auto !important;
+        }
+
+        /* 
+           O container do slide tem 1080x1080px (tamanho padrão feed Instagram)
+        */
+        .slide {
+            width: 1080px;
+            height: 1080px;
+            background: var(--surface);
+            position: relative;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 100px;
+            box-shadow: 0 0 100px var(--accent-dim), inset 0 0 80px rgba(0, 0, 0, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 0px;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 50%, var(--surface-2) 0%, var(--bg) 100%);
+        }
+
+        /* Viewfinder Corners */
+        .viewfinder {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--accent);
+            z-index: 10;
+            opacity: 0.4;
+        }
+
+        .vf-tl {
+            top: 40px;
+            left: 40px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .vf-tr {
+            top: 40px;
+            right: 40px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .vf-bl {
+            bottom: 40px;
+            left: 40px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .vf-br {
+            bottom: 40px;
+            right: 40px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .hud-line {
+            position: absolute;
+            background: var(--accent);
+            opacity: 0.15;
+            z-index: 9;
+        }
+
+        .hl-top {
+            top: 60px;
+            left: 100px;
+            right: 100px;
+            height: 1px;
+        }
+
+        .hl-bottom {
+            bottom: 60px;
+            left: 100px;
+            right: 100px;
+            height: 1px;
+        }
+
+        /* 
+           Efeitos Cinemáticos (HAL 9000 / Space Odyssey / Tech) 
+        */
+        .headline-red.crt-scanlines {
+            position: relative;
+            display: inline-block;
+        }
+
+        .headline-red.crt-scanlines::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 4px,
+                    rgba(0, 0, 0, 0.4) 5px,
+                    rgba(0, 0, 0, 0.4) 6px);
+            pointer-events: none;
+            mix-blend-mode: multiply;
+        }
+
+        .halo-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1000px;
+            height: 1000px;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 1;
+            mix-blend-mode: screen;
+        }
+
+        /* Textura de ruído de filme */
+        .noise {
+            position: absolute;
+            inset: 0;
+            background-image: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.04"/%3E%3C/svg%3E');
+            pointer-events: none;
+            z-index: 11;
+            mix-blend-mode: overlay;
+        }
+
+        /* 
+           Tipografia e Layout Interno
+        */
+        .content {
+            z-index: 5;
+            position: relative;
+        }
+
+        .brick-logo {
+            display: flex;
+            align-items: baseline;
+            user-select: none;
+            cursor: default;
+            margin-bottom: 24px;
+        }
+
+        .logo-brick-img {
+            height: 32px;
+            /* Reduzido para encaixar com "2026:" e pre-titles */
+            width: auto;
+            object-fit: contain;
+            margin-right: 4px;
+        }
+
+        .logo-fallback {
+            font-family: var(--sans);
+            font-size: 40px;
+            font-weight: 900;
+            color: var(--text);
+            letter-spacing: -0.04em;
+            line-height: 1;
+        }
+
+        .logo-cursor {
+            color: var(--accent);
+            font-size: 40px;
+            font-weight: 300;
+            margin: 0 8px;
+            animation: blink-cursor 1s step-end infinite;
+        }
+
+        .logo-ai {
+            font-family: var(--mono);
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text-dim);
+            letter-spacing: -0.02em;
+            transition: color 0.15s;
+        }
+
+        .brick-logo:hover .logo-ai {
+            color: var(--text);
+        }
+
+        @keyframes blink-cursor {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
+        }
+
+        .pre-title {
+            font-family: var(--mono);
+            font-size: 24px;
+            color: var(--accent);
+            letter-spacing: 0.25em;
+            font-weight: 700;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pre-title::before {
+            content: '';
+            display: block;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .headline {
+            font-family: var(--sans);
+            font-size: 100px;
+            font-weight: 900;
+            color: var(--text);
+            line-height: 1.05;
+            letter-spacing: -0.04em;
+            text-transform: uppercase;
+            width: 100%;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .headline-red {
+            color: var(--accent);
+            text-shadow: 0 0 50px var(--accent-glow);
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 80px;
+            left: 100px;
+            right: 100px;
+            z-index: 5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: var(--mono);
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            padding-top: 24px;
+        }
+
+        .footer-left {
+            font-size: 20px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-dim);
+        }
+
+        .footer-right {
+            font-size: 16px;
+            letter-spacing: 0.1em;
+            display: flex;
+            gap: 16px;
+        }
+
+        .footer-badge {
+            padding: 6px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+        }
+
+        .sys-info {
+            position: absolute;
+            top: 40px;
+            right: 100px;
+            font-family: var(--mono);
+            font-size: 14px;
+            color: var(--text-dim);
+            text-align: right;
+            z-index: 6;
+            line-height: 1.4;
+            letter-spacing: 0.1em;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SLIDE 1 -->
+    <div class="slide" id="slide1">
+        <div class="viewfinder vf-tl"></div>
+        <div class="viewfinder vf-tr"></div>
+        <div class="viewfinder vf-bl"></div>
+        <div class="viewfinder vf-br"></div>
+        <div class="hud-line hl-top"></div>
+        <div class="hud-line hl-bottom"></div>
+
+        <div class="halo-glow"
+            style="background: radial-gradient(circle at 30% 70%, var(--accent-glow) 0%, transparent 60%);"></div>
+        <div class="noise"></div>
+
+        <div class="sys-info">
+            SYS.OP.2026<br>
+            <span style="color: var(--accent);">ENGAGED</span>
+        </div>
+
+        <div class="content">
+            <div class="brick-logo">
+                <img src="../../../../BrickAI/public/01.png" alt="BRICK" class="logo-brick-img"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="logo-fallback" style="display: none;">BRICK</span>
+                <span class="logo-cursor" style="transform: translateY(4px);">_</span>
+                <span class="logo-ai">AI</span>
+            </div>
+            <div class="headline">DO SET<br>AO <span class="headline-red">SERVIDOR.</span></div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-left">// THE GENERATIVE DIVISION</div>
+            <div class="footer-right">
+                <div class="footer-badge">IMG</div>
+                <div class="footer-badge">VID</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 2 -->
+    <div class="slide" id="slide2">
+        <div class="viewfinder vf-tl"></div>
+        <div class="viewfinder vf-tr"></div>
+        <div class="viewfinder vf-bl"></div>
+        <div class="viewfinder vf-br"></div>
+        <div class="hud-line hl-top"></div>
+        <div class="hud-line hl-bottom"></div>
+
+        <div class="halo-glow"
+            style="background: radial-gradient(circle at 70% 30%, var(--accent-glow) 0%, transparent 60%);"></div>
+        <div class="noise"></div>
+
+        <div class="sys-info">
+            NODE: ALPHA<br>
+            <span style="color: var(--accent);">ANALYZING</span>
+        </div>
+
+        <div class="content">
+            <div class="brick-logo" style="margin-bottom: 24px; opacity: 0.8;">
+                <span class="logo-fallback"
+                    style="font-size: 32px; color: var(--accent); letter-spacing: 0.25em;">2026</span>
+            </div>
+            <div class="headline">NÃO EXISTE<br><span class="headline-red crt-scanlines">PROMPT MÁGICO</span></div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-left">// WORKFLOW_PROTOCOL</div>
+            <div class="footer-right">
+                <div class="footer-badge" style="border-color: var(--accent); color: var(--accent);">EXEC</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3 -->
+    <div class="slide" id="slide3">
+        <div class="viewfinder vf-tl"></div>
+        <div class="viewfinder vf-tr"></div>
+        <div class="viewfinder vf-bl"></div>
+        <div class="viewfinder vf-br"></div>
+        <div class="hud-line hl-top"></div>
+        <div class="hud-line hl-bottom"></div>
+
+        <div class="halo-glow"
+            style="width: 1200px; height: 1200px; background: radial-gradient(circle at 50% 50%, var(--accent-glow) 0%, transparent 70%);">
+        </div>
+        <div class="noise"></div>
+
+        <div class="sys-info">
+            RENDER_F_03<br>
+            <span style="color: var(--accent);">FINALIZING</span>
+        </div>
+
+        <div class="content" style="padding: 0;">
+            <div class="headline" style="font-size: 85px;">
+                A IA FAZ <span class="headline-red">A IMAGEM.</span>
+            </div>
+            <div class="headline" style="font-size: 85px; margin-top: 20px;">
+                NÓS FAZEMOS<br><span class="headline-red">O CINEMA.</span>
+            </div>
+            <div class="brick-logo" style="margin-top: 60px;">
+                <img src="../../../../BrickAI/public/01.png" alt="BRICK" class="logo-brick-img"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="logo-fallback" style="display: none;">BRICK</span>
+                <span class="logo-cursor" style="transform: translateY(4px);">_</span>
+                <span class="logo-ai">AI</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-left">// THE GENERATIVE DIVISION</div>
+            <div class="footer-right">
+                <div class="footer-badge">BRICK_WAR_ROOM</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
