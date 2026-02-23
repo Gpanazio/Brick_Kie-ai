@@ -2561,6 +2561,14 @@ function openHistoryLightbox(entry) {
         mediaHtml = `<audio src="${esc(url)}" controls autoplay class="lightbox-audio"></audio>`;
     } else if (url) {
         mediaHtml = `<img src="${esc(url)}" alt="Result" class="lightbox-media">`;
+    } else if (entry.state === 'fail' || entry.state === 'failed') {
+        mediaHtml = `<div class="lightbox-error">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="1.5" style="margin-bottom:12px;">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <h3 style="color:var(--text); margin-bottom:8px;">Tarefa Falhou</h3>
+                        <p style="color:var(--text-muted)">${entry.data?.failMsg || 'Erro desconhecido durante o processamento.'}</p>
+                     </div>`;
     } else {
         mediaHtml = '<p style="color:var(--text-muted)">Sem mídia disponível</p>';
     }
@@ -3762,32 +3770,62 @@ window.mockSunoGeneration = function () {
         return html;
     }
 
-    function addV2GalleryItem(taskId, state, mediaUrl, mjTaskId) {
+    function addV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId) {
         v2.galleryEmpty.style.display = 'none';
 
         const item = document.createElement('div');
         const isVid = mediaUrl && isVideoUrl(mediaUrl);
         item.className = `v2-gallery-item ${state}${isVid ? ' video-item' : ''}`;
-        item.id = `v2-item-${CSS.escape(taskId)}`;
-        item.dataset.taskId = taskId;
+        item.id = `v2-item-${CSS.escape(elementId)}`;
+        item.dataset.taskId = elementId;
+        item.dataset.baseTaskId = baseTaskId || elementId;
 
         if (state === 'success' && mediaUrl) {
             item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId);
-        } else if (state === 'failed') {
+        } else if (state === 'failed' || state === 'fail') {
             item.innerHTML = '<span>Falhou</span>';
         }
         // processing state uses CSS ::after spinner
+
+        // Allow opening lightbox by clicking the item
+        item.addEventListener('click', (e) => {
+            // Do not trigger if clicking an action button or explicitly interacting with video controls
+            if (e.target.closest('button') || e.target.closest('.v2-mj-actions') || (e.target.tagName.toLowerCase() === 'video' && e.offsetX > e.target.clientWidth - 40)) return;
+            const t = tasks.find(x => x.id === item.dataset.baseTaskId);
+            if (t) {
+                const data = t.data?.data || {};
+                const entry = {
+                    id: t.id,
+                    model: t.model,
+                    state: t.state,
+                    cat: t.cat || currentCat,
+                    urls: _extractResultUrls(data),
+                    prompt: t._prompt || '',
+                    inputFileUrl: t._inputFileUrl || null,
+                    extraParams: t._extraParams || null,
+                    timestamp: Date.now(),
+                    costTime: data.costTime || null,
+                    coverUrl: data.response?.sunoData?.[0]?.imageUrl || null,
+                    trackTitle: data.response?.sunoData?.[0]?.title || null,
+                    sunoData: data.response?.sunoData || null,
+                    data: data
+                };
+                openHistoryLightbox(entry);
+            }
+        });
 
         v2.gallery.insertBefore(item, v2.gallery.firstChild);
         updateV2GalleryCount();
     }
 
-    function updateV2GalleryItem(taskId, state, mediaUrl, mjTaskId) {
-        const item = document.getElementById(`v2-item-${CSS.escape(taskId)}`);
+    function updateV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId) {
+        const item = document.getElementById(`v2-item-${CSS.escape(elementId)}`);
         if (!item) return;
 
         const isVid = mediaUrl && isVideoUrl(mediaUrl);
         item.className = `v2-gallery-item ${state}${isVid ? ' video-item' : ''}`;
+        // Ensure baseTaskId is set if missing
+        if (!item.dataset.baseTaskId) item.dataset.baseTaskId = baseTaskId || elementId;
 
         if (state === 'success' && mediaUrl) {
             item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId);
@@ -3821,7 +3859,7 @@ window.mockSunoGeneration = function () {
                 if (existing) existing.remove();
                 // Add items for each result URL
                 urls.forEach((url, i) => {
-                    addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null);
+                    addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id);
                 });
             } else {
                 updateV2GalleryItem(task.id, 'success');
@@ -3871,7 +3909,7 @@ window.mockSunoGeneration = function () {
                 const urls = _extractResultUrls(data);
                 if (urls.length > 0) {
                     urls.forEach((url, i) => {
-                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null);
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id);
                     });
                 }
             } else if (task.state === 'fail') {
