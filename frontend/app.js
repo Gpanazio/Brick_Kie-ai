@@ -3433,6 +3433,43 @@ window.mockSunoGeneration = function () {
                 v2Tasks.push(taskId);
                 toast('✅ Midjourney task created!', 'success');
 
+            } else if (currentCat === 'veo3') {
+                // ── Veo 3 submission (dedicated endpoint) ──
+                const extra = {};
+                if (prompt) extra.prompt = prompt;
+                extra.aspect_ratio = v2Settings.videoAr || '16:9';
+
+                let resolvedModel = v2Model?.model || 'veo3/text-to-video';
+
+                // Resolve quality suffix (Fast → -fast, Quality → -quality)
+                if (resolvedModel === 'veo3/text-to-video' || resolvedModel === 'veo3/image-to-video') {
+                    const quality = (collectModelParams()?.quality || 'Fast').toLowerCase();
+                    resolvedModel = `${resolvedModel}-${quality}`;
+                }
+
+                if (v2Files.length > 0) {
+                    btnSpan.textContent = `Uploading...`;
+                    const url = await v2UploadSingleFile(v2Files[0], 0, 1);
+                    extra.imageUrls = [url];
+                    btnSpan.textContent = 'Creating task...';
+                }
+
+                const fd = new FormData();
+                fd.append('model', resolvedModel);
+                fd.append('input_json', JSON.stringify(extra));
+                const resp = await fetch(`${API}/api/veo/create`, { method: 'POST', body: fd });
+                const json = await resp.json();
+                if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+                if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
+
+                let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId
+                    || json?.data?.task_id || json?.task_id;
+                if (!tid) throw new Error(json.msg || 'Nenhum taskId retornado');
+
+                addTask(tid, resolvedModel, 'veo', json.uploaded_url || null, extra);
+                v2Tasks.push(tid);
+                toast('✅ Veo 3 task created!', 'success');
+
             } else {
                 // ── Standard image/video submission ──
                 const extra = { ...modelParams };
