@@ -726,6 +726,11 @@ const els = {
     workspaceCatLabel: $('#workspace-cat-label'),
     btnBackLobby: $('#btn-back-lobby'),
 
+    // Settings panel
+    panelSettings: $('#panel-settings'),
+    panelSettingsScroll: $('#panel-settings-scroll'),
+    btnResetSettings: $('#btn-reset-settings'),
+
     // Model picker trigger
     btnModelPicker: $('#btn-model-picker'),
     mptIcon: $('#mpt-icon'),
@@ -1028,6 +1033,21 @@ function enterWorkspace(cat) {
     if (_currentCatItems.length > 0) {
         setTimeout(() => openModelPickerModal(), 50);
     }
+
+    // Apply Veo3 specific layout
+    if (cat === 'veo3') {
+        document.body.classList.add('cat-veo3');
+        els.panelSettings.classList.remove('hidden');
+        els.panelSettingsScroll.appendChild(els.configPanel);
+        els.panelSettingsScroll.appendChild(els.configExtraGrp);
+    } else {
+        document.body.classList.remove('cat-veo3');
+        els.panelSettings.classList.add('hidden');
+        // Restore to original location in #panel-prompt (.panel-scroll)
+        const leftScroll = document.querySelector('#panel-prompt .panel-scroll');
+        leftScroll.appendChild(els.configPanel);
+        leftScroll.appendChild(els.configExtraGrp);
+    }
 }
 
 function exitWorkspace() {
@@ -1249,6 +1269,12 @@ function initResetButtons() {
     if (els.btnResetParams) {
         els.btnResetParams.addEventListener('click', () => {
             if (selectedModel) renderModelParams(selectedModel.model);
+        });
+    }
+    if (els.btnResetSettings) {
+        els.btnResetSettings.addEventListener('click', () => {
+            if (els.btnResetParams) els.btnResetParams.click();
+            if (els.configExtraJson) els.configExtraJson.value = '{}';
         });
     }
 }
