@@ -395,6 +395,34 @@ const MODEL_CONFIGS = {
         ]
     },
 
+    // ──── MIDJOURNEY ────
+    'mj-txt': {
+        params: [
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
+            { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
+            { key: 'version', label: 'Version', type: 'radio', options: ['7', '6.1', '6'], default: '7' },
+        ]
+    },
+    'mj-img': {
+        params: [
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
+            { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
+            { key: 'version', label: 'Version', type: 'radio', options: ['7', '6.1', '6'], default: '7' },
+        ]
+    },
+    'mj-video': {
+        params: [
+            { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
+        ]
+    },
+    'mj-ref': {
+        params: [
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
+            { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
+            { key: 'version', label: 'Version', type: 'radio', options: ['7', '6.1', '6'], default: '7' },
+        ]
+    },
+
     // ──── VEO 3.1 (Google) ────
     'veo3/text-to-video': {
         params: [
@@ -2867,28 +2895,13 @@ window.mockSunoGeneration = function () {
         gallery: document.getElementById('v2-gallery'),
         galleryEmpty: document.getElementById('v2-gallery-empty'),
         galleryCount: document.getElementById('v2-gallery-count'),
-        valDimensions: document.getElementById('v2-val-dimensions'),
-        valResolution: document.getElementById('v2-val-resolution'),
-        valFormat: document.getElementById('v2-val-format'),
-        valSeed: document.getElementById('v2-val-seed'),
-        seedInput: document.getElementById('v2-seed'),
+        dynamicParams: document.getElementById('v2-dynamic-params'),
         creditsAmount: document.getElementById('v2-credits'),
     };
 
     // ── State ──
     let v2MaxFiles = 8; // Adjustable per model (1 for image-to-video, 8 for image)
     let v2Files = []; // Array of File objects
-    let v2Settings = {
-        aspect_ratio: '1:1',
-        resolution: '1K',
-        output_format: 'png',
-        seed: null,
-        filter: 'none',
-        duration: 5,     // seconds — for video categories
-        videoAr: '16:9', // aspect ratio for text-to-video
-        mjSpeed: 'relaxed', // MJ speed
-        mjVersion: '7',     // MJ version
-    };
     let v2Tasks = []; // Track tasks spawned from V2 workspace
 
     // ── Current model state for V2 workspace ──
@@ -2918,7 +2931,6 @@ window.mockSunoGeneration = function () {
     // ── Update workspace UI to reflect selected model ──
     function v2UpdateModelUI(data) {
         const isVideo = ['vid-txt', 'vid-img', 'veo3'].includes(currentCat);
-        const isTextToVideo = isVideo && data.input === 'text';
         const isMj = currentCat === 'mj';
         const isMjNeedsFile = isMj && data.mjType && data.mjType !== 'mj_txt2img';
 
@@ -2935,11 +2947,9 @@ window.mockSunoGeneration = function () {
             : data.input === 'mix' ? 'MIX' : 'TEXTO';
         if (badgeTag) badgeTag.textContent = inputLabel;
 
-        // ── Model info + cost ──
+        // ── Model info ──
         const modelInfoValue = ws.querySelector('.v2-model-info-value');
         if (modelInfoValue) modelInfoValue.textContent = data.model || '';
-        const cost = isMj ? _getMjCostFromV2() : (typeof getModelCost === 'function' ? getModelCost(data.model) : null);
-        if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
 
         // ── Gallery title & empty hint ──
         const galleryTitle = document.getElementById('v2-gallery-title');
@@ -2949,31 +2959,17 @@ window.mockSunoGeneration = function () {
             ? 'Envie uma imagem ou escreva um prompt e clique em Gerar'
             : 'Escreva um prompt e clique em Gerar';
 
-        // ── Image-only settings ──
-        // MJ uses aspect ratio but not resolution/format/seed/filter
-        const hideDimensions = isVideo;
-        const hideImageExtras = isVideo || isMj;
-        const dimEl = document.getElementById('v2-group-dimensions');
-        if (dimEl) dimEl.style.display = hideDimensions ? 'none' : '';
-        ['v2-group-resolution', 'v2-group-format', 'v2-group-seed'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = hideImageExtras ? 'none' : '';
-        });
+        // ── Dynamic settings from MODEL_CONFIGS (must render before cost calc) ──
+        v2RenderModelParams(data.model);
+
+        // ── Cost (after params are rendered so MJ cost can read speed) ──
+        const cost = isMj ? _getMjCostFromV2() : (typeof getModelCost === 'function' ? getModelCost(data.model) : null);
+        if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
+
         // Filter only for image (not MJ, not video)
+        const hideImageExtras = isVideo || isMj;
         const filterGroup = document.getElementById('v2-group-filter');
         if (filterGroup) filterGroup.style.display = hideImageExtras ? 'none' : '';
-
-        // ── Video-only settings ──
-        const durationGroup = document.getElementById('v2-group-duration');
-        if (durationGroup) durationGroup.style.display = isVideo ? '' : 'none';
-        const videoArGroup = document.getElementById('v2-group-video-ar');
-        if (videoArGroup) videoArGroup.style.display = isTextToVideo ? '' : 'none';
-
-        // ── MJ-only settings ──
-        const mjSpeedGroup = document.getElementById('v2-group-mj-speed');
-        if (mjSpeedGroup) mjSpeedGroup.style.display = isMj ? '' : 'none';
-        const mjVersionGroup = document.getElementById('v2-group-mj-version');
-        if (mjVersionGroup) mjVersionGroup.style.display = isMj ? '' : 'none';
 
         // ── Generate button label ──
         const btnSpan = v2.btnGenerate.querySelector('span');
@@ -3009,10 +3005,236 @@ window.mockSunoGeneration = function () {
 
     // Helper: get MJ cost from V2 speed setting
     function _getMjCostFromV2() {
-        const speed = v2Settings.mjSpeed || 'relaxed';
+        const params = v2CollectModelParams();
+        const speed = params.speed || 'relaxed';
         if (speed === 'relaxed') return 3;
         if (speed === 'turbo') return 16;
         return 8;
+    }
+
+    // ── Dynamic V2 Model Params ──
+    function v2RenderModelParams(modelKey) {
+        const container = v2.dynamicParams;
+        if (!container) return;
+        container.innerHTML = '';
+
+        const cfg = MODEL_CONFIGS[modelKey];
+        if (!cfg || cfg.params.length === 0) {
+            container.innerHTML = '<div class="v2-no-params">Sem configurações adicionais</div>';
+            return;
+        }
+
+        cfg.params.forEach(p => {
+            const group = document.createElement('div');
+            group.className = 'v2-param-group';
+            group.dataset.paramGroupKey = p.key;
+
+            if (p.type === 'radio') {
+                // Header with current value
+                const header = document.createElement('div');
+                header.className = 'v2-param-header';
+                const label = document.createElement('label');
+                label.className = 'v2-label';
+                label.textContent = p.label;
+                const valSpan = document.createElement('span');
+                valSpan.className = 'v2-param-value';
+                valSpan.dataset.paramVal = p.key;
+                valSpan.textContent = String(p.default);
+                header.appendChild(label);
+                header.appendChild(valSpan);
+                group.appendChild(header);
+
+                // Pill grid
+                const pills = document.createElement('div');
+                pills.className = 'v2-param-pills';
+                p.options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'v2-param-pill';
+                    btn.dataset.paramKey = p.key;
+                    btn.dataset.value = opt;
+                    btn.textContent = opt;
+                    if (opt === String(p.default)) btn.classList.add('active');
+                    btn.addEventListener('click', () => {
+                        pills.querySelectorAll('.v2-param-pill').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        valSpan.textContent = opt;
+                        v2UpdateCost();
+                    });
+                    pills.appendChild(btn);
+                });
+                group.appendChild(pills);
+
+            } else if (p.type === 'select') {
+                const header = document.createElement('div');
+                header.className = 'v2-param-header';
+                const label = document.createElement('label');
+                label.className = 'v2-label';
+                label.textContent = p.label;
+                const valSpan = document.createElement('span');
+                valSpan.className = 'v2-param-value';
+                valSpan.dataset.paramVal = p.key;
+                valSpan.textContent = String(p.default);
+                header.appendChild(label);
+                header.appendChild(valSpan);
+                group.appendChild(header);
+
+                const sel = document.createElement('select');
+                sel.className = 'v2-param-select';
+                sel.dataset.paramKey = p.key;
+                p.options.forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt;
+                    o.textContent = opt || '(auto)';
+                    if (opt === String(p.default)) o.selected = true;
+                    sel.appendChild(o);
+                });
+                sel.addEventListener('change', () => {
+                    valSpan.textContent = sel.value;
+                    v2UpdateCost();
+                });
+                group.appendChild(sel);
+
+            } else if (p.type === 'number') {
+                const header = document.createElement('div');
+                header.className = 'v2-param-header';
+                const label = document.createElement('label');
+                label.className = 'v2-label';
+                label.textContent = p.label;
+                const valSpan = document.createElement('span');
+                valSpan.className = 'v2-param-value';
+                valSpan.dataset.paramVal = p.key;
+                valSpan.textContent = String(p.default);
+                header.appendChild(label);
+                header.appendChild(valSpan);
+                group.appendChild(header);
+
+                const wrap = document.createElement('div');
+                wrap.className = 'v2-param-range-wrap';
+                const inp = document.createElement('input');
+                inp.type = 'range';
+                inp.className = 'v2-param-range';
+                inp.min = p.min;
+                inp.max = p.max;
+                inp.step = p.step;
+                inp.value = p.default;
+                inp.dataset.paramKey = p.key;
+                const rangeVal = document.createElement('span');
+                rangeVal.className = 'v2-param-range-val';
+                rangeVal.textContent = String(p.default);
+                inp.addEventListener('input', () => {
+                    rangeVal.textContent = inp.value;
+                    valSpan.textContent = inp.value;
+                });
+                wrap.appendChild(inp);
+                wrap.appendChild(rangeVal);
+                group.appendChild(wrap);
+
+            } else if (p.type === 'bool') {
+                const toggle = document.createElement('div');
+                toggle.className = 'v2-param-toggle' + (p.default ? ' active' : '');
+                toggle.dataset.paramKey = p.key;
+                toggle.dataset.value = p.default ? 'true' : 'false';
+
+                const header = document.createElement('div');
+                header.className = 'v2-param-header';
+                const label = document.createElement('label');
+                label.className = 'v2-label';
+                label.textContent = p.label;
+                header.appendChild(label);
+                group.appendChild(header);
+
+                const track = document.createElement('div');
+                track.className = 'v2-param-toggle-track';
+                const lbl = document.createElement('span');
+                lbl.className = 'v2-param-toggle-label';
+                lbl.textContent = p.default ? 'Ativado' : 'Desativado';
+                toggle.appendChild(track);
+                toggle.appendChild(lbl);
+                toggle.addEventListener('click', () => {
+                    const isActive = toggle.classList.toggle('active');
+                    toggle.dataset.value = isActive ? 'true' : 'false';
+                    lbl.textContent = isActive ? 'Ativado' : 'Desativado';
+                });
+                group.appendChild(toggle);
+
+            } else if (p.type === 'text') {
+                const label = document.createElement('label');
+                label.className = 'v2-label';
+                label.textContent = p.label;
+                group.appendChild(label);
+
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.className = 'v2-param-text';
+                inp.value = p.default || '';
+                inp.placeholder = p.label;
+                inp.dataset.paramKey = p.key;
+                group.appendChild(inp);
+
+            } else if (p.type === 'number_input') {
+                const header = document.createElement('div');
+                header.className = 'v2-param-header';
+                const label = document.createElement('label');
+                label.className = 'v2-label';
+                label.textContent = p.label;
+                header.appendChild(label);
+                group.appendChild(header);
+
+                const inp = document.createElement('input');
+                inp.type = 'number';
+                inp.className = 'v2-param-text';
+                inp.value = p.default || '0';
+                inp.placeholder = p.label;
+                inp.dataset.paramKey = p.key;
+                group.appendChild(inp);
+            }
+
+            container.appendChild(group);
+        });
+    }
+
+    function v2CollectModelParams() {
+        const params = {};
+        const modelKey = v2Model?.model;
+        const cfg = MODEL_CONFIGS[modelKey];
+        if (!cfg || !v2.dynamicParams) return params;
+
+        cfg.params.forEach(p => {
+            const group = v2.dynamicParams.querySelector(`[data-param-group-key="${p.key}"]`);
+            if (!group) return;
+
+            if (p.type === 'radio') {
+                const active = group.querySelector('.v2-param-pill.active');
+                if (active) params[p.key] = active.dataset.value;
+            } else if (p.type === 'select') {
+                const sel = group.querySelector('.v2-param-select');
+                if (sel) params[p.key] = sel.value;
+            } else if (p.type === 'number') {
+                const inp = group.querySelector('.v2-param-range');
+                if (inp) params[p.key] = parseFloat(inp.value);
+            } else if (p.type === 'bool') {
+                const toggle = group.querySelector('.v2-param-toggle');
+                if (toggle) params[p.key] = toggle.dataset.value === 'true';
+            } else if (p.type === 'text') {
+                const inp = group.querySelector('.v2-param-text');
+                if (inp && inp.value.trim()) params[p.key] = inp.value.trim();
+            } else if (p.type === 'number_input') {
+                const inp = group.querySelector('input[type="number"]');
+                if (inp && inp.value.trim() !== '') params[p.key] = parseInt(inp.value, 10);
+            }
+        });
+
+        return params;
+    }
+
+    function v2UpdateCost() {
+        const isMj = currentCat === 'mj';
+        if (isMj) {
+            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${_getMjCostFromV2()} créditos`;
+        } else {
+            const cost = typeof getModelCost === 'function' ? getModelCost(v2Model?.model) : null;
+            if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
+        }
     }
 
     window._v2HideWorkspace = function () {
@@ -3119,123 +3341,10 @@ window.mockSunoGeneration = function () {
         v2.uploadZone.classList.toggle('v2-upload-full', count >= v2MaxFiles);
     }
 
-    // ── Settings: Dimension buttons ──
-    ws.querySelectorAll('.v2-dim-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-dim-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.aspect_ratio = btn.dataset.ar;
-            v2.valDimensions.textContent = btn.dataset.dim;
-        });
-    });
-
-    // ── Settings: Resolution buttons ──
-    ws.querySelectorAll('.v2-res-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-res-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.resolution = btn.dataset.res;
-            v2.valResolution.textContent = btn.dataset.res;
-            // Update cost estimate
-            const costMap = { '1K': 18, '2K': 18, '4K': 24 };
-            v2.creditsAmount.textContent = `~${costMap[btn.dataset.res] || 18} credits`;
-        });
-    });
-
-    // ── Settings: Format buttons ──
-    ws.querySelectorAll('.v2-fmt-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-fmt-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.output_format = btn.dataset.fmt;
-            v2.valFormat.textContent = btn.dataset.fmt.toUpperCase();
-        });
-    });
-
-    // ── Settings: Seed ──
-    v2.seedInput.addEventListener('input', () => {
-        const val = v2.seedInput.value.trim();
-        v2Settings.seed = val ? parseInt(val, 10) : null;
-        v2.valSeed.textContent = val || 'Random';
-    });
-
-    // ── Settings: Video Duration buttons ──
-    ws.querySelectorAll('.v2-dur-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-dur-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.duration = parseInt(btn.dataset.dur, 10);
-            const valEl = document.getElementById('v2-val-duration');
-            if (valEl) valEl.textContent = `${v2Settings.duration}s`;
-        });
-    });
-
-    // ── Settings: Video Aspect Ratio buttons ──
-    ws.querySelectorAll('.v2-var-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-var-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.videoAr = btn.dataset.var;
-            const valEl = document.getElementById('v2-val-video-ar');
-            if (valEl) valEl.textContent = v2Settings.videoAr;
-        });
-    });
-
-    // ── Settings: MJ Speed buttons ──
-    ws.querySelectorAll('.v2-mjspd-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-mjspd-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.mjSpeed = btn.dataset.speed;
-            const valEl = document.getElementById('v2-val-mj-speed');
-            if (valEl) valEl.textContent = btn.textContent;
-            // Update cost
-            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${_getMjCostFromV2()} créditos`;
-        });
-    });
-
-    // ── Settings: MJ Version buttons ──
-    ws.querySelectorAll('.v2-mjver-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-mjver-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.mjVersion = btn.dataset.ver;
-            const valEl = document.getElementById('v2-val-mj-version');
-            if (valEl) valEl.textContent = `v${btn.dataset.ver}`;
-        });
-    });
-
-    // ── Settings: Reset ──
+    // ── Settings: Reset — re-render dynamic params with defaults ──
     v2.btnReset.addEventListener('click', () => {
-        v2Settings = { aspect_ratio: '1:1', resolution: '1K', output_format: 'png', seed: null, filter: 'none', duration: 5, videoAr: '16:9', mjSpeed: 'relaxed', mjVersion: '7' };
-        ws.querySelectorAll('.v2-dim-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-dim-btn[data-ar="1:1"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-res-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-res-btn[data-res="1K"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-fmt-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-fmt-btn[data-fmt="png"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-dur-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-dur-btn[data-dur="5"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-var-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-var-btn[data-var="16:9"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-mjspd-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-mjspd-btn[data-speed="relaxed"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-mjver-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-mjver-btn[data-ver="7"]')?.classList.add('active');
-        v2.seedInput.value = '';
-        v2.filter.value = 'none';
-        v2.valDimensions.textContent = '1024 × 1024';
-        v2.valResolution.textContent = '1K';
-        v2.valFormat.textContent = 'PNG';
-        v2.valSeed.textContent = 'Random';
-        const durEl = document.getElementById('v2-val-duration');
-        if (durEl) durEl.textContent = '5s';
-        const varEl = document.getElementById('v2-val-video-ar');
-        if (varEl) varEl.textContent = '16:9';
-        const mjSpdEl = document.getElementById('v2-val-mj-speed');
-        if (mjSpdEl) mjSpdEl.textContent = 'Relaxed';
-        const mjVerEl = document.getElementById('v2-val-mj-version');
-        if (mjVerEl) mjVerEl.textContent = 'v7';
+        if (v2Model?.model) v2RenderModelParams(v2Model.model);
+        if (v2.filter) v2.filter.value = 'none';
         if (v2.creditsAmount) v2.creditsAmount.textContent = '—';
         v2ClearAllFiles();
     });
@@ -3287,12 +3396,14 @@ window.mockSunoGeneration = function () {
             const isVideo = ['vid-txt', 'vid-img', 'veo3'].includes(currentCat);
             const isMj = currentCat === 'mj';
 
+            const modelParams = v2CollectModelParams();
+
             // ── Midjourney submission ──
             if (isMj) {
                 const mjType = v2Model?.mjType || v2Model?.dataset?.mjType || 'mj_txt2img';
-                const ar = v2Settings.aspect_ratio || '1:1';
-                const speed = v2Settings.mjSpeed || 'relaxed';
-                const version = v2Settings.mjVersion || '7';
+                const ar = modelParams.aspectRatio || '1:1';
+                const speed = modelParams.speed || 'relaxed';
+                const version = modelParams.version || '7';
 
                 let payload = { taskType: mjType, speed, prompt, aspectRatio: ar, version };
 
@@ -3324,20 +3435,13 @@ window.mockSunoGeneration = function () {
 
             } else {
                 // ── Standard image/video submission ──
-                const extra = {};
+                const extra = { ...modelParams };
                 if (prompt) extra.prompt = prompt;
 
-                if (isVideo) {
-                    extra.duration = v2Settings.duration;
-                    if (v2Model?.input === 'text') extra.aspect_ratio = v2Settings.videoAr;
-                } else {
-                    extra.aspect_ratio = v2Settings.aspect_ratio;
-                    extra.resolution = v2Settings.resolution;
-                    extra.output_format = v2Settings.output_format;
-                    if (v2Settings.seed !== null && !isNaN(v2Settings.seed)) extra.seed = v2Settings.seed;
-                    if (v2Settings.filter !== 'none') {
-                        extra.prompt = extra.prompt ? `${extra.prompt}, ${v2Settings.filter} style` : `${v2Settings.filter} style`;
-                    }
+                // Apply filter style to prompt if set
+                const filterVal = v2.filter?.value;
+                if (filterVal && filterVal !== 'none') {
+                    extra.prompt = extra.prompt ? `${extra.prompt}, ${filterVal} style` : `${filterVal} style`;
                 }
 
                 const resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
