@@ -426,6 +426,19 @@
 
         </section>
 
+        <!-- ====== RIGHT: SETTINGS (VEO3 ONLY) ====== -->
+        <section id="panel-settings" class="panel hidden">
+            <div class="panel-topbar">
+                <div>
+                    <div class="panel-topbar-title">Settings</div>
+                </div>
+                <button class="btn-ghost" id="btn-reset-settings" style="font-size: 10px;">Reset</button>
+            </div>
+            <div class="panel-scroll" id="panel-settings-scroll">
+                <!-- Config panel will be moved here dynamically for Veo3 -->
+            </div>
+        </section>
+
     </main>
 
     <!-- ====== MODEL PICKER MODAL ====== -->
@@ -468,7 +481,8 @@
             data-input="file" data-field="image_urls"
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M19 12h-3c-1.1 0-2-.9-2-2V7c0-1.1-.9-2-2-2S10 5.9 10 7v3c0 1.1-.9 2-2 2H5c-1.1 0-2 .9-2 2s.9 2 2 2h3c1.1 0 2 .9 2 2v3c0 1.1.9 2 2 2s2-.9 2-2v-3c0-1.1.9-2 2-2h3c1.1 0 2-.9 2-2s-.9-2-2-2z&quot; fill=&quot;currentColor&quot;/></svg>"
             data-color="mc-bytedance" data-prompt="true"
-            data-desc="Edição de imagem com IA: envie uma foto e descreva as alterações desejadas (materiais, iluminação, cores). Saída em 2K ou 4K."></div>
+            data-desc="Edição de imagem com IA: envie uma foto e descreva as alterações desejadas (materiais, iluminação, cores). Saída em 2K ou 4K.">
+        </div>
         <div data-cat="image" data-model="flux-2/pro-text-to-image" data-name="Pro Text→Image" data-provider="Flux.2"
             data-input="text" data-field="prompt"
             data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M4 4h16v4H12v12H8V8H4V4z' fill='currentColor'/></svg>"
@@ -499,16 +513,18 @@
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M13.5 2L3 14h9l-1 8L22 10h-9l.5-8z&quot; fill=&quot;currentColor&quot;/></svg>"
             data-color="mc-purple" data-prompt="true"
             data-desc="Transforme e edite imagens com prompt usando Grok Imagine."></div>
-        <div data-cat="image" data-model="gpt4o-image" data-name="GPT Image 1" data-provider="OpenAI"
-            data-input="mix" data-field="filesUrl"
+        <div data-cat="image" data-model="gpt4o-image" data-name="GPT Image 1" data-provider="OpenAI" data-input="mix"
+            data-field="filesUrl"
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10 10-4.48 10-10zM12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8z&quot; fill=&quot;currentColor&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;4&quot; fill=&quot;currentColor&quot;/></svg>"
             data-color="mc-openai" data-prompt="true"
-            data-desc="Geração e edição de imagens com GPT-4o: envie até 5 imagens de referência e descreva o que deseja."></div>
+            data-desc="Geração e edição de imagens com GPT-4o: envie até 5 imagens de referência e descreva o que deseja.">
+        </div>
         <div data-cat="image" data-model="flux-kontext-pro" data-name="Kontext Pro" data-provider="Flux"
             data-input="mix" data-field="inputImage"
             data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M4 4h16v4H12v12H8V8H4V4z' fill='currentColor'/></svg>"
             data-color="mc-flux" data-prompt="true"
-            data-desc="Geração e edição de imagens com Flux Kontext: envie uma imagem para editar ou gere do zero com prompt."></div>
+            data-desc="Geração e edição de imagens com Flux Kontext: envie uma imagem para editar ou gere do zero com prompt.">
+        </div>
         <div data-cat="image" data-model="flux-kontext-max" data-name="Kontext Max" data-provider="Flux"
             data-input="mix" data-field="inputImage"
             data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M4 4h16v4H12v12H8V8H4V4z' fill='currentColor'/></svg>"

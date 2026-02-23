@@ -525,7 +525,85 @@ body {
     grid-template-columns: 380px 1fr;
     height: calc(100vh - var(--header-h));
     overflow: hidden;
+    transition: grid-template-columns 0.3s ease;
 }
+
+/* 3-Column Layout for Veo3 */
+body.cat-veo3 #app-main {
+    grid-template-columns: 320px 1fr 340px;
+}
+
+body.cat-veo3 #panel-settings {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex !important;
+    /* Override .hidden if present */
+}
+
+body.cat-veo3 #config-panel {
+    display: flex !important;
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+body.cat-veo3 .inline-params-header {
+    display: none;
+    /* Hide the duplicated "Parâmetros" header in settings */
+}
+
+body.cat-veo3 #panel-settings .panel-scroll {
+    padding: 24px;
+    gap: 24px;
+}
+
+body.cat-veo3 #panel-settings .form-label {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+}
+
+body.cat-veo3 #panel-settings .radio-group {
+    display: flex;
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    padding: 2px;
+}
+
+body.cat-veo3 #panel-settings .radio-pill {
+    flex: 1;
+    background: transparent;
+    border: none;
+    text-align: center;
+    border-radius: 4px;
+    padding: 8px;
+}
+
+body.cat-veo3 #panel-settings .radio-pill input:checked+span,
+body.cat-veo3 #panel-settings .radio-pill:has(input:checked) {
+    background: var(--surface-3);
+    /* Brick uses dark grey instead of blue */
+    border: 1px solid var(--border-hover);
+    color: var(--text);
+}
+
+body.cat-veo3 #panel-settings .radio-pill input {
+    display: none;
+}
+
+body.cat-veo3 .btn-primary {
+    background: var(--accent);
+    /* Ensure it stays red */
+    color: #fff;
+}
+
+body.cat-veo3 .btn-primary:hover {
+    background: #ef4444;
+    /* Brighter red */
+}
+
 
 .panel {
     display: flex;
