@@ -1009,7 +1009,7 @@ function openModelPickerModal() {
         const cost = getModelCost(data.model);
         const isActive = selectedModel?.model === data.model;
         const card = document.createElement('button');
-        const isV2 = currentCat === 'image';
+        const isV2 = ['image', 'vid-txt', 'vid-img', 'veo3'].includes(currentCat);
         card.className = `mpm-card${isActive ? ' active' : ''}${isV2 ? ' mpm-card-v2' : ''}`;
         card.dataset.model = data.model;
         if (data.color) card.dataset.color = data.color;
@@ -2874,16 +2874,17 @@ window.mockSunoGeneration = function () {
         creditsAmount: document.getElementById('v2-credits'),
     };
 
-    const MAX_IMAGES = 8;
-
     // ── State ──
-    let v2Files = []; // Array of File objects (up to 8)
+    let v2MaxFiles = 8; // Adjustable per model (1 for image-to-video, 8 for image)
+    let v2Files = []; // Array of File objects
     let v2Settings = {
         aspect_ratio: '1:1',
         resolution: '1K',
         output_format: 'png',
         seed: null,
-        filter: 'none'
+        filter: 'none',
+        duration: 5,     // seconds — for video categories
+        videoAr: '16:9', // aspect ratio for text-to-video
     };
     let v2Tasks = []; // Track tasks spawned from V2 workspace
 
@@ -2903,9 +2904,20 @@ window.mockSunoGeneration = function () {
         refreshV2Gallery();
     };
 
+    // Categories that use the V2 workspace
+    const V2_CATS = ['image', 'vid-txt', 'vid-img', 'veo3'];
+
+    // Helper: detect video URL by extension
+    function isVideoUrl(url) {
+        return /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url);
+    }
+
     // ── Update workspace UI to reflect selected model ──
     function v2UpdateModelUI(data) {
-        // Model badge
+        const isVideo = ['vid-txt', 'vid-img', 'veo3'].includes(currentCat);
+        const isTextToVideo = isVideo && data.input === 'text';
+
+        // ── Model badge ──
         const badgeIcon = ws.querySelector('.v2-model-badge-icon');
         const badgeName = ws.querySelector('.v2-model-badge-name');
         const badgeProvider = ws.querySelector('.v2-model-badge-provider');
@@ -2913,28 +2925,69 @@ window.mockSunoGeneration = function () {
         if (badgeIcon) badgeIcon.innerHTML = data.icon || '';
         if (badgeName) badgeName.textContent = data.name || '';
         if (badgeProvider) badgeProvider.textContent = data.provider || '';
-        const inputLabel = data.input === 'file' ? 'IMAGE' : data.input === 'mix' ? 'MIX' : 'TEXT';
+        const inputLabel = data.input === 'file' ? (isVideo ? 'VÍDEO' : 'IMAGEM') : data.input === 'mix' ? 'MIX' : 'TEXTO';
         if (badgeTag) badgeTag.textContent = inputLabel;
 
-        // Model info at bottom of right panel
+        // ── Model info + cost ──
         const modelInfoValue = ws.querySelector('.v2-model-info-value');
         if (modelInfoValue) modelInfoValue.textContent = data.model || '';
-
-        // Update cost estimate
         const cost = typeof getModelCost === 'function' ? getModelCost(data.model) : null;
-        if (v2.creditsAmount) {
-            v2.creditsAmount.textContent = cost ? `~${cost} credits` : '—';
-        }
+        if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
 
-        // Show/hide upload zone based on input type
-        const uploadGroup = v2.uploadZone?.closest('.v2-form-group');
-        const needsFile = data.input === 'file' || data.input === 'mix';
-        if (uploadGroup) uploadGroup.style.display = needsFile ? '' : 'none';
+        // ── Gallery title & empty hint ──
+        const galleryTitle = document.getElementById('v2-gallery-title');
+        if (galleryTitle) galleryTitle.textContent = isVideo ? 'Vídeos Gerados' : 'Imagens Geradas';
+        const emptyHint = ws.querySelector('.v2-gallery-empty-hint');
+        if (emptyHint) emptyHint.textContent = isVideo
+            ? 'Envie uma imagem ou escreva um prompt e clique em Gerar'
+            : 'Escreva um prompt e clique em Gerar';
 
-        // Show/hide prompt based on input type
+        // ── Image-only settings (hide for video) ──
+        ['v2-group-dimensions', 'v2-group-resolution', 'v2-group-format', 'v2-group-seed'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = isVideo ? 'none' : '';
+        });
+        // Filter only for image
+        const filterGroup = document.getElementById('v2-group-filter');
+        if (filterGroup) filterGroup.style.display = isVideo ? 'none' : '';
+
+        // ── Video-only settings ──
+        const durationGroup = document.getElementById('v2-group-duration');
+        if (durationGroup) durationGroup.style.display = isVideo ? '' : 'none';
+        // Video AR only for text-to-video (image-to-video inherits aspect from source image)
+        const videoArGroup = document.getElementById('v2-group-video-ar');
+        if (videoArGroup) videoArGroup.style.display = isTextToVideo ? '' : 'none';
+
+        // ── Generate button label ──
+        const btnSpan = v2.btnGenerate.querySelector('span');
+        if (btnSpan) btnSpan.textContent = isVideo ? 'Gerar Vídeo' : 'Gerar Imagem';
+
+        // ── Prompt show/hide ──
         const promptGroup = v2.prompt?.closest('.v2-form-group');
         const needsPrompt = data.input === 'text' || data.input === 'mix' || data.prompt === 'true';
         if (promptGroup) promptGroup.style.display = needsPrompt ? '' : 'none';
+
+        // ── Upload zone show/hide + label + max files ──
+        const needsFile = data.input === 'file' || data.input === 'mix';
+        const uploadGroup = document.getElementById('v2-group-upload');
+        if (uploadGroup) uploadGroup.style.display = needsFile ? '' : 'none';
+
+        // For image-to-video: only 1 reference image; for image: up to 8
+        v2MaxFiles = (isVideo && data.input === 'file') ? 1 : 8;
+        const uploadLabel = document.getElementById('v2-upload-label');
+        if (uploadLabel) {
+            if (isVideo && data.input === 'file') {
+                uploadLabel.innerHTML = 'Imagem de referência';
+            } else {
+                uploadLabel.innerHTML = `Imagens de referência <span class="v2-label-hint">— opcional, até ${v2MaxFiles}</span>`;
+            }
+        }
+        // Trim files if over new max
+        if (v2Files.length > v2MaxFiles) {
+            v2Files = v2Files.slice(0, v2MaxFiles);
+            v2RenderFilesGrid();
+            updateV2GenerateState();
+        }
     }
 
     window._v2HideWorkspace = function () {
@@ -2956,7 +3009,7 @@ window.mockSunoGeneration = function () {
 
     // ── Upload Zone (multi-image, up to 8) ──
     v2.uploadZone.addEventListener('click', () => {
-        if (v2Files.length >= MAX_IMAGES) return;
+        if (v2Files.length >= v2MaxFiles) return;
         v2.fileInput.click();
     });
     v2.uploadZone.addEventListener('dragover', e => { e.preventDefault(); v2.uploadZone.classList.add('dragover'); });
@@ -2977,14 +3030,14 @@ window.mockSunoGeneration = function () {
         const images = newFiles.filter(f => f.type.startsWith('image/'));
         if (!images.length) return;
 
-        const remaining = MAX_IMAGES - v2Files.length;
+        const remaining = v2MaxFiles - v2Files.length;
         if (remaining <= 0) {
             toast('Limite de 8 imagens atingido', 'error');
             return;
         }
         const toAdd = images.slice(0, remaining);
         if (images.length > remaining) {
-            toast(`Apenas ${remaining} imagem(ns) adicionada(s) — limite: ${MAX_IMAGES}`, 'error');
+            toast(`Apenas ${remaining} imagem(ns) adicionada(s) — limite: ${v2MaxFiles}`, 'error');
         }
         v2Files.push(...toAdd);
         v2RenderFilesGrid();
@@ -3033,12 +3086,12 @@ window.mockSunoGeneration = function () {
 
         // Update counter
         const count = v2Files.length;
-        v2.fileCounter.textContent = `${count} / ${MAX_IMAGES}`;
+        v2.fileCounter.textContent = `${count} / ${v2MaxFiles}`;
         v2.fileCounter.classList.toggle('has-files', count > 0);
-        v2.fileCounter.classList.toggle('full', count >= MAX_IMAGES);
+        v2.fileCounter.classList.toggle('full', count >= v2MaxFiles);
 
         // Disable upload zone if full
-        v2.uploadZone.classList.toggle('v2-upload-full', count >= MAX_IMAGES);
+        v2.uploadZone.classList.toggle('v2-upload-full', count >= v2MaxFiles);
     }
 
     // ── Settings: Dimension buttons ──
@@ -3081,22 +3134,52 @@ window.mockSunoGeneration = function () {
         v2.valSeed.textContent = val || 'Random';
     });
 
+    // ── Settings: Video Duration buttons ──
+    ws.querySelectorAll('.v2-dur-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            ws.querySelectorAll('.v2-dur-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            v2Settings.duration = parseInt(btn.dataset.dur, 10);
+            const valEl = document.getElementById('v2-val-duration');
+            if (valEl) valEl.textContent = `${v2Settings.duration}s`;
+        });
+    });
+
+    // ── Settings: Video Aspect Ratio buttons ──
+    ws.querySelectorAll('.v2-var-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            ws.querySelectorAll('.v2-var-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            v2Settings.videoAr = btn.dataset.var;
+            const valEl = document.getElementById('v2-val-video-ar');
+            if (valEl) valEl.textContent = v2Settings.videoAr;
+        });
+    });
+
     // ── Settings: Reset ──
     v2.btnReset.addEventListener('click', () => {
-        v2Settings = { aspect_ratio: '1:1', resolution: '1K', output_format: 'png', seed: null, filter: 'none' };
+        v2Settings = { aspect_ratio: '1:1', resolution: '1K', output_format: 'png', seed: null, filter: 'none', duration: 5, videoAr: '16:9' };
         ws.querySelectorAll('.v2-dim-btn').forEach(b => b.classList.remove('active'));
         ws.querySelector('.v2-dim-btn[data-ar="1:1"]').classList.add('active');
         ws.querySelectorAll('.v2-res-btn').forEach(b => b.classList.remove('active'));
         ws.querySelector('.v2-res-btn[data-res="1K"]').classList.add('active');
         ws.querySelectorAll('.v2-fmt-btn').forEach(b => b.classList.remove('active'));
         ws.querySelector('.v2-fmt-btn[data-fmt="png"]').classList.add('active');
+        ws.querySelectorAll('.v2-dur-btn').forEach(b => b.classList.remove('active'));
+        ws.querySelector('.v2-dur-btn[data-dur="5"]').classList.add('active');
+        ws.querySelectorAll('.v2-var-btn').forEach(b => b.classList.remove('active'));
+        ws.querySelector('.v2-var-btn[data-var="16:9"]').classList.add('active');
         v2.seedInput.value = '';
         v2.filter.value = 'none';
         v2.valDimensions.textContent = '1024 × 1024';
         v2.valResolution.textContent = '1K';
         v2.valFormat.textContent = 'PNG';
         v2.valSeed.textContent = 'Random';
-        v2.creditsAmount.textContent = '~18 credits';
+        const durEl = document.getElementById('v2-val-duration');
+        if (durEl) durEl.textContent = '5s';
+        const varEl = document.getElementById('v2-val-video-ar');
+        if (varEl) varEl.textContent = '16:9';
+        if (v2.creditsAmount) v2.creditsAmount.textContent = '—';
         v2ClearAllFiles();
     });
 
@@ -3128,19 +3211,26 @@ window.mockSunoGeneration = function () {
 
         v2.btnGenerate.classList.add('loading');
         v2.btnGenerate.disabled = true;
-        btnSpan.textContent = 'Generating...';
+        btnSpan.textContent = 'Gerando...';
 
         try {
-            const extra = {
-                aspect_ratio: v2Settings.aspect_ratio,
-                resolution: v2Settings.resolution,
-                output_format: v2Settings.output_format
-            };
+            const isVideo = ['vid-txt', 'vid-img', 'veo3'].includes(currentCat);
+            const extra = {};
             if (prompt) extra.prompt = prompt;
-            if (v2Settings.seed !== null && !isNaN(v2Settings.seed)) extra.seed = v2Settings.seed;
-            // Append filter as style hint in prompt if not 'none'
-            if (v2Settings.filter !== 'none') {
-                extra.prompt = extra.prompt ? `${extra.prompt}, ${v2Settings.filter} style` : `${v2Settings.filter} style`;
+
+            if (isVideo) {
+                // Video params: duration + aspect ratio (text-to-video only)
+                extra.duration = v2Settings.duration;
+                if (v2Model?.input === 'text') extra.aspect_ratio = v2Settings.videoAr;
+            } else {
+                // Image params
+                extra.aspect_ratio = v2Settings.aspect_ratio;
+                extra.resolution = v2Settings.resolution;
+                extra.output_format = v2Settings.output_format;
+                if (v2Settings.seed !== null && !isNaN(v2Settings.seed)) extra.seed = v2Settings.seed;
+                if (v2Settings.filter !== 'none') {
+                    extra.prompt = extra.prompt ? `${extra.prompt}, ${v2Settings.filter} style` : `${v2Settings.filter} style`;
+                }
             }
 
             const resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
@@ -3191,18 +3281,28 @@ window.mockSunoGeneration = function () {
     });
 
     // ── V2 Gallery Management ──
-    function addV2GalleryItem(taskId, state, imageUrl) {
+    function v2MediaHtml(url) {
+        if (isVideoUrl(url)) {
+            return `<video src="${url}" autoplay loop muted playsinline></video>
+                    <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
+        }
+        return `<img src="${url}" alt="Gerado">
+                <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
+    }
+
+    function addV2GalleryItem(taskId, state, mediaUrl) {
         v2.galleryEmpty.style.display = 'none';
 
         const item = document.createElement('div');
-        item.className = `v2-gallery-item ${state}`;
+        const isVid = mediaUrl && isVideoUrl(mediaUrl);
+        item.className = `v2-gallery-item ${state}${isVid ? ' video-item' : ''}`;
         item.id = `v2-item-${CSS.escape(taskId)}`;
         item.dataset.taskId = taskId;
 
-        if (state === 'success' && imageUrl) {
-            item.innerHTML = `<img src="${imageUrl}" alt="Generated"><div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Completed</span></div>`;
+        if (state === 'success' && mediaUrl) {
+            item.innerHTML = v2MediaHtml(mediaUrl);
         } else if (state === 'failed') {
-            item.innerHTML = '<span>Failed</span>';
+            item.innerHTML = '<span>Falhou</span>';
         }
         // processing state uses CSS ::after spinner
 
@@ -3210,17 +3310,18 @@ window.mockSunoGeneration = function () {
         updateV2GalleryCount();
     }
 
-    function updateV2GalleryItem(taskId, state, imageUrl) {
+    function updateV2GalleryItem(taskId, state, mediaUrl) {
         const item = document.getElementById(`v2-item-${CSS.escape(taskId)}`);
         if (!item) return;
 
-        item.className = `v2-gallery-item ${state}`;
+        const isVid = mediaUrl && isVideoUrl(mediaUrl);
+        item.className = `v2-gallery-item ${state}${isVid ? ' video-item' : ''}`;
 
-        if (state === 'success' && imageUrl) {
-            item.innerHTML = `<img src="${imageUrl}" alt="Generated"><div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Completed</span></div>`;
+        if (state === 'success' && mediaUrl) {
+            item.innerHTML = v2MediaHtml(mediaUrl);
         } else if (state === 'fail' || state === 'failed') {
             item.className = 'v2-gallery-item failed';
-            item.innerHTML = '<span>Failed</span>';
+            item.innerHTML = '<span>Falhou</span>';
         }
         updateV2GalleryCount();
     }

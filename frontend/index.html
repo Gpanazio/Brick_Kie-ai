@@ -702,9 +702,9 @@
                 </div>
 
                 <!-- Upload -->
-                <div class="v2-form-group">
+                <div class="v2-form-group" id="v2-group-upload">
                     <div class="v2-label-row">
-                        <label class="v2-label">Imagens de referência <span class="v2-label-hint">— opcional, até 8</span></label>
+                        <label class="v2-label" id="v2-upload-label">Imagens de referência <span class="v2-label-hint">— opcional, até 8</span></label>
                         <span class="v2-file-counter" id="v2-file-counter">0 / 8</span>
                     </div>
                     <div class="v2-upload-zone" id="v2-upload-zone">
@@ -723,7 +723,7 @@
                 </div>
 
                 <!-- Filter (placeholder like screenshot) -->
-                <div class="v2-form-group">
+                <div class="v2-form-group" id="v2-group-filter">
                     <label class="v2-label">Filter</label>
                     <select class="v2-select" id="v2-filter">
                         <option value="none">No Filter</option>
@@ -749,7 +749,7 @@
         <!-- ── CENTER COLUMN: Gallery ── -->
         <div class="v2-ws-center">
             <div class="v2-gallery-header">
-                <span class="v2-gallery-title">Generated Images</span>
+                <span class="v2-gallery-title" id="v2-gallery-title">Gerado</span>
                 <span class="v2-gallery-count" id="v2-gallery-count">0 images</span>
             </div>
             <div class="v2-gallery" id="v2-gallery">
@@ -774,7 +774,7 @@
                 </div>
 
                 <!-- Image Dimensions -->
-                <div class="v2-setting-group">
+                <div class="v2-setting-group" id="v2-group-dimensions">
                     <div class="v2-setting-header">
                         <label class="v2-label">Image Dimensions</label>
                         <span class="v2-setting-value" id="v2-val-dimensions">1024 × 1024</span>
@@ -792,7 +792,7 @@
                 </div>
 
                 <!-- Resolution -->
-                <div class="v2-setting-group">
+                <div class="v2-setting-group" id="v2-group-resolution">
                     <div class="v2-setting-header">
                         <label class="v2-label">Resolution</label>
                         <span class="v2-setting-value" id="v2-val-resolution">1K</span>
@@ -805,7 +805,7 @@
                 </div>
 
                 <!-- Output Format -->
-                <div class="v2-setting-group">
+                <div class="v2-setting-group" id="v2-group-format">
                     <div class="v2-setting-header">
                         <label class="v2-label">Output Format</label>
                         <span class="v2-setting-value" id="v2-val-format">PNG</span>
@@ -817,12 +817,38 @@
                 </div>
 
                 <!-- Seed -->
-                <div class="v2-setting-group">
+                <div class="v2-setting-group" id="v2-group-seed">
                     <div class="v2-setting-header">
                         <label class="v2-label">Seed</label>
                         <span class="v2-setting-value" id="v2-val-seed">Random</span>
                     </div>
                     <input type="number" class="v2-input-number" id="v2-seed" placeholder="Random" min="-1" max="2147483647">
+                </div>
+
+                <!-- Video Aspect Ratio (shown for vid-txt / veo3 text-to-video) -->
+                <div class="v2-setting-group" id="v2-group-video-ar" style="display:none">
+                    <div class="v2-setting-header">
+                        <label class="v2-label">Aspect Ratio</label>
+                        <span class="v2-setting-value" id="v2-val-video-ar">16:9</span>
+                    </div>
+                    <div class="v2-video-ar-btns">
+                        <button class="v2-var-btn active" data-var="16:9">16:9</button>
+                        <button class="v2-var-btn" data-var="9:16">9:16</button>
+                        <button class="v2-var-btn" data-var="1:1">1:1</button>
+                    </div>
+                </div>
+
+                <!-- Video Duration (shown for all video categories) -->
+                <div class="v2-setting-group" id="v2-group-duration" style="display:none">
+                    <div class="v2-setting-header">
+                        <label class="v2-label">Duration</label>
+                        <span class="v2-setting-value" id="v2-val-duration">5s</span>
+                    </div>
+                    <div class="v2-duration-btns">
+                        <button class="v2-dur-btn active" data-dur="5">5s</button>
+                        <button class="v2-dur-btn" data-dur="8">8s</button>
+                        <button class="v2-dur-btn" data-dur="10">10s</button>
+                    </div>
                 </div>
 
                 <!-- Credits estimate -->
