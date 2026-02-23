@@ -755,6 +755,27 @@
                     </select>
                 </div>
 
+                <!-- ── Settings & Credits (Moved from right) ── -->
+                <div class="v2-settings-header" style="margin-top: 8px;">
+                    <span class="v2-settings-title">Settings</span>
+                    <button class="v2-settings-reset" id="v2-btn-reset">Reset</button>
+                </div>
+
+                <!-- Dynamic model params (rendered by JS from MODEL_CONFIGS) -->
+                <div id="v2-dynamic-params"></div>
+
+                <!-- Credits estimate -->
+                <div class="v2-credits-box">
+                    <span class="v2-credits-label">Estimated Cost</span>
+                    <span class="v2-credits-amount" id="v2-credits">~18 credits</span>
+                </div>
+
+                <!-- Model info (populated dynamically by JS) -->
+                <div class="v2-model-info">
+                    <span class="v2-model-info-label">Model</span>
+                    <span class="v2-model-info-value"></span>
+                </div>
+
                 <!-- Generate button -->
                 <button class="v2-generate-btn" id="v2-btn-generate" disabled>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -786,30 +807,7 @@
             </div>
         </div>
 
-        <!-- ── RIGHT COLUMN: Settings ── -->
-        <div class="v2-ws-right">
-            <div class="v2-ws-panel v2-ws-panel-right">
-                <div class="v2-settings-header">
-                    <span class="v2-settings-title">Settings</span>
-                    <button class="v2-settings-reset" id="v2-btn-reset">Reset</button>
-                </div>
-
-                <!-- Dynamic model params (rendered by JS from MODEL_CONFIGS) -->
-                <div id="v2-dynamic-params"></div>
-
-                <!-- Credits estimate -->
-                <div class="v2-credits-box">
-                    <span class="v2-credits-label">Estimated Cost</span>
-                    <span class="v2-credits-amount" id="v2-credits">~18 credits</span>
-                </div>
-
-                <!-- Model info (populated dynamically by JS) -->
-                <div class="v2-model-info">
-                    <span class="v2-model-info-label">Model</span>
-                    <span class="v2-model-info-value"></span>
-                </div>
-            </div>
-        </div>
+        <!-- (Right column removed, settings moved to left) -->
     </div>
 
     <!-- ====== TOAST ====== -->
