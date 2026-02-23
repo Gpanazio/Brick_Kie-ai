@@ -685,7 +685,7 @@ function addToHistory(task) {
     // Collect URLs
     const urls = _extractResultUrls(data);
     const uniqueUrls = [...new Set(urls.filter(u => typeof u === 'string' && u.startsWith('http')))];
-    if (uniqueUrls.length === 0 && task.state !== 'success') return; // Don't save failed tasks with no output
+    // Allow saving failed tasks even with no output so we can view the failMsg in the lightbox
 
     const entry = {
         id: task.id,
@@ -3115,7 +3115,7 @@ window.mockSunoGeneration = function () {
     let v2MaxFiles = 8; // Adjustable per model (1 for image-to-video, 8 for image)
     let v2Files = []; // Array of File objects
     let v2Settings = { ...DEFAULT_V2_SETTINGS };
-    let v2Tasks = []; // Track tasks spawned from V2 workspace
+    let v2Tasks = JSON.parse(sessionStorage.getItem('v2_tasks') || '[]'); // Track tasks spawned from V2 workspace
 
     // ── Current model state for V2 workspace ──
     let v2Model = null; // Will hold { model, name, provider, icon, input, field, color, ... }
@@ -3890,7 +3890,9 @@ window.mockSunoGeneration = function () {
         v2.gallery.querySelectorAll('.v2-gallery-item').forEach(el => el.remove());
 
         // Find all tasks created via V2 workspace (tracked by v2Tasks array)
-        const v2TaskList = tasks.filter(t => v2Tasks.includes(t.id));
+        // Check both active tasks and history so finished/failed tasks don't disappear
+        const allTracked = [...tasks, ...loadHistory()];
+        const v2TaskList = allTracked.filter(t => v2Tasks.includes(t.id));
         if (v2TaskList.length === 0) {
             v2.galleryEmpty.style.display = '';
             updateV2GalleryCount();
@@ -3901,7 +3903,10 @@ window.mockSunoGeneration = function () {
 
         v2TaskList.forEach(task => {
             // Ensure tracked
-            if (!v2Tasks.includes(task.id)) v2Tasks.push(task.id);
+            if (!v2Tasks.includes(task.id)) {
+                v2Tasks.push(task.id);
+                sessionStorage.setItem('v2_tasks', JSON.stringify(v2Tasks));
+            }
             const isMjTask = task.mode === 'midjourney';
 
             if (task.state === 'success') {
