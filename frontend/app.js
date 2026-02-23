@@ -3360,7 +3360,7 @@ window.mockSunoGeneration = function () {
     v2.btnReset.addEventListener('click', () => {
         v2Settings = { ...DEFAULT_V2_SETTINGS };
         if (v2Model?.model) v2RenderModelParams(v2Model.model);
-        if (v2.filter) v2.filter.value = 'none';
+        if (v2.filter) v2.filter.value = DEFAULT_V2_SETTINGS.filter;
         if (v2.creditsAmount) v2.creditsAmount.textContent = '—';
         v2ClearAllFiles();
     });
@@ -3482,13 +3482,10 @@ window.mockSunoGeneration = function () {
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
 
         if (v2Files.length > 0) {
-            btnSpan.textContent = `Uploading 0/${v2Files.length}...`;
-            const imageUrls = [];
-            for (let i = 0; i < v2Files.length; i++) {
-                btnSpan.textContent = `Uploading ${i + 1}/${v2Files.length}...`;
-                const url = await v2UploadSingleFile(v2Files[i], i, v2Files.length);
-                imageUrls.push(url);
-            }
+            btnSpan.textContent = `Uploading ${v2Files.length} image${v2Files.length > 1 ? 's' : ''}...`;
+            const imageUrls = await Promise.all(
+                v2Files.map((file, i) => v2UploadSingleFile(file, i, v2Files.length))
+            );
             extra[imgField] = imageUrls;
             btnSpan.textContent = 'Creating task...';
         }
