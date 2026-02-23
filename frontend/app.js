@@ -2442,13 +2442,40 @@ function renderHistoryGallery() {
 
         const mColor = modelData ? modelData.color : '';
 
+        // Direct download button for upscale models (Topaz, Recraft crisp)
+        const isUpscale = entry.model.startsWith('topaz/') || entry.model === 'recraft/crisp-upscale';
+        const dlBtnHtml = (isUpscale && entry.urls?.length)
+            ? `<button class="history-card-dl" data-dl-url="${esc(entry.urls[0])}" title="Download direto">
+                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                   </svg>
+               </button>`
+            : '';
+
         card.innerHTML = `
             <div class="history-card-accent ${mColor}"></div>
-            <div class="history-card-thumb">${thumbHtml}</div>
+            <div class="history-card-thumb">${thumbHtml}${dlBtnHtml}</div>
             <div class="history-card-footer">
                 <span class="history-card-model">${mIcon}${mName}</span>
                 <span class="history-card-time">${esc(timeStr)}</span>
             </div>`;
+
+        // Direct download click handler (prevent lightbox open)
+        const dlBtn = card.querySelector('.history-card-dl');
+        if (dlBtn) {
+            dlBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                const url = dlBtn.dataset.dlUrl;
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '';
+                a.target = '_blank';
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            });
+        }
 
         // Click to open lightbox
         card.addEventListener('click', () => openHistoryLightbox(entry));
