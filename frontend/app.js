@@ -2913,7 +2913,8 @@ window.mockSunoGeneration = function () {
         if (badgeIcon) badgeIcon.innerHTML = data.icon || '';
         if (badgeName) badgeName.textContent = data.name || '';
         if (badgeProvider) badgeProvider.textContent = data.provider || '';
-        if (badgeTag) badgeTag.textContent = data.provider || '';
+        const inputLabel = data.input === 'file' ? 'IMAGE' : data.input === 'mix' ? 'MIX' : 'TEXT';
+        if (badgeTag) badgeTag.textContent = inputLabel;
 
         // Model info at bottom of right panel
         const modelInfoValue = ws.querySelector('.v2-model-info-value');
@@ -3143,6 +3144,7 @@ window.mockSunoGeneration = function () {
             }
 
             const resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
+            const imgField = v2Model?.field || selectedModel?.field || 'image_input';
 
             // Upload reference images if any (up to 8)
             if (v2Files.length > 0) {
@@ -3153,8 +3155,6 @@ window.mockSunoGeneration = function () {
                     const url = await v2UploadSingleFile(v2Files[i], i, v2Files.length);
                     imageUrls.push(url);
                 }
-                // Use the model's expected field name for images
-                const imgField = v2Model?.field || selectedModel?.field || 'image_input';
                 extra[imgField] = imageUrls;
                 btnSpan.textContent = 'Creating task...';
             }
@@ -3169,7 +3169,6 @@ window.mockSunoGeneration = function () {
             if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
             const taskId = json?.data?.taskId;
             if (!taskId) throw new Error(json.msg || 'No taskId returned');
-            const imgField = v2Model?.field || selectedModel?.field || 'image_input';
             addTask(taskId, resolvedModel, 'market', extra[imgField]?.length ? extra[imgField] : null, extra);
             v2Tasks.push(taskId);
 
