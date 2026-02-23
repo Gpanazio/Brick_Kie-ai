@@ -628,7 +628,15 @@ function _extractResultUrls(data) {
     if (Array.isArray(data.resultUrls)) urls.push(...data.resultUrls);
     if (Array.isArray(data.output)) urls.push(...data.output);
 
-    // resultJson as string (Market sometimes)
+    // Callback format: data.info.* (Market/Veo/Flux callbacks put URLs here)
+    const info = data.info || {};
+    if (Array.isArray(info.resultUrls)) urls.push(...info.resultUrls);
+    if (Array.isArray(info.result_urls)) urls.push(...info.result_urls);
+    if (info.resultImageUrl) urls.push(info.resultImageUrl);
+    if (info.resultUrl) urls.push(info.resultUrl);
+    if (Array.isArray(info.originUrls)) urls.push(...info.originUrls);
+
+    // resultJson as string (Market polling)
     if (typeof data.resultJson === 'string' && data.resultJson) {
         try {
             const parsed = JSON.parse(data.resultJson);
@@ -665,6 +673,8 @@ function _extractResultUrls(data) {
             if (track.sourceAudioUrl && track.sourceAudioUrl !== track.audioUrl) urls.push(track.sourceAudioUrl);
         });
     }
+    // Flat video_url (Runway etc)
+    if (data.video_url) urls.push(data.video_url);
     return urls;
 }
 
@@ -832,6 +842,10 @@ function extractResultUrls(data) {
     if (Array.isArray(info.result_urls)) urls.push(...info.result_urls);
     // Flux Kontext: info.resultImageUrl (single string)
     if (info.resultImageUrl) urls.push(info.resultImageUrl);
+    // Generic: info.resultUrl (singular — Topaz video etc)
+    if (info.resultUrl) urls.push(info.resultUrl);
+    // Origin URLs from callback
+    if (Array.isArray(info.originUrls)) urls.push(...info.originUrls);
     // Runway: flat video_url
     if (data.video_url) urls.push(data.video_url);
     // Suno: data.data[] with audio_url
