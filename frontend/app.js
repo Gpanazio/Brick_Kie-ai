@@ -2939,12 +2939,12 @@ window.mockSunoGeneration = function () {
 
     window._v2HideWorkspace = function () {
         ws.classList.add('hidden');
-        document.getElementById('app-main').classList.remove('hidden');
+        // Note: does not reveal app-main — exitWorkspace() handles lobby transition
     };
 
     // ── Back button ──
     v2.btnBack.addEventListener('click', () => {
-        window._v2HideWorkspace();
+        if (typeof exitWorkspace === 'function') exitWorkspace();
     });
 
     // ── Prompt ──
@@ -3322,7 +3322,7 @@ window.mockSunoGeneration = function () {
             // Only if no modal is open on top
             const picker = document.getElementById('modal-model-picker');
             if (picker && !picker.classList.contains('hidden')) return;
-            window._v2HideWorkspace();
+            if (typeof exitWorkspace === 'function') exitWorkspace();
         }
     });
 
