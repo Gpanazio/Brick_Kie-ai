@@ -4050,70 +4050,12 @@ body {
     gap: 6px;
 }
 
-/* Reuse existing button styles for dur/var buttons */
-.v2-dur-btn,
-.v2-var-btn {
-    padding: 8px 4px;
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(148, 163, 184, 0.7);
-    background: rgba(15, 23, 42, 0.5);
-    border: 1px solid rgba(96, 165, 250, 0.1);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-}
-
-.v2-dur-btn:hover,
-.v2-var-btn:hover {
-    border-color: rgba(96, 165, 250, 0.3);
-    color: #e2e8f0;
-}
-
-.v2-dur-btn.active,
-.v2-var-btn.active {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2));
-    border-color: rgba(96, 165, 250, 0.5);
-    color: #93c5fd;
-    box-shadow: 0 0 12px rgba(96, 165, 250, 0.1);
-}
-
 /* ── MJ Speed & Version buttons ── */
 .v2-mj-speed-btns,
 .v2-mj-version-btns {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 6px;
-}
-
-.v2-mjspd-btn,
-.v2-mjver-btn {
-    padding: 8px 4px;
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(148, 163, 184, 0.7);
-    background: rgba(15, 23, 42, 0.5);
-    border: 1px solid rgba(96, 165, 250, 0.1);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-}
-
-.v2-mjspd-btn:hover,
-.v2-mjver-btn:hover {
-    border-color: rgba(96, 165, 250, 0.3);
-    color: #e2e8f0;
-}
-
-.v2-mjspd-btn.active,
-.v2-mjver-btn.active {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2));
-    border-color: rgba(96, 165, 250, 0.5);
-    color: #93c5fd;
-    box-shadow: 0 0 12px rgba(96, 165, 250, 0.1);
 }
 
 /* ── MJ action buttons in V2 gallery ── */
@@ -4788,7 +4730,11 @@ body {
 
 .v2-dim-btn,
 .v2-res-btn,
-.v2-fmt-btn {
+.v2-fmt-btn,
+.v2-dur-btn,
+.v2-var-btn,
+.v2-mjspd-btn,
+.v2-mjver-btn {
     padding: 8px 4px;
     font-family: var(--mono);
     font-size: 11px;
@@ -4804,14 +4750,22 @@ body {
 
 .v2-dim-btn:hover,
 .v2-res-btn:hover,
-.v2-fmt-btn:hover {
+.v2-fmt-btn:hover,
+.v2-dur-btn:hover,
+.v2-var-btn:hover,
+.v2-mjspd-btn:hover,
+.v2-mjver-btn:hover {
     border-color: rgba(96, 165, 250, 0.3);
     color: #e2e8f0;
 }
 
 .v2-dim-btn.active,
 .v2-res-btn.active,
-.v2-fmt-btn.active {
+.v2-fmt-btn.active,
+.v2-dur-btn.active,
+.v2-var-btn.active,
+.v2-mjspd-btn.active,
+.v2-mjver-btn.active {
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2));
     border-color: rgba(96, 165, 250, 0.5);
     color: #93c5fd;

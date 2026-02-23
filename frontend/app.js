@@ -129,6 +129,28 @@ const PROMPT_CHAR_LIMITS = {
     'veo3/extend-quality': 5000,
 };
 
+// Categories that use the V2 workspace
+const V2_CATS = ['image', 'vid-txt', 'vid-img', 'veo3', 'mj'];
+
+// Video categories subset
+const VIDEO_CATS = ['vid-txt', 'vid-img', 'veo3'];
+
+// Midjourney cost per speed tier
+const MJ_COSTS = { relaxed: 3, fast: 8, turbo: 16 };
+
+// Default V2 settings (used for initialization and reset)
+const DEFAULT_V2_SETTINGS = {
+    aspect_ratio: '1:1',
+    resolution: '1K',
+    output_format: 'png',
+    seed: null,
+    filter: 'none',
+    duration: 5,
+    videoAr: '16:9',
+    mjSpeed: 'relaxed',
+    mjVersion: '7',
+};
+
 function getModelCost(model) {
     return MODEL_COST_ESTIMATES[model] || null;
 }
@@ -1009,7 +1031,7 @@ function openModelPickerModal() {
         const cost = getModelCost(data.model);
         const isActive = selectedModel?.model === data.model;
         const card = document.createElement('button');
-        const isV2 = ['image', 'vid-txt', 'vid-img', 'veo3', 'mj'].includes(currentCat);
+        const isV2 = V2_CATS.includes(currentCat);
         card.className = `mpm-card${isActive ? ' active' : ''}${isV2 ? ' mpm-card-v2' : ''}`;
         card.dataset.model = data.model;
         if (data.color) card.dataset.color = data.color;
@@ -1069,7 +1091,7 @@ function openModelPickerModal() {
             selectModelFromData(data);
             closeModelPickerModal();
             // Open V2 workspace for V2 categories
-            if (['image', 'vid-txt', 'vid-img', 'veo3', 'mj'].includes(currentCat) && typeof window._v2ShowWorkspace === 'function') {
+            if (V2_CATS.includes(currentCat) && typeof window._v2ShowWorkspace === 'function') {
                 window._v2ShowWorkspace(data);
             }
         });
@@ -2878,17 +2900,7 @@ window.mockSunoGeneration = function () {
     // ── State ──
     let v2MaxFiles = 8; // Adjustable per model (1 for image-to-video, 8 for image)
     let v2Files = []; // Array of File objects
-    let v2Settings = {
-        aspect_ratio: '1:1',
-        resolution: '1K',
-        output_format: 'png',
-        seed: null,
-        filter: 'none',
-        duration: 5,     // seconds — for video categories
-        videoAr: '16:9', // aspect ratio for text-to-video
-        mjSpeed: 'relaxed', // MJ speed
-        mjVersion: '7',     // MJ version
-    };
+    let v2Settings = { ...DEFAULT_V2_SETTINGS };
     let v2Tasks = []; // Track tasks spawned from V2 workspace
 
     // ── Current model state for V2 workspace ──
@@ -2907,9 +2919,6 @@ window.mockSunoGeneration = function () {
         refreshV2Gallery();
     };
 
-    // Categories that use the V2 workspace
-    const V2_CATS = ['image', 'vid-txt', 'vid-img', 'veo3', 'mj'];
-
     // Helper: detect video URL by extension
     function isVideoUrl(url) {
         return /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url);
@@ -2917,7 +2926,7 @@ window.mockSunoGeneration = function () {
 
     // ── Update workspace UI to reflect selected model ──
     function v2UpdateModelUI(data) {
-        const isVideo = ['vid-txt', 'vid-img', 'veo3'].includes(currentCat);
+        const isVideo = VIDEO_CATS.includes(currentCat);
         const isTextToVideo = isVideo && data.input === 'text';
         const isMj = currentCat === 'mj';
         const isMjNeedsFile = isMj && data.mjType && data.mjType !== 'mj_txt2img';
@@ -2955,13 +2964,10 @@ window.mockSunoGeneration = function () {
         const hideImageExtras = isVideo || isMj;
         const dimEl = document.getElementById('v2-group-dimensions');
         if (dimEl) dimEl.style.display = hideDimensions ? 'none' : '';
-        ['v2-group-resolution', 'v2-group-format', 'v2-group-seed'].forEach(id => {
+        ['v2-group-resolution', 'v2-group-format', 'v2-group-seed', 'v2-group-filter'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = hideImageExtras ? 'none' : '';
         });
-        // Filter only for image (not MJ, not video)
-        const filterGroup = document.getElementById('v2-group-filter');
-        if (filterGroup) filterGroup.style.display = hideImageExtras ? 'none' : '';
 
         // ── Video-only settings ──
         const durationGroup = document.getElementById('v2-group-duration');
@@ -3007,12 +3013,9 @@ window.mockSunoGeneration = function () {
         }
     }
 
-    // Helper: get MJ cost from V2 speed setting
     function _getMjCostFromV2() {
         const speed = v2Settings.mjSpeed || 'relaxed';
-        if (speed === 'relaxed') return 3;
-        if (speed === 'turbo') return 16;
-        return 8;
+        return MJ_COSTS[speed] || MJ_COSTS.fast;
     }
 
     window._v2HideWorkspace = function () {
@@ -3119,37 +3122,35 @@ window.mockSunoGeneration = function () {
         v2.uploadZone.classList.toggle('v2-upload-full', count >= v2MaxFiles);
     }
 
-    // ── Settings: Dimension buttons ──
-    ws.querySelectorAll('.v2-dim-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-dim-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.aspect_ratio = btn.dataset.ar;
-            v2.valDimensions.textContent = btn.dataset.dim;
+    // ── Generic button group helper ──
+    function _initV2ButtonGroup(selector, onSelect) {
+        ws.querySelectorAll(selector).forEach(btn => {
+            btn.addEventListener('click', () => {
+                ws.querySelectorAll(selector).forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                onSelect(btn);
+            });
         });
+    }
+
+    // ── Settings: Dimension buttons ──
+    _initV2ButtonGroup('.v2-dim-btn', btn => {
+        v2Settings.aspect_ratio = btn.dataset.ar;
+        v2.valDimensions.textContent = btn.dataset.dim;
     });
 
     // ── Settings: Resolution buttons ──
-    ws.querySelectorAll('.v2-res-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-res-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.resolution = btn.dataset.res;
-            v2.valResolution.textContent = btn.dataset.res;
-            // Update cost estimate
-            const costMap = { '1K': 18, '2K': 18, '4K': 24 };
-            v2.creditsAmount.textContent = `~${costMap[btn.dataset.res] || 18} credits`;
-        });
+    _initV2ButtonGroup('.v2-res-btn', btn => {
+        v2Settings.resolution = btn.dataset.res;
+        v2.valResolution.textContent = btn.dataset.res;
+        const costMap = { '1K': 18, '2K': 18, '4K': 24 };
+        v2.creditsAmount.textContent = `~${costMap[btn.dataset.res] || 18} credits`;
     });
 
     // ── Settings: Format buttons ──
-    ws.querySelectorAll('.v2-fmt-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-fmt-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.output_format = btn.dataset.fmt;
-            v2.valFormat.textContent = btn.dataset.fmt.toUpperCase();
-        });
+    _initV2ButtonGroup('.v2-fmt-btn', btn => {
+        v2Settings.output_format = btn.dataset.fmt;
+        v2.valFormat.textContent = btn.dataset.fmt.toUpperCase();
     });
 
     // ── Settings: Seed ──
@@ -3160,68 +3161,56 @@ window.mockSunoGeneration = function () {
     });
 
     // ── Settings: Video Duration buttons ──
-    ws.querySelectorAll('.v2-dur-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-dur-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.duration = parseInt(btn.dataset.dur, 10);
-            const valEl = document.getElementById('v2-val-duration');
-            if (valEl) valEl.textContent = `${v2Settings.duration}s`;
-        });
+    _initV2ButtonGroup('.v2-dur-btn', btn => {
+        v2Settings.duration = parseInt(btn.dataset.dur, 10);
+        const valEl = document.getElementById('v2-val-duration');
+        if (valEl) valEl.textContent = `${v2Settings.duration}s`;
     });
 
     // ── Settings: Video Aspect Ratio buttons ──
-    ws.querySelectorAll('.v2-var-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-var-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.videoAr = btn.dataset.var;
-            const valEl = document.getElementById('v2-val-video-ar');
-            if (valEl) valEl.textContent = v2Settings.videoAr;
-        });
+    _initV2ButtonGroup('.v2-var-btn', btn => {
+        v2Settings.videoAr = btn.dataset.var;
+        const valEl = document.getElementById('v2-val-video-ar');
+        if (valEl) valEl.textContent = v2Settings.videoAr;
     });
 
     // ── Settings: MJ Speed buttons ──
-    ws.querySelectorAll('.v2-mjspd-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-mjspd-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.mjSpeed = btn.dataset.speed;
-            const valEl = document.getElementById('v2-val-mj-speed');
-            if (valEl) valEl.textContent = btn.textContent;
-            // Update cost
-            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${_getMjCostFromV2()} créditos`;
-        });
+    _initV2ButtonGroup('.v2-mjspd-btn', btn => {
+        v2Settings.mjSpeed = btn.dataset.speed;
+        const valEl = document.getElementById('v2-val-mj-speed');
+        if (valEl) valEl.textContent = btn.textContent;
+        if (v2.creditsAmount) v2.creditsAmount.textContent = `~${_getMjCostFromV2()} créditos`;
     });
 
     // ── Settings: MJ Version buttons ──
-    ws.querySelectorAll('.v2-mjver-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            ws.querySelectorAll('.v2-mjver-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            v2Settings.mjVersion = btn.dataset.ver;
-            const valEl = document.getElementById('v2-val-mj-version');
-            if (valEl) valEl.textContent = `v${btn.dataset.ver}`;
-        });
+    _initV2ButtonGroup('.v2-mjver-btn', btn => {
+        v2Settings.mjVersion = btn.dataset.ver;
+        const valEl = document.getElementById('v2-val-mj-version');
+        if (valEl) valEl.textContent = `v${btn.dataset.ver}`;
     });
+
+    // ── Button group defaults for reset ──
+    const V2_BUTTON_DEFAULTS = [
+        { selector: '.v2-dim-btn', attr: 'data-ar', value: '1:1' },
+        { selector: '.v2-res-btn', attr: 'data-res', value: '1K' },
+        { selector: '.v2-fmt-btn', attr: 'data-fmt', value: 'png' },
+        { selector: '.v2-dur-btn', attr: 'data-dur', value: '5' },
+        { selector: '.v2-var-btn', attr: 'data-var', value: '16:9' },
+        { selector: '.v2-mjspd-btn', attr: 'data-speed', value: 'relaxed' },
+        { selector: '.v2-mjver-btn', attr: 'data-ver', value: '7' },
+    ];
+
+    function _resetV2ButtonGroups() {
+        V2_BUTTON_DEFAULTS.forEach(({ selector, attr, value }) => {
+            ws.querySelectorAll(selector).forEach(b => b.classList.remove('active'));
+            ws.querySelector(`${selector}[${attr}="${value}"]`)?.classList.add('active');
+        });
+    }
 
     // ── Settings: Reset ──
     v2.btnReset.addEventListener('click', () => {
-        v2Settings = { aspect_ratio: '1:1', resolution: '1K', output_format: 'png', seed: null, filter: 'none', duration: 5, videoAr: '16:9', mjSpeed: 'relaxed', mjVersion: '7' };
-        ws.querySelectorAll('.v2-dim-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-dim-btn[data-ar="1:1"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-res-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-res-btn[data-res="1K"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-fmt-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-fmt-btn[data-fmt="png"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-dur-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-dur-btn[data-dur="5"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-var-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-var-btn[data-var="16:9"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-mjspd-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-mjspd-btn[data-speed="relaxed"]')?.classList.add('active');
-        ws.querySelectorAll('.v2-mjver-btn').forEach(b => b.classList.remove('active'));
-        ws.querySelector('.v2-mjver-btn[data-ver="7"]')?.classList.add('active');
+        v2Settings = { ...DEFAULT_V2_SETTINGS };
+        _resetV2ButtonGroups();
         v2.seedInput.value = '';
         v2.filter.value = 'none';
         v2.valDimensions.textContent = '1024 × 1024';
@@ -3271,6 +3260,87 @@ window.mockSunoGeneration = function () {
         return json.url;
     }
 
+    // ── Submission helpers ──
+    async function _handleMjSubmission(prompt, btnSpan) {
+        const mjType = v2Model?.mjType || v2Model?.dataset?.mjType || 'mj_txt2img';
+        const ar = v2Settings.aspect_ratio || '1:1';
+        const speed = v2Settings.mjSpeed || 'relaxed';
+        const version = v2Settings.mjVersion || '7';
+
+        let payload = { taskType: mjType, speed, prompt, aspectRatio: ar, version };
+
+        const isImageReq = mjType !== 'mj_txt2img';
+        if (isImageReq && v2Files.length > 0) {
+            btnSpan.textContent = 'Uploading...';
+            const imageUrl = await v2UploadSingleFile(v2Files[0], 0, 1);
+            if (mjType === 'mj_img2img' || mjType === 'mj_video') {
+                payload.prompt = `${imageUrl} ${prompt}`.trim();
+            } else if (mjType === 'mj_style_ref') {
+                payload.prompt = `${prompt} --sref ${imageUrl}`.trim();
+            }
+        }
+
+        btnSpan.textContent = 'Enviando...';
+        const fd = new FormData();
+        fd.append('payload_json', JSON.stringify(payload));
+        const resp = await fetch(`${API}/api/mj/generate`, { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+        if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
+        const taskId = json?.data?.taskId;
+        if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
+
+        addTask(taskId, v2Model?.model || 'mj-txt', 'midjourney', null, { ar, speed, version });
+        v2Tasks.push(taskId);
+        toast('✅ Midjourney task created!', 'success');
+    }
+
+    async function _handleStandardSubmission(prompt, btnSpan, isVideo) {
+        const extra = {};
+        if (prompt) extra.prompt = prompt;
+
+        if (isVideo) {
+            extra.duration = v2Settings.duration;
+            if (v2Model?.input === 'text') extra.aspect_ratio = v2Settings.videoAr;
+        } else {
+            extra.aspect_ratio = v2Settings.aspect_ratio;
+            extra.resolution = v2Settings.resolution;
+            extra.output_format = v2Settings.output_format;
+            if (v2Settings.seed !== null && !isNaN(v2Settings.seed)) extra.seed = v2Settings.seed;
+            if (v2Settings.filter !== 'none') {
+                extra.prompt = extra.prompt ? `${extra.prompt}, ${v2Settings.filter} style` : `${v2Settings.filter} style`;
+            }
+        }
+
+        const resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
+        const imgField = v2Model?.field || selectedModel?.field || 'image_input';
+
+        if (v2Files.length > 0) {
+            btnSpan.textContent = `Uploading 0/${v2Files.length}...`;
+            const imageUrls = [];
+            for (let i = 0; i < v2Files.length; i++) {
+                btnSpan.textContent = `Uploading ${i + 1}/${v2Files.length}...`;
+                const url = await v2UploadSingleFile(v2Files[i], i, v2Files.length);
+                imageUrls.push(url);
+            }
+            extra[imgField] = imageUrls;
+            btnSpan.textContent = 'Creating task...';
+        }
+
+        const fd = new FormData();
+        fd.append('model', resolvedModel);
+        fd.append('input_json', JSON.stringify(extra));
+        const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
+        if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
+        const taskId = json?.data?.taskId;
+        if (!taskId) throw new Error(json.msg || 'No taskId returned');
+        addTask(taskId, resolvedModel, 'market', extra[imgField]?.length ? extra[imgField] : null, extra);
+        v2Tasks.push(taskId);
+        toast(`✅ Task created!${v2Files.length ? ` (${v2Files.length} ref image${v2Files.length > 1 ? 's' : ''})` : ''}`, 'success');
+    }
+
     // ── GENERATE — Functional submit with multi-image support ──
     v2.btnGenerate.addEventListener('click', async () => {
         if (v2.btnGenerate.disabled) return;
@@ -3284,89 +3354,13 @@ window.mockSunoGeneration = function () {
         btnSpan.textContent = 'Gerando...';
 
         try {
-            const isVideo = ['vid-txt', 'vid-img', 'veo3'].includes(currentCat);
+            const isVideo = VIDEO_CATS.includes(currentCat);
             const isMj = currentCat === 'mj';
 
-            // ── Midjourney submission ──
             if (isMj) {
-                const mjType = v2Model?.mjType || v2Model?.dataset?.mjType || 'mj_txt2img';
-                const ar = v2Settings.aspect_ratio || '1:1';
-                const speed = v2Settings.mjSpeed || 'relaxed';
-                const version = v2Settings.mjVersion || '7';
-
-                let payload = { taskType: mjType, speed, prompt, aspectRatio: ar, version };
-
-                // Handle image upload for img2img / style ref / video
-                const isImageReq = mjType !== 'mj_txt2img';
-                if (isImageReq && v2Files.length > 0) {
-                    btnSpan.textContent = 'Uploading...';
-                    const imageUrl = await v2UploadSingleFile(v2Files[0], 0, 1);
-                    if (mjType === 'mj_img2img' || mjType === 'mj_video') {
-                        payload.prompt = `${imageUrl} ${prompt}`.trim();
-                    } else if (mjType === 'mj_style_ref') {
-                        payload.prompt = `${prompt} --sref ${imageUrl}`.trim();
-                    }
-                }
-
-                btnSpan.textContent = 'Enviando...';
-                const fd = new FormData();
-                fd.append('payload_json', JSON.stringify(payload));
-                const resp = await fetch(`${API}/api/mj/generate`, { method: 'POST', body: fd });
-                const json = await resp.json();
-                if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-                if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-                const taskId = json?.data?.taskId;
-                if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
-
-                addTask(taskId, v2Model?.model || 'mj-txt', 'midjourney', null, { ar, speed, version });
-                v2Tasks.push(taskId);
-                toast('✅ Midjourney task created!', 'success');
-
+                await _handleMjSubmission(prompt, btnSpan);
             } else {
-                // ── Standard image/video submission ──
-                const extra = {};
-                if (prompt) extra.prompt = prompt;
-
-                if (isVideo) {
-                    extra.duration = v2Settings.duration;
-                    if (v2Model?.input === 'text') extra.aspect_ratio = v2Settings.videoAr;
-                } else {
-                    extra.aspect_ratio = v2Settings.aspect_ratio;
-                    extra.resolution = v2Settings.resolution;
-                    extra.output_format = v2Settings.output_format;
-                    if (v2Settings.seed !== null && !isNaN(v2Settings.seed)) extra.seed = v2Settings.seed;
-                    if (v2Settings.filter !== 'none') {
-                        extra.prompt = extra.prompt ? `${extra.prompt}, ${v2Settings.filter} style` : `${v2Settings.filter} style`;
-                    }
-                }
-
-                const resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
-                const imgField = v2Model?.field || selectedModel?.field || 'image_input';
-
-                if (v2Files.length > 0) {
-                    btnSpan.textContent = `Uploading 0/${v2Files.length}...`;
-                    const imageUrls = [];
-                    for (let i = 0; i < v2Files.length; i++) {
-                        btnSpan.textContent = `Uploading ${i + 1}/${v2Files.length}...`;
-                        const url = await v2UploadSingleFile(v2Files[i], i, v2Files.length);
-                        imageUrls.push(url);
-                    }
-                    extra[imgField] = imageUrls;
-                    btnSpan.textContent = 'Creating task...';
-                }
-
-                const fd = new FormData();
-                fd.append('model', resolvedModel);
-                fd.append('input_json', JSON.stringify(extra));
-                const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
-                const json = await resp.json();
-                if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-                if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
-                const taskId = json?.data?.taskId;
-                if (!taskId) throw new Error(json.msg || 'No taskId returned');
-                addTask(taskId, resolvedModel, 'market', extra[imgField]?.length ? extra[imgField] : null, extra);
-                v2Tasks.push(taskId);
-                toast(`✅ Task created!${v2Files.length ? ` (${v2Files.length} ref image${v2Files.length > 1 ? 's' : ''})` : ''}`, 'success');
+                await _handleStandardSubmission(prompt, btnSpan, isVideo);
             }
 
             v2ClearAllFiles();
