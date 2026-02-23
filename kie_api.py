@@ -172,7 +172,13 @@ SUNO_API_PATHS: Dict[str, str] = {
     "suno/music-video": "/api/v1/mp4/generate",
     "suno/convert-wav": "/api/v1/wav/generate",
     "suno/get-lyrics": "/api/v1/generate/get-timestamped-lyrics",
+    "suno/generate-persona": "/api/v1/generate/generate-persona",
+    "suno/cover-suno": "/api/v1/suno/cover/generate",
+    "suno/generate-midi": "/api/v1/suno/midi/generate",
 }
+
+# These Suno endpoints use GET instead of POST
+SUNO_GET_ENDPOINTS: set = {"suno/get-lyrics"}
 
 SUNO_TASK_INFO_PATH = "/api/v1/generate/record-info"
 
@@ -183,12 +189,21 @@ def suno_create_task(model: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
     if not api_path:
         raise ValueError(f"Modelo Suno desconhecido: {model}")
 
-    r = requests.post(
-        _url(BASE_URL, api_path),
-        headers=_auth_headers_json(),
-        data=json.dumps(input_data),
-        timeout=180,
-    )
+    # Some Suno endpoints use GET (e.g. timestamped lyrics)
+    if model in SUNO_GET_ENDPOINTS:
+        r = requests.get(
+            _url(BASE_URL, api_path),
+            headers=_auth_headers_json(),
+            params=input_data,
+            timeout=60,
+        )
+    else:
+        r = requests.post(
+            _url(BASE_URL, api_path),
+            headers=_auth_headers_json(),
+            data=json.dumps(input_data),
+            timeout=180,
+        )
     r.raise_for_status()
     return r.json()
 
@@ -379,6 +394,19 @@ def gpt4o_image_task_info(task_id: str) -> Dict[str, Any]:
         _url(BASE_URL, GPT4O_IMAGE_RECORD),
         headers=_auth_headers_json(),
         params={"taskId": task_id},
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def gpt4o_image_download_url(task_id: str, url: str) -> Dict[str, Any]:
+    """Get a signed download URL for a GPT 4o Image result."""
+    payload: Dict[str, Any] = {"taskId": task_id, "url": url}
+    r = requests.post(
+        _url(BASE_URL, GPT4O_IMAGE_DOWNLOAD),
+        headers=_auth_headers_json(),
+        data=json.dumps(payload),
         timeout=60,
     )
     r.raise_for_status()

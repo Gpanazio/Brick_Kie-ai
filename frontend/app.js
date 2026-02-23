@@ -408,10 +408,12 @@ const MODEL_CONFIGS = {
     },
     'suno/utilities': {
         params: [
-            { key: 'suno_action', label: 'Ação', type: 'select', options: ['Music Video', 'Convert WAV', 'Get Lyrics'], default: 'Music Video' },
+            { key: 'suno_action', label: 'Ação', type: 'select', options: ['Music Video', 'Convert WAV', 'Get Lyrics', 'Generate Persona', 'Cover Image', 'Generate MIDI'], default: 'Music Video' },
             { key: 'taskId', label: 'Task ID (da geração anterior)', type: 'text', default: '' },
             { key: 'audioId', label: 'Audio ID', type: 'text', default: '' },
             { key: 'author', label: 'Autor (opcional)', type: 'text', default: '' },
+            { key: 'personaName', label: 'Nome da Persona (opcional)', type: 'text', default: '' },
+            { key: 'personaDescription', label: 'Descrição da Persona (opcional)', type: 'text', default: '' },
         ]
     },
 
@@ -1034,20 +1036,13 @@ function enterWorkspace(cat) {
         setTimeout(() => openModelPickerModal(), 50);
     }
 
-    // Apply Veo3 specific layout
-    if (cat === 'veo3') {
-        document.body.classList.add('cat-veo3');
-        els.panelSettings.classList.remove('hidden');
-        els.panelSettingsScroll.appendChild(els.configPanel);
-        els.panelSettingsScroll.appendChild(els.configExtraGrp);
-    } else {
-        document.body.classList.remove('cat-veo3');
-        els.panelSettings.classList.add('hidden');
-        // Restore to original location in #panel-prompt (.panel-scroll)
-        const leftScroll = document.querySelector('#panel-prompt .panel-scroll');
-        leftScroll.appendChild(els.configPanel);
-        leftScroll.appendChild(els.configExtraGrp);
-    }
+    // Keep settings inline in left panel for all categories (including Veo3)
+    document.body.classList.remove('cat-veo3');
+    els.panelSettings.classList.add('hidden');
+    // Ensure config is in the left panel
+    const leftScroll = document.querySelector('#panel-prompt .panel-scroll');
+    leftScroll.appendChild(els.configPanel);
+    leftScroll.appendChild(els.configExtraGrp);
 }
 
 function exitWorkspace() {
@@ -1689,6 +1684,9 @@ async function submitSunoModel() {
             'Music Video': 'suno/music-video',
             'Convert WAV': 'suno/convert-wav',
             'Get Lyrics': 'suno/get-lyrics',
+            'Generate Persona': 'suno/generate-persona',
+            'Cover Image': 'suno/cover-suno',
+            'Generate MIDI': 'suno/generate-midi',
         }
     };
 
@@ -2249,6 +2247,15 @@ function renderTaskResult(task) {
                 ${unique.length > 1 ? `Download ${i + 1}` : 'Download'}</a>`;
         });
 
+        // GPT4o Image: Add "Download HD" button using the download-url endpoint
+        if (task.mode === 'gpt4o-image' && task.state === 'success') {
+            unique.forEach((u, i) => {
+                html += `<button class="btn-ghost btn-sm gpt4o-download-action" data-task-id="${esc(task.id)}" data-url="${esc(u)}" title="Obter URL de download direto (válida por 20 min)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    ${unique.length > 1 ? `HD ${i + 1}` : 'Download HD'}</button>`;
+            });
+        }
+
         if (task.model.startsWith('veo3/')) {
             html += `<button class="btn-ghost btn-sm veo-action" data-action="veo3/get-1080p" data-task-id="${esc(task.id)}">HD</button>`;
             html += `<button class="btn-ghost btn-sm veo-action" data-action="veo3/get-4k" data-task-id="${esc(task.id)}">4K</button>`;
@@ -2764,25 +2771,81 @@ document.body.addEventListener('click', async (e) => {
     currentCat = 'veo3';
 
     try {
-        const fd = new FormData();
-        fd.append('model', actionModel);
-        fd.append('input_json', JSON.stringify({ taskId: originalTaskId }));
+        let resp, json;
 
-        // Veo actions use the dedicated Veo endpoint, not Market
-        const resp = await fetch(`${API}/api/veo/create`, { method: 'POST', body: fd });
-        const json = await resp.json();
-        if (!resp.ok) throw new Error(json.detail || 'Failed');
+        if (actionModel === 'veo3/get-1080p') {
+            // 1080p uses a dedicated GET endpoint
+            resp = await fetch(`${API}/api/veo/1080p/${encodeURIComponent(originalTaskId)}`);
+            json = await resp.json();
+            if (!resp.ok) throw new Error(json.detail || 'Failed');
 
-        const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
-        if (taskId) {
-            const veoInputUrl = Array.isArray(existingTask?.inputFileUrl) ? existingTask.inputFileUrl[0] : (existingTask?.inputFileUrl || null);
-            addTask(taskId, actionModel, 'veo', veoInputUrl);
-            toast(`✅ ${actionModel.split('/').pop()} enviado!`, 'success');
+            // 1080p returns the video URL directly — show it as a toast with link
+            const hdUrl = json?.data?.resultUrl || json?.data?.downloadUrl
+                || (Array.isArray(json?.data?.resultUrls) ? json.data.resultUrls[0] : null);
+            if (hdUrl) {
+                toast('✅ Vídeo 1080p disponível! URL copiada.', 'success');
+                try { await navigator.clipboard.writeText(hdUrl); } catch { }
+                // Open in new tab
+                window.open(hdUrl, '_blank');
+            } else {
+                // It might start a new task (async processing)
+                const taskId = json?.data?.taskId || json?.taskId;
+                if (taskId) {
+                    const veoInputUrl = Array.isArray(existingTask?.inputFileUrl) ? existingTask.inputFileUrl[0] : (existingTask?.inputFileUrl || null);
+                    addTask(taskId, actionModel, 'veo', veoInputUrl);
+                    toast('✅ Processando 1080p...', 'success');
+                } else {
+                    toast('✅ Requisição 1080p enviada! Verifique o JSON para detalhes.', 'success');
+                    console.log('[Veo 1080p] Response:', json);
+                }
+            }
+        } else if (actionModel === 'veo3/get-4k') {
+            // 4K uses a dedicated POST endpoint
+            const fd = new FormData();
+            fd.append('task_id', originalTaskId);
+            resp = await fetch(`${API}/api/veo/4k`, { method: 'POST', body: fd });
+            json = await resp.json();
+            if (!resp.ok) throw new Error(json.detail || 'Failed');
 
-            // Switch tab to active requests if clicking from history
-            const targetLightbox = e.target.closest('#history-lightbox');
-            if (targetLightbox) closeLightbox(targetLightbox);
+            // 4K is async — check if it returns a new taskId or direct URL
+            const url4k = json?.data?.resultUrl || json?.data?.downloadUrl
+                || (Array.isArray(json?.data?.resultUrls) ? json.data.resultUrls[0] : null);
+            if (url4k) {
+                toast('✅ Vídeo 4K disponível! URL copiada.', 'success');
+                try { await navigator.clipboard.writeText(url4k); } catch { }
+                window.open(url4k, '_blank');
+            } else {
+                const taskId = json?.data?.taskId || json?.taskId;
+                if (taskId) {
+                    const veoInputUrl = Array.isArray(existingTask?.inputFileUrl) ? existingTask.inputFileUrl[0] : (existingTask?.inputFileUrl || null);
+                    addTask(taskId, actionModel, 'veo', veoInputUrl);
+                    toast('✅ Processando 4K... (pode demorar)', 'success');
+                } else {
+                    toast('✅ Requisição 4K enviada! Verifique o JSON para detalhes.', 'success');
+                    console.log('[Veo 4K] Response:', json);
+                }
+            }
+        } else {
+            // Extend actions use the standard Veo create endpoint
+            const fd = new FormData();
+            fd.append('model', actionModel);
+            fd.append('input_json', JSON.stringify({ taskId: originalTaskId }));
+
+            resp = await fetch(`${API}/api/veo/create`, { method: 'POST', body: fd });
+            json = await resp.json();
+            if (!resp.ok) throw new Error(json.detail || 'Failed');
+
+            const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
+            if (taskId) {
+                const veoInputUrl = Array.isArray(existingTask?.inputFileUrl) ? existingTask.inputFileUrl[0] : (existingTask?.inputFileUrl || null);
+                addTask(taskId, actionModel, 'veo', veoInputUrl);
+                toast(`✅ ${actionModel.split('/').pop()} enviado!`, 'success');
+            }
         }
+
+        // Switch tab to active requests if clicking from history lightbox
+        const targetLightbox = e.target.closest('#history-lightbox');
+        if (targetLightbox) closeLightbox(targetLightbox);
     } catch (err) {
         toast(`❌ Erro: ${err.message}`, 'error');
     } finally {
@@ -2853,6 +2916,47 @@ document.body.addEventListener('click', async (e) => {
         }
     } catch (err) {
         toast(`❌ Erro MJ: ${err.message}`, 'error');
+    } finally {
+        btn.textContent = prevText;
+        btn.disabled = false;
+        btn.classList.remove('loading');
+    }
+});
+
+// GPT4o Image: Download HD (signed URL) action
+document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.gpt4o-download-action');
+    if (!btn) return;
+
+    const taskId = btn.dataset.taskId;
+    const imageUrl = btn.dataset.url;
+    if (!taskId || !imageUrl) return;
+
+    const prevText = btn.textContent;
+    btn.textContent = 'Obtendo...';
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+        const fd = new FormData();
+        fd.append('taskId', taskId);
+        fd.append('url', imageUrl);
+
+        const resp = await fetch(`${API}/api/gpt4o-image/download-url`, { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.detail || 'Failed');
+
+        // Extract the signed download URL from response
+        const downloadUrl = json?.data?.downloadUrl || json?.data?.url || json?.downloadUrl;
+        if (downloadUrl) {
+            toast('✅ URL de download obtida! Válida por 20 min.', 'success');
+            window.open(downloadUrl, '_blank');
+        } else {
+            toast('⚠️ Resposta recebida mas sem URL. Verifique o console.', 'warning');
+            console.log('[GPT4o Download] Response:', json);
+        }
+    } catch (err) {
+        toast(`❌ Erro download: ${err.message}`, 'error');
     } finally {
         btn.textContent = prevText;
         btn.disabled = false;
@@ -3042,7 +3146,7 @@ window.mockSunoGeneration = function () {
         if (badgeProvider) badgeProvider.textContent = data.provider || '';
         const inputLabel = isMj ? 'MIDJOURNEY'
             : data.input === 'file' ? (isVideo ? 'VÍDEO' : 'IMAGEM')
-            : data.input === 'mix' ? 'MIX' : 'TEXTO';
+                : data.input === 'mix' ? 'MIX' : 'TEXTO';
         if (badgeTag) badgeTag.textContent = inputLabel;
 
         // ── Model info ──

@@ -498,6 +498,19 @@ async def gpt4o_image_task(task_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/gpt4o-image/download-url")
+async def gpt4o_image_download(
+    taskId: str = Form(...),
+    url: str = Form(...),
+):
+    """Get a signed download URL for a GPT 4o Image result."""
+    try:
+        resp = kie_api.gpt4o_image_download_url(taskId, url)
+        return resp
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== Flux Kontext API proxy ====================
 
 
