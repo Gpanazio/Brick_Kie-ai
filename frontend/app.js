@@ -3653,8 +3653,10 @@ window.mockSunoGeneration = function () {
         if (prompt) extra.prompt = prompt;
 
         let resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
-        if (resolvedModel === 'grok-imagine/text-to-image' && v2Files.length > 0) {
-            resolvedModel = 'grok-imagine/image-to-image';
+        if (v2Files.length > 0) {
+            if (resolvedModel === 'grok-imagine/text-to-image') resolvedModel = 'grok-imagine/image-to-image';
+            if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
+            if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
         }
 
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';

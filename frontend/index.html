@@ -524,12 +524,12 @@
             data-color="mc-flux" data-prompt="true"
             data-desc="Versão premium do Flux Kontext com qualidade máxima e maior fidelidade ao prompt."></div>
 
-        <!-- VID TXT -->
+        <!-- VID -->
         <div data-cat="vid-txt" data-model="sora-2-pro-text-to-video" data-name="Sora 2 Pro" data-provider="OpenAI"
-            data-input="text" data-field="prompt"
+            data-input="mix" data-field="image_urls"
             data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z' fill='currentColor'/><circle cx='12' cy='12' r='4' fill='currentColor'/></svg>"
             data-color="mc-openai" data-prompt="true"
-            data-desc="O padrão ouro da indústria: vídeos ultra-realistas com física avançada e consistência visual premium.">
+            data-desc="O padrão ouro da indústria: vídeos ultra-realistas com física avançada e consistência visual premium (suporta imagem inicial).">
         </div>
         <div data-cat="vid-txt" data-model="kling-3.0/video" data-name="Kling 3.0" data-provider="Kling"
             data-input="text" data-field="prompt"
@@ -543,24 +543,12 @@
             data-color="mc-wan" data-prompt="true"
             data-desc="A opção mais rápida para visualização imediata: gera vídeos de 5s em segundos."></div>
         <div data-cat="vid-txt" data-model="grok-imagine/text-to-video" data-name="Grok Video" data-provider="xAI"
-            data-input="text" data-field="prompt"
+            data-input="mix" data-field="image_urls"
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M4 4l6 8-6 8h3l4.5-6L16 20h3l-6-8 6-8h-3l-4.5 6L7 4z&quot; fill=&quot;currentColor&quot;/></svg>"
             data-color="mc-white" data-prompt="true"
-            data-desc="Geração fluida com compreensão semântica profunda, ideal para cenas conceituais e artísticas.">
+            data-desc="Geração fluida com compreensão semântica profunda, ideal para cenas conceituais e animação de imagens estáticas.">
         </div>
-
-        <!-- VID IMG -->
-        <div data-cat="vid-img" data-model="grok-imagine/image-to-video" data-name="Grok VidGen" data-provider="xAI"
-            data-input="file" data-field="image_urls"
-            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M4 4l6 8-6 8h3l4.5-6L16 20h3l-6-8 6-8h-3l-4.5 6L7 4z&quot; fill=&quot;currentColor&quot;/></svg>"
-            data-color="mc-white" data-prompt="true"
-            data-desc="Anima imagens estáticas com controle de movimento natural."></div>
-        <div data-cat="vid-img" data-model="sora-2-pro-image-to-video" data-name="Sora 2 Pro" data-provider="OpenAI"
-            data-input="file" data-field="image_urls"
-            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10 10-4.48 10-10zM12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8zm-2 12h4v1h-4zm0-3h4v1h-4zm0-3h4v1h-4z&quot; fill=&quot;currentColor&quot;/></svg>"
-            data-color="mc-purple" data-prompt="true"
-            data-desc="O padrão ouro: transforma imagens em vídeos ultra-realistas com física avançada."></div>
-        <div data-cat="vid-img" data-model="hailuo/2-3-image-to-video-pro" data-name="Hailuo 2.3 Pro"
+        <div data-cat="vid-txt" data-model="hailuo/2-3-image-to-video-pro" data-name="Hailuo 2.3 Pro"
             data-provider="Hailuo" data-input="file" data-field="image_url"
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-11.5v7l6-3.5z&quot; fill=&quot;currentColor&quot;/></svg>"
             data-color="mc-indigo" data-prompt="true"
