@@ -568,6 +568,8 @@ async def flux_kontext_task(task_id: str):
 # ==================== Server-Side History ====================
 
 HISTORY_DIR = Path(os.environ.get("HISTORY_DIR", "/data"))
+if not HISTORY_DIR.exists():
+    HISTORY_DIR = Path(__file__).parent / "data"
 HISTORY_FILE = HISTORY_DIR / "kie_history.json"
 HISTORY_MAX = 500  # Keep last N entries
 
@@ -615,6 +617,103 @@ async def get_history(cat: Optional[str] = None, limit: int = 100):
     if cat:
         history = [h for h in history if h.get("cat") == cat]
     return {"history": history[:limit], "total": len(history)}
+
+
+def _extract_result_urls(data: dict) -> list:
+    """Extract result URLs from task data, checking multiple response formats."""
+    urls = []
+    if not isinstance(data, dict):
+        return urls
+    for key in ("resultUrl", "output", "fileUrl", "downloadUrl", "audioUrl", "videoUrl"):
+        val = data.get(key)
+        if isinstance(val, str) and val.startswith("http"):
+            urls.append(val)
+    for key in ("resultUrls", "output_urls", "urls"):
+        val = data.get(key)
+        if isinstance(val, list):
+            urls.extend(u for u in val if isinstance(u, str) and u.startswith("http"))
+    result_json = data.get("resultJson")
+    if isinstance(result_json, str):
+        try:
+            result_json = json.loads(result_json)
+        except:
+            result_json = None
+    if isinstance(result_json, dict):
+        for key in ("resultUrl", "resultUrls", "output", "fileUrl", "downloadUrl", "videoUrl", "audioUrl"):
+            val = result_json.get(key)
+            if isinstance(val, str) and val.startswith("http"):
+                urls.append(val)
+            elif isinstance(val, list):
+                urls.extend(u for u in val if isinstance(u, str) and u.startswith("http"))
+    resp = data.get("response", {})
+    if isinstance(resp, dict):
+        for key in ("resultUrl", "output", "fileUrl", "downloadUrl"):
+            val = resp.get(key)
+            if isinstance(val, str) and val.startswith("http"):
+                urls.append(val)
+        for s in (resp.get("sunoData") or []):
+            if isinstance(s, dict):
+                for k in ("audioUrl", "videoUrl", "sourceAudioUrl"):
+                    if s.get(k): urls.append(s[k])
+    return list(dict.fromkeys(urls))
+
+def _infer_cat(model: str) -> str:
+    m = (model or "").lower()
+    if "suno" in m: return "music"
+    if "elevenlabs" in m: return "audio"
+    if "topaz" in m or "crisp" in m or "recraft" in m: return "tools"
+    if any(x in m for x in ["video", "kling", "wan", "hailuo", "sora", "veo"]): return "video"
+    if "mj" in m or "midjourney" in m: return "mj"
+    return "image"
+
+@app.post("/api/history/import")
+async def import_history_tasks(
+    task_ids_json: str = Form(...),
+):
+    """Import tasks by fetching their info from kie.ai API and saving to history."""
+    try:
+        task_ids = json.loads(task_ids_json)
+        if not isinstance(task_ids, list):
+            raise HTTPException(status_code=400, detail="task_ids_json must be a JSON array")
+        
+        history = _load_server_history()
+        existing_ids = {h["id"] for h in history if "id" in h}
+        imported = 0
+        errors = []
+        
+        for tid in task_ids:
+            if tid in existing_ids:
+                continue
+            try:
+                resp = kie_api.market_task_info(tid)
+                data = resp.get("data", {}) if isinstance(resp, dict) else {}
+                state = data.get("state", "unknown")
+                model = data.get("model", "")
+                inp = data.get("input", {})
+                prompt = inp.get("prompt", "") if isinstance(inp, dict) else ""
+                urls = _extract_result_urls(data)
+                entry = {
+                    "id": tid,
+                    "model": model,
+                    "state": state,
+                    "cat": _infer_cat(model),
+                    "urls": urls,
+                    "prompt": prompt,
+                    "timestamp": data.get("createTime"),
+                }
+                history.insert(0, entry)
+                imported += 1
+            except Exception as e:
+                errors.append({"id": tid, "error": str(e)})
+        
+        _save_server_history(history)
+        return {"success": True, "imported": imported, "total": len(history), "errors": errors}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
