@@ -10,8 +10,8 @@ const API = '/kie-ai';
 // 'cost' is the estimated credits per generation (from KIE API docs)
 
 // Shared category constants
-const V2_CATS = ['image', 'vid-txt', 'vid-img', 'veo3', 'mj'];
-const VIDEO_CATS = ['vid-txt', 'vid-img', 'veo3'];
+const V2_CATS = ['image', 'video', 'mj', 'audio', 'music', 'tools'];
+const VIDEO_CATS = ['video'];
 
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
@@ -22,8 +22,8 @@ const MODEL_COST_ESTIMATES = {
     'seedream/4.5-edit': 10,              // estimated (image editing)
     'flux-2/pro-text-to-image': 5,        // 1K = 5, 2K = 7
     'google/imagen4': 10,                 // estimated
-    'ideogram/v3-text-to-image': 10,      // v3 = 10, v3 pro = 20
-    'qwen/text-to-image': 4,             // qwen image = 4
+
+    'qwen/image-edit': 4,             // qwen image = 4
     'grok-imagine/text-to-image': 4,     // 4 cr/image
     'grok-imagine/image-to-image': 4,    // 4 cr/image
     'gpt4o-image': 30,                   // ~30 cr/image
@@ -33,13 +33,14 @@ const MODEL_COST_ESTIMATES = {
     'recraft/remove-background': 10,
     'recraft/crisp-upscale': 15,
     'topaz/image-upscale': 10,
-    'ideogram/v3-reframe': 15,
+
     'topaz/video-upscale': 12,             // 12 cr/s
     // ── Video (costs vary by duration/resolution, showing default config) ──
     'sora-2-pro-text-to-video': 35,       // standard-10s = 30, stable-10s = 35
     'sora-2-pro-image-to-video': 35,      // standard-10s = 30, stable-10s = 35
     'kling-3.0/video': 40,                // 40/s 1080p w/ audio, 27/s without
-    'wan/2-2-a14b-text-to-video-turbo': 40,  // 5s 480p = 40
+    'wan/2-6-text-to-video': 40,             // 5s 480p = 40
+    'wan/2-6-image-to-video': 40,            // 5s 480p = 40
     'grok-imagine/text-to-video': 10,     // 6s 480p = 10, 10s 720p = 30
     'grok-imagine/image-to-video': 10,    // 6s 480p = 10, 10s 720p = 30
     'hailuo/2-3-image-to-video-pro': 30,  // 6s 768p = 30, 6s 1080p pro = 80
@@ -79,7 +80,7 @@ const BRAND_LOGOS = {
     'kie.ai': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z" fill="currentColor"/></svg>`,
     'bytedance': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M19 12h-3c-1.1 0-2-.9-2-2V7c0-1.1-.9-2-2-2S10 5.9 10 7v3c0 1.1-.9 2-2 2H5c-1.1 0-2 .9-2 2s.9 2 2 2h3c1.1 0 2 .9 2 2v3c0 1.1.9 2 2 2s2-.9 2-2v-3c0-1.1.9-2 2-2h3c1.1 0 2-.9 2-2s-.9-2-2-2z" fill="currentColor"/></svg>`,
     'flux.2': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M5 5h14v3H9v3h8v3H9v5H5V5z" fill="currentColor"/></svg>`,
-    'ideogram': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M7 4h2v16H7zm8 0h2v16h-2zm-4 4h2v8h-2z" fill="currentColor"/></svg>`,
+
     'qwen': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z" fill="currentColor"/></svg>`,
     'openai': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10 10-4.48 10-10zM12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8zm-2 12h4v1h-4zm0-3h4v1h-4zm0-3h4v1h-4z" fill="currentColor"/></svg>`,
     'kling': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13z" fill="currentColor"/></svg>`,
@@ -100,7 +101,8 @@ const PROMPT_CHAR_LIMITS = {
     'grok-imagine/image-to-video': 5000,
     'kling-3.0/video': 2500,
     'sora-2-pro-text-to-video': 4000,
-    'wan/2-2-a14b-text-to-video-turbo': 2000,
+    'wan/2-6-text-to-video': 2000,
+    'wan/2-6-image-to-video': 2000,
     'hailuo/2-3-image-to-video-pro': 2000,
     'nano-banana-pro': 2000,
     'google/nano-banana-edit': 5000,
@@ -113,8 +115,8 @@ const PROMPT_CHAR_LIMITS = {
     'seedream/4.5-edit': 3000,
     'flux-2/pro-text-to-image': 2000,
     'google/imagen4': 2000,
-    'ideogram/v3-text-to-image': 2000,
-    'qwen/text-to-image': 2000,
+
+    'qwen/image-edit': 2000,
     'elevenlabs/text-to-speech-turbo-2-5': 5000,
     'elevenlabs/text-to-dialogue-v3': 5000,
     'elevenlabs/sound-effect-v2': 5000,
@@ -212,15 +214,11 @@ const MODEL_CONFIGS = {
     },
     'bytedance/4.5-text-to-image': {
         params: [
-            { key: 'image_size', label: 'Tamanho', type: 'select', options: ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'square_hd' },
-            { key: 'guidance_scale', label: 'Guidance', type: 'number', default: 2.5, min: 1, max: 20, step: 0.5 },
-            { key: 'enable_safety_checker', label: 'Safety', type: 'bool', default: true },
-        ]
-    },
-    'seedream/4.5-edit': {
-        params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], default: '1:1' },
-            { key: 'quality', label: 'Qualidade', type: 'select', options: ['basic', 'high'], default: 'basic' },
+            { key: 'image_size', label: 'Tamanho (Gerar)', type: 'select', options: ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'square_hd' },
+            { key: 'guidance_scale', label: 'Guidance (Gerar)', type: 'number', default: 2.5, min: 1, max: 20, step: 0.5 },
+            { key: 'enable_safety_checker', label: 'Safety (Gerar)', type: 'bool', default: true },
+            { key: 'aspect_ratio', label: 'Aspect Ratio (Editar)', type: 'select', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], default: '16:9' },
+            { key: 'quality', label: 'Qualidade (Editar)', type: 'select', options: ['basic', 'high'], default: 'high' }
         ]
     },
     'flux-2/pro-text-to-image': {
@@ -236,24 +234,16 @@ const MODEL_CONFIGS = {
             { key: 'seed', label: 'Seed', type: 'text', default: '' },
         ]
     },
-    'ideogram/v3-text-to-image': {
+
+    'qwen/image-edit': {
         params: [
-            { key: 'rendering_speed', label: 'Speed', type: 'select', options: ['BALANCED', 'TURBO', 'QUALITY'], default: 'BALANCED' },
-            { key: 'style', label: 'Estilo', type: 'select', options: ['AUTO', 'GENERAL', 'REALISTIC', 'DESIGN', 'RENDER_3D', 'ANIME'], default: 'AUTO' },
-            { key: 'image_size', label: 'Tamanho', type: 'select', options: ['square_hd', 'landscape_4_3', 'landscape_16_9', 'portrait_4_3', 'portrait_16_9'], default: 'square_hd' },
+            { key: 'acceleration', label: 'Speed', type: 'select', options: ['none', 'regular', 'high'], default: 'none' },
             { key: 'num_images', label: 'Quantidade', type: 'select', options: ['1', '2', '3', '4'], default: '1' },
-            { key: 'expand_prompt', label: 'Expand Prompt', type: 'bool', default: true },
-            { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
-        ]
-    },
-    'qwen/text-to-image': {
-        params: [
-            { key: 'image_size', label: 'Tamanho', type: 'select', options: ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'square_hd' },
-            { key: 'num_inference_steps', label: 'Steps', type: 'number', default: 30, min: 1, max: 50, step: 1 },
-            { key: 'guidance_scale', label: 'Guidance', type: 'number', default: 2.5, min: 1, max: 20, step: 0.5 },
-            { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
+            { key: 'image_size', label: 'Tamanho', type: 'select', options: ['square', 'square_hd', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'landscape_4_3' },
+            { key: 'num_inference_steps', label: 'Steps', type: 'number', default: 25, min: 2, max: 49, step: 1 },
+            { key: 'guidance_scale', label: 'Guidance', type: 'number', default: 4, min: 0, max: 20, step: 0.1 },
             { key: 'enable_safety_checker', label: 'Safety', type: 'bool', default: true },
-            { key: 'acceleration', label: 'Aceleração', type: 'select', options: ['none'], default: 'none' },
+            { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: 'blurry, ugly' },
         ]
     },
 
@@ -265,15 +255,7 @@ const MODEL_CONFIGS = {
             { key: 'upscale_factor', label: 'Fator de Upscale', type: 'select', options: ['2', '4'], default: '2' },
         ]
     },
-    'ideogram/v3-reframe': {
-        params: [
-            { key: 'image_size', label: 'Tamanho', type: 'select', options: ['square', 'square_hd', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'square_hd' },
-            { key: 'rendering_speed', label: 'Velocidade', type: 'select', options: ['TURBO', 'BALANCED', 'QUALITY'], default: 'BALANCED' },
-            { key: 'style', label: 'Estilo', type: 'select', options: ['AUTO', 'GENERAL', 'REALISTIC', 'DESIGN'], default: 'AUTO' },
-            { key: 'num_images', label: 'Qtd. Imagens', type: 'select', options: ['1', '2', '3', '4'], default: '1' },
-            { key: 'seed', label: 'Seed (0 = Random)', type: 'number_input', default: '0' }
-        ]
-    },
+
     'topaz/video-upscale': {
         params: [
             { key: 'upscale_factor', label: 'Fator de Upscale', type: 'radio', options: ['1', '2', '4'], default: '2' },
@@ -286,8 +268,7 @@ const MODEL_CONFIGS = {
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['landscape', 'portrait'], default: 'landscape' },
             { key: 'n_frames', label: 'Frames', type: 'select', options: ['10', '15'], default: '10' },
             { key: 'size', label: 'Qualidade', type: 'select', options: ['standard', 'high'], default: 'high' },
-            { key: 'remove_watermark', label: 'Sem Watermark', type: 'bool', default: true },
-            { key: 'upload_method', label: 'Upload Method', type: 'select', options: ['s3', 'oss'], default: 's3' },
+            { key: 'remove_watermark', label: 'Sem Watermark', type: 'bool', default: true }
         ]
     },
     'kling-3.0/video': {
@@ -300,11 +281,11 @@ const MODEL_CONFIGS = {
             { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
         ]
     },
-    'wan/2-2-a14b-text-to-video-turbo': {
+    'wan/2-6-text-to-video': {
         params: [
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p', '1080p'], default: '720p' },
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '16:9' },
-            { key: 'enable_prompt_expansion', label: 'Expand Prompt', type: 'bool', default: false },
+            { key: 'enable_prompt_expansion', label: 'Expand Prompt', type: 'bool', default: true },
             { key: 'seed', label: 'Seed', type: 'number', default: 0, min: 0, max: 99999, step: 1 },
             { key: 'acceleration', label: 'Aceleração', type: 'select', options: ['none'], default: 'none' },
         ]
@@ -329,8 +310,7 @@ const MODEL_CONFIGS = {
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['landscape', 'portrait'], default: 'landscape' },
             { key: 'n_frames', label: 'Frames', type: 'select', options: ['10', '15'], default: '10' },
             { key: 'size', label: 'Qualidade', type: 'select', options: ['standard', 'high'], default: 'standard' },
-            { key: 'remove_watermark', label: 'Sem Watermark', type: 'bool', default: true },
-            { key: 'upload_method', label: 'Upload Method', type: 'select', options: ['s3', 'oss'], default: 's3' },
+            { key: 'remove_watermark', label: 'Sem Watermark', type: 'bool', default: true }
         ]
     },
     'hailuo/2-3-image-to-video-pro': {
@@ -772,7 +752,7 @@ const els = {
 };
 
 // Category labels
-const CAT_LABELS = { image: 'Generate Image', 'vid-txt': 'Text → Video', 'vid-img': 'Image → Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale', mj: 'Midjourney', veo3: 'Veo 3.1' };
+const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale', mj: 'Midjourney' };
 
 // ==================== Init ====================
 
@@ -1156,6 +1136,9 @@ function openModelPickerModal() {
 
 function closeModelPickerModal() {
     if (els.modalModelPicker) els.modalModelPicker.classList.add('hidden');
+    if (!selectedModel && els.appMain && !els.appMain.classList.contains('hidden')) {
+        exitWorkspace();
+    }
 }
 
 function selectModelFromData(data) {
@@ -3130,6 +3113,11 @@ window.mockSunoGeneration = function () {
         return /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url);
     }
 
+    // Helper: detect audio URL by extension
+    function isAudioUrl(url) {
+        return /\.(mp3|wav|flac|m4a|ogg)(\?|$)/i.test(url);
+    }
+
     // ── Update workspace UI to reflect selected model ──
     function v2UpdateModelUI(data) {
         const isVideo = VIDEO_CATS.includes(currentCat);
@@ -3185,11 +3173,12 @@ window.mockSunoGeneration = function () {
         if (uploadGroup) uploadGroup.style.display = needsFile ? '' : 'none';
 
         // For MJ image types: 1 reference; image-to-video: 1; image: up to 8
-        v2MaxFiles = isMjNeedsFile ? 1 : (isVideo && data.input === 'file') ? 1 : 8;
+        const isAudio = currentCat === 'audio' || currentCat === 'music';
+        v2MaxFiles = isMjNeedsFile ? 1 : (isVideo && data.input === 'file') ? 1 : isAudio ? 1 : 8;
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
-            if (isMjNeedsFile || (isVideo && data.input === 'file')) {
-                uploadLabel.innerHTML = 'Imagem de referência';
+            if (isMjNeedsFile || (isVideo && data.input === 'file') || isAudio) {
+                uploadLabel.innerHTML = 'Arquivo de referência <span class="v2-label-hint">— opcional</span>';
             } else {
                 uploadLabel.innerHTML = `Imagens de referência <span class="v2-label-hint">— opcional, até ${v2MaxFiles}</span>`;
             }
@@ -3220,10 +3209,16 @@ window.mockSunoGeneration = function () {
             return;
         }
 
+        const isSunoGenerate = modelKey === 'suno/generate-music';
+
         cfg.params.forEach(p => {
             const group = document.createElement('div');
             group.className = 'v2-param-group';
             group.dataset.paramGroupKey = p.key;
+
+            if (isSunoGenerate && SUNO_CUSTOM_MODE_KEYS.has(p.key)) {
+                group.classList.add('hidden');
+            }
 
             if (p.type === 'radio') {
                 // Header with current value
@@ -3350,6 +3345,18 @@ window.mockSunoGeneration = function () {
                     const isActive = toggle.classList.toggle('active');
                     toggle.dataset.value = isActive ? 'true' : 'false';
                     lbl.textContent = isActive ? 'Ativado' : 'Desativado';
+
+                    if (isSunoGenerate && p.key === 'custom_mode') {
+                        SUNO_CUSTOM_MODE_KEYS.forEach(k => {
+                            const g = container.querySelector(`[data-param-group-key="${k}"]`);
+                            if (g) g.classList.toggle('hidden', !isActive);
+                        });
+                        if (v2.prompt) {
+                            v2.prompt.placeholder = isActive
+                                ? 'Cole a letra da música aqui...'
+                                : 'Descreva o estilo de música que deseja gerar...';
+                        }
+                    }
                 });
                 group.appendChild(toggle);
 
@@ -3425,8 +3432,15 @@ window.mockSunoGeneration = function () {
 
     function v2UpdateCost() {
         const isMj = currentCat === 'mj';
+        const isVeo = currentCat === 'veo3';
         if (isMj) {
             if (v2.creditsAmount) v2.creditsAmount.textContent = `~${_getMjCostFromV2()} créditos`;
+        } else if (isVeo) {
+            const params = v2CollectModelParams();
+            const quality = (params.quality || 'Fast').toLowerCase();
+            const base = (v2Model?.model || 'veo3/text-to-video').replace('-video', `-video-${quality}`);
+            const cost = getModelCost(base) || getModelCost(v2Model?.model);
+            if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
         } else {
             const cost = typeof getModelCost === 'function' ? getModelCost(v2Model?.model) : null;
             if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
@@ -3657,6 +3671,8 @@ window.mockSunoGeneration = function () {
             if (resolvedModel === 'grok-imagine/text-to-image') resolvedModel = 'grok-imagine/image-to-image';
             if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
             if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
+            if (resolvedModel === 'wan/2-6-text-to-video') resolvedModel = 'wan/2-6-image-to-video';
+            if (resolvedModel === 'bytedance/4.5-text-to-image') resolvedModel = 'seedream/4.5-edit';
         }
 
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
@@ -3733,6 +3749,11 @@ window.mockSunoGeneration = function () {
         if (isVideoUrl(url)) {
             html += `<video src="${url}" autoplay loop muted playsinline></video>
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
+        } else if (isAudioUrl(url)) {
+            html += `<div style="padding: 24px; background: rgba(0,0,0,0.5); width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <span class="v2-gallery-item-status" style="position:static; margin-bottom: 12px;">Áudio Concluído</span>
+                        <audio src="${url}" controls style="width: 100%; max-width: 300px; height: 40px; border-radius: 4px;"></audio>
+                    </div>`;
         } else {
             html += `<img src="${url}" alt="Gerado">
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
@@ -3877,10 +3898,24 @@ window.mockSunoGeneration = function () {
         // Clear everything except the empty state
         v2.gallery.querySelectorAll('.v2-gallery-item').forEach(el => el.remove());
 
-        // Find all tasks created via V2 workspace (tracked by v2Tasks array)
+        // Find all tasks created via V2 workspace (tracked by v2Tasks array) or from history matching the current category
         // Check both active tasks and history so finished/failed tasks don't disappear
         const allTracked = [...tasks, ...loadHistory()];
-        const v2TaskList = allTracked.filter(t => v2Tasks.includes(t.id));
+
+        const v2TaskList = allTracked.filter(t => {
+            let tc = t.cat;
+            // Map legacy category names from V1 to V2 standards
+            if (tc === 'suno') tc = 'music';
+            if (tc === 'midjourney') tc = 'mj';
+            if (tc === 'veo') tc = 'video';
+
+            // Show any task matching the current category
+            if (tc !== currentCat) return false;
+
+            // Allow if it matches current category (it'll be added to v2Tasks below)
+            return true;
+        });
+
         if (v2TaskList.length === 0) {
             v2.galleryEmpty.style.display = '';
             updateV2GalleryCount();

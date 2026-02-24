@@ -905,6 +905,13 @@ body.cat-veo3 .btn-primary:hover {
     align-content: start;
 }
 
+.mpm-grid::after {
+    content: "";
+    display: block;
+    height: 10px;
+    grid-column: 1 / -1;
+}
+
 /* Model Picker Card */
 .mpm-card {
     position: relative;
@@ -1221,6 +1228,11 @@ body.cat-veo3 .btn-primary:hover {
     color: var(--text-dim);
     line-height: 1.5;
     flex: 1;
+    display: -webkit-box;
+    line-clamp: 3;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .mpm-card-footer {
