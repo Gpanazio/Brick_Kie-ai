@@ -4070,16 +4070,26 @@ window.mockSunoGeneration = function () {
     });
 
     // ── V2 Gallery Management ──
-    function v2MediaHtml(url, mjTaskId) {
+    function v2MediaHtml(url, mjTaskId, coverUrl) {
         let html = '';
         if (isVideoUrl(url)) {
             html += `<video src="${url}" autoplay loop muted playsinline></video>
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
         } else if (isAudioUrl(url)) {
-            html += `<div style="padding: 24px; background: rgba(0,0,0,0.5); width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                        <span class="v2-gallery-item-status" style="position:static; margin-bottom: 12px;">Áudio Concluído</span>
-                        <audio src="${url}" controls style="width: 100%; max-width: 300px; height: 40px; border-radius: 4px;"></audio>
+            // If Suno cover art is available, show it as the thumbnail background
+            if (coverUrl) {
+                html += `<img src="${coverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;">
+                    <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);pointer-events:none;"></div>
+                    <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white" style="opacity:0.9;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));"><polygon points="5 3 19 12 5 21"/></svg>
+                    </div>
+                    <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">♫ Suno</span></div>`;
+            } else {
+                html += `<div style="width:100%;height:100%;background:linear-gradient(135deg,rgba(220,38,38,0.15),rgba(15,15,15,0.9));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                        <span style="font-family:var(--mono);font-size:10px;color:rgba(148,163,184,0.7);">Áudio Gerado</span>
                     </div>`;
+            }
         } else {
             html += `<img src="${url}" alt="Gerado">
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
@@ -4105,7 +4115,7 @@ window.mockSunoGeneration = function () {
         return html;
     }
 
-    function addV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId) {
+    function addV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl) {
         v2.galleryEmpty.style.display = 'none';
 
         const item = document.createElement('div');
@@ -4116,35 +4126,72 @@ window.mockSunoGeneration = function () {
         item.dataset.baseTaskId = baseTaskId || elementId;
 
         if (state === 'success' && mediaUrl) {
-            item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId);
+            item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl);
         } else if (state === 'failed' || state === 'fail') {
             item.innerHTML = '<span>Falhou</span>';
         }
         // processing state uses CSS ::after spinner
 
+        // Hover action bar: Download + Delete
+        if (state === 'success' && mediaUrl) {
+            const actionsBar = document.createElement('div');
+            actionsBar.className = 'v2-item-actions';
+            actionsBar.innerHTML = `
+                <a href="${mediaUrl}" download target="_blank" rel="noopener" class="v2-item-btn v2-item-dl" title="Download" onclick="event.stopPropagation()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </a>
+                <button class="v2-item-btn v2-item-del" title="Remover" data-base-id="${baseTaskId || elementId}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>
+                </button>`;
+            item.appendChild(actionsBar);
+
+            // Delete from history + remove item
+            actionsBar.querySelector('.v2-item-del').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const bid = e.currentTarget.dataset.baseId;
+                const history = loadHistory().filter(h => h.id !== bid);
+                saveHistory(history);
+                item.style.transition = 'opacity 0.2s, transform 0.2s';
+                item.style.opacity = '0';
+                item.style.transform = 'scale(0.9)';
+                setTimeout(() => { item.remove(); updateV2GalleryCount(); renderHistoryGallery(); updateHistoryCount(); }, 220);
+            });
+        }
+
         // Allow opening lightbox by clicking the item
         item.addEventListener('click', (e) => {
             // Do not trigger if clicking an action button or explicitly interacting with video controls
-            if (e.target.closest('button') || e.target.closest('.v2-mj-actions') || (e.target.tagName.toLowerCase() === 'video' && e.offsetX > e.target.clientWidth - 40)) return;
-            const t = tasks.find(x => x.id === item.dataset.baseTaskId);
+            if (e.target.closest('button') || e.target.closest('.v2-item-actions') || e.target.closest('.v2-mj-actions') || (e.target.tagName.toLowerCase() === 'video' && e.offsetX > e.target.clientWidth - 40)) return;
+            // Search in-memory tasks first, fall back to history
+            let t = tasks.find(x => x.id === item.dataset.baseTaskId);
+            let fromHistory = false;
+            if (!t) {
+                t = loadHistory().find(x => x.id === item.dataset.baseTaskId);
+                fromHistory = true;
+            }
             if (t) {
-                const data = t.data?.data || {};
-                const entry = {
-                    id: t.id,
-                    model: t.model,
-                    state: t.state,
-                    cat: t.cat || currentCat,
-                    urls: _extractResultUrls(data),
-                    prompt: t._prompt || '',
-                    inputFileUrl: t._inputFileUrl || null,
-                    extraParams: t._extraParams || null,
-                    timestamp: Date.now(),
-                    costTime: data.costTime || null,
-                    coverUrl: data.response?.sunoData?.[0]?.imageUrl || null,
-                    trackTitle: data.response?.sunoData?.[0]?.title || null,
-                    sunoData: data.response?.sunoData || null,
-                    data: data
-                };
+                let entry;
+                if (fromHistory) {
+                    entry = t; // history entries already have the right shape
+                } else {
+                    const data = t.data?.data || {};
+                    entry = {
+                        id: t.id,
+                        model: t.model,
+                        state: t.state,
+                        cat: t.cat || currentCat,
+                        urls: _extractResultUrls(data),
+                        prompt: t._prompt || '',
+                        inputFileUrl: t._inputFileUrl || null,
+                        extraParams: t._extraParams || null,
+                        timestamp: Date.now(),
+                        costTime: data.costTime || null,
+                        coverUrl: data.response?.sunoData?.[0]?.imageUrl || null,
+                        trackTitle: data.response?.sunoData?.[0]?.title || null,
+                        sunoData: data.response?.sunoData || null,
+                        data: data
+                    };
+                }
                 openHistoryLightbox(entry);
             }
         });
@@ -4193,8 +4240,9 @@ window.mockSunoGeneration = function () {
                 const existing = document.getElementById(`v2-item-${CSS.escape(task.id)}`);
                 if (existing) existing.remove();
                 // Add items for each result URL
+                const coverU = data.response?.sunoData?.[0]?.imageUrl || null;
                 urls.forEach((url, i) => {
-                    addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id);
+                    addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU);
                 });
             } else {
                 updateV2GalleryItem(task.id, 'success');
@@ -4255,6 +4303,10 @@ window.mockSunoGeneration = function () {
             updateV2GalleryCount();
         }).catch(() => { });
 
+        // Categories that can have multiple models in the same cat — must also filter by model
+        const MULTI_MODEL_CATS = ['image', 'tools', 'audio', 'video'];
+        const activeModel = v2Model?.model || null;
+
         const v2TaskList = allTracked.filter(t => {
             let tc = t.cat;
             // Map legacy category names from V1 to V2 standards
@@ -4279,6 +4331,24 @@ window.mockSunoGeneration = function () {
 
             // Show any task matching the current category
             if (tc !== currentCat) return false;
+
+            // For categories shared by many models, also filter by active model
+            // so Grok results don't bleed into the Nano Banana gallery etc.
+            if (activeModel && MULTI_MODEL_CATS.includes(currentCat)) {
+                // Normalise: image-to-image variants match text-to-image base model
+                const tm = (t.model || '').replace('image-to-image', 'text-to-image')
+                    .replace('image-to-video', 'text-to-video')
+                    .replace('-image-to-video', '-text-to-video')
+                    .replace('/edit', '/text-to-image')
+                    .replace('image-upscale', 'video-upscale');
+                const am = activeModel.replace('image-to-image', 'text-to-image')
+                    .replace('image-to-video', 'text-to-video')
+                    .replace('-image-to-video', '-text-to-video')
+                    .replace('/edit', '/text-to-image')
+                    .replace('image-upscale', 'video-upscale');
+                if (tm !== am) return false;
+            }
+
             return true;
         });
 
@@ -4314,8 +4384,10 @@ window.mockSunoGeneration = function () {
                     urls = task.urls;
                 }
                 if (urls.length > 0) {
+                    const data2 = task.data?.data || {};
+                    const coverU = data2.response?.sunoData?.[0]?.imageUrl || task.coverUrl || null;
                     urls.forEach((url, i) => {
-                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id);
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU);
                     });
                 }
             } else if (task.state === 'fail') {

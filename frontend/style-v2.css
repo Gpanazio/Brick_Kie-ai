@@ -4827,6 +4827,50 @@ body.cat-veo3 .btn-primary:hover {
     color: rgba(255, 255, 255, 0.8);
 }
 
+/* ── Per-item hover action bar ── */
+.v2-item-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 10;
+}
+
+.v2-gallery-item:hover .v2-item-actions {
+    opacity: 1;
+}
+
+.v2-item-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    text-decoration: none;
+}
+
+.v2-item-dl:hover {
+    background: rgba(220, 38, 38, 0.6);
+    border-color: rgba(220, 38, 38, 0.8);
+    color: #fff;
+}
+
+.v2-item-del:hover {
+    background: rgba(239, 68, 68, 0.6);
+    border-color: rgba(239, 68, 68, 0.8);
+    color: #fff;
+}
+
 /* Processing state */
 .v2-gallery-item.processing {
     display: flex;
