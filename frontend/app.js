@@ -2791,9 +2791,18 @@ function openHistoryLightbox(entry) {
             }
             selectModelFromData(modelData);
 
-            if (entry.prompt && els.configPrompt) {
-                els.configPrompt.value = entry.prompt;
-                updateSubmitState();
+            // Populate V2 prompt if V2 workspace is visible, otherwise V1
+            const v2PromptEl = document.getElementById('v2-prompt');
+            const v2Ws = document.getElementById('v2-workspace');
+            const useV2 = v2Ws && !v2Ws.classList.contains('hidden');
+            if (entry.prompt) {
+                if (useV2 && v2PromptEl) {
+                    v2PromptEl.value = entry.prompt;
+                    v2PromptEl.dispatchEvent(new Event('input'));
+                } else if (els.configPrompt) {
+                    els.configPrompt.value = entry.prompt;
+                    updateSubmitState();
+                }
             }
             if (entry.extraParams) {
                 setTimeout(() => {
@@ -4183,12 +4192,12 @@ window.mockSunoGeneration = function () {
     });
 
     // ── V2 Gallery Management ──
-    function v2MediaHtml(url, mjTaskId, coverUrl) {
+    function v2MediaHtml(url, mjTaskId, coverUrl, isSuno) {
         let html = '';
         if (isVideoUrl(url)) {
             html += `<video src="${url}" autoplay loop muted playsinline></video>
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
-        } else if (isAudioUrl(url)) {
+        } else if (isSuno || isAudioUrl(url)) {
             // If Suno cover art is available, show it as the thumbnail background
             if (coverUrl) {
                 html += `<img src="${coverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;">
@@ -4228,10 +4237,11 @@ window.mockSunoGeneration = function () {
         return html;
     }
 
-    function addV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl) {
+    function addV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl, taskModel) {
         v2.galleryEmpty.style.display = 'none';
 
         const item = document.createElement('div');
+        const isSunoItem = (taskModel || '').startsWith('suno/');
         const isVid = mediaUrl && isVideoUrl(mediaUrl);
         item.className = `v2-gallery-item ${state}${isVid ? ' video-item' : ''}`;
         item.id = `v2-item-${CSS.escape(elementId)}`;
@@ -4239,7 +4249,7 @@ window.mockSunoGeneration = function () {
         item.dataset.baseTaskId = baseTaskId || elementId;
 
         if (state === 'success' && mediaUrl) {
-            item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl);
+            item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl, isSunoItem);
         } else if (state === 'failed' || state === 'fail') {
             item.innerHTML = '<span>Falhou</span>';
         }
@@ -4355,7 +4365,7 @@ window.mockSunoGeneration = function () {
                 // Add items for each result URL
                 const coverU = data.response?.sunoData?.[0]?.imageUrl || null;
                 urls.forEach((url, i) => {
-                    addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU);
+                    addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
                 });
             } else {
                 updateV2GalleryItem(task.id, 'success');
@@ -4405,36 +4415,64 @@ window.mockSunoGeneration = function () {
             const existingIds = new Set(v2.gallery.querySelectorAll('.v2-gallery-item').length ?
                 [...v2.gallery.querySelectorAll('.v2-gallery-item')].map(el => el.dataset.baseTaskId || el.dataset.taskId) : []);
 
-            // Normalise model strings for variant matching (same as v2TaskList filter)
-            const normalise = m => (m || '')
-                .replace('image-to-image', 'text-to-image')
-                .replace('image-to-video', 'text-to-video')
-                .replace('-image-to-video', '-text-to-video')
-                .replace('/edit', '/text-to-image')
-                .replace('image-upscale', 'video-upscale');
+            // Normalise model for family matching
+            const normalise = m => (m || '');
             const MULTI_MODEL_CATS_SRV = ['image', 'tools', 'audio', 'video'];
-            const amNorm = v2Model?.model ? normalise(v2Model.model) : null;
+            const amNorm = v2Model?.model ? modelFamily(v2Model.model) : null;
 
             serverItems.forEach(task => {
                 if (existingIds.has(task.id)) return;
-                // Filter by model for shared categories
+                // Filter by model family for shared categories
                 if (amNorm && MULTI_MODEL_CATS_SRV.includes(currentCat)) {
-                    if (normalise(task.model) !== amNorm) return;
+                    if (modelFamily(task.model) !== amNorm) return;
                 }
                 if (task.state === 'success' && Array.isArray(task.urls) && task.urls.length > 0) {
                     const isMjTask = task.cat === 'mj';
                     const coverU = task.coverUrl || null;
                     task.urls.forEach((url, i) => {
-                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU);
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
                     });
                 }
             });
             updateV2GalleryCount();
         }).catch(() => { });
 
-        // Categories that can have multiple models in the same cat — must also filter by model
+        // Categories that share a cat value across multiple model families
+        // Use family-prefix matching so veo3/text-to-video-fast still shows in veo3 workspace
         const MULTI_MODEL_CATS = ['image', 'tools', 'audio', 'video'];
         const activeModel = v2Model?.model || null;
+
+        // Extract the model 'family' prefix for loose matching:
+        // veo3/text-to-video-fast → veo3, grok-imagine/image-to-video → grok-imagine, nano-banana-pro → nano-banana
+        function modelFamily(m) {
+            if (!m) return '';
+            const s = m.toLowerCase();
+            // Known vendor prefixes
+            if (s.startsWith('nano-banana')) return 'nano-banana';
+            if (s.startsWith('google/nano-banana')) return 'nano-banana';
+            if (s.startsWith('google/imagen')) return 'imagen';
+            if (s.startsWith('grok-imagine')) return 'grok-imagine';
+            if (s.startsWith('gpt4o')) return 'gpt4o';
+            if (s.startsWith('bytedance/') || s.startsWith('seedream/')) return 'seedream';
+            if (s.startsWith('qwen/')) return 'qwen';
+            if (s.startsWith('flux-kontext')) return 'flux-kontext';
+            if (s.startsWith('flux-2/')) return 'flux-2';
+            if (s.startsWith('veo3')) return 'veo3';
+            if (s.startsWith('sora')) return 'sora';
+            if (s.startsWith('kling')) return 'kling';
+            if (s.startsWith('wan/')) return 'wan';
+            if (s.startsWith('hailuo')) return 'hailuo';
+            if (s.startsWith('elevenlabs')) return 'elevenlabs';
+            if (s.startsWith('topaz/video')) return 'topaz-video';
+            if (s.startsWith('topaz/image')) return 'topaz-image';
+            if (s.startsWith('recraft/crisp')) return 'recraft-crisp';
+            if (s.startsWith('recraft/remove')) return 'recraft-bg';
+            if (s.startsWith('suno/')) return 'suno';
+            if (s.startsWith('mj-')) return 'midjourney';
+            // Fallback: first path segment or whole string
+            return s.split('/')[0].split('-')[0];
+        }
+        const activeFamily = activeModel ? modelFamily(activeModel) : null;
 
         const v2TaskList = allTracked.filter(t => {
             let tc = t.cat;
@@ -4461,21 +4499,10 @@ window.mockSunoGeneration = function () {
             // Show any task matching the current category
             if (tc !== currentCat) return false;
 
-            // For categories shared by many models, also filter by active model
-            // so Grok results don't bleed into the Nano Banana gallery etc.
-            if (activeModel && MULTI_MODEL_CATS.includes(currentCat)) {
-                // Normalise: image-to-image variants match text-to-image base model
-                const tm = (t.model || '').replace('image-to-image', 'text-to-image')
-                    .replace('image-to-video', 'text-to-video')
-                    .replace('-image-to-video', '-text-to-video')
-                    .replace('/edit', '/text-to-image')
-                    .replace('image-upscale', 'video-upscale');
-                const am = activeModel.replace('image-to-image', 'text-to-image')
-                    .replace('image-to-video', 'text-to-video')
-                    .replace('-image-to-video', '-text-to-video')
-                    .replace('/edit', '/text-to-image')
-                    .replace('image-upscale', 'video-upscale');
-                if (tm !== am) return false;
+            // For categories shared by many models, filter by model family
+            // so Grok tasks don't bleed into Nano Banana, and veo3-fast still shows in veo3 workspace
+            if (activeFamily && MULTI_MODEL_CATS.includes(currentCat)) {
+                if (modelFamily(t.model) !== activeFamily) return false;
             }
 
             return true;
@@ -4516,7 +4543,7 @@ window.mockSunoGeneration = function () {
                     const data2 = task.data?.data || {};
                     const coverU = data2.response?.sunoData?.[0]?.imageUrl || task.coverUrl || null;
                     urls.forEach((url, i) => {
-                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU);
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
                     });
                 }
             } else if (task.state === 'fail') {
