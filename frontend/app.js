@@ -4004,13 +4004,19 @@ window.mockSunoGeneration = function () {
         const fd = new FormData();
         fd.append('model', resolvedModel);
         fd.append('input_json', JSON.stringify(extra));
-        const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
+
+        // Route to correct API endpoint
+        const isSuno = resolvedModel.startsWith('suno/');
+        const endpoint = isSuno ? `${API}/api/suno/create` : `${API}/api/market/create-json`;
+        const mode = isSuno ? 'suno' : 'market';
+
+        const resp = await fetch(endpoint, { method: 'POST', body: fd });
         const json = await resp.json();
         if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
         if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
-        const taskId = json?.data?.taskId;
+        const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
         if (!taskId) throw new Error(json.msg || 'No taskId returned');
-        addTask(taskId, resolvedModel, 'market', extra[imgField]?.length ? extra[imgField] : null, extra);
+        addTask(taskId, resolvedModel, mode, extra[imgField]?.length ? extra[imgField] : null, extra);
         v2Tasks.push(taskId);
         toast(`✅ Task created!${v2Files.length ? ` (${v2Files.length} ref image${v2Files.length > 1 ? 's' : ''})` : ''}`, 'success');
     }
