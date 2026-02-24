@@ -266,7 +266,7 @@ const MODEL_CONFIGS = {
     'sora-2-pro-text-to-video': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['landscape', 'portrait'], default: 'landscape' },
-            { key: 'n_frames', label: 'Frames', type: 'select', options: ['10', '15'], default: '10' },
+            { key: 'n_frames', label: 'Duração (s)', type: 'select', options: ['10', '15'], default: '10' },
             { key: 'size', label: 'Qualidade', type: 'select', options: ['standard', 'high'], default: 'high' },
             { key: 'remove_watermark', label: 'Sem Watermark', type: 'bool', default: true }
         ]
@@ -308,7 +308,7 @@ const MODEL_CONFIGS = {
     'sora-2-pro-image-to-video': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['landscape', 'portrait'], default: 'landscape' },
-            { key: 'n_frames', label: 'Frames', type: 'select', options: ['10', '15'], default: '10' },
+            { key: 'n_frames', label: 'Duração (s)', type: 'select', options: ['10', '15'], default: '10' },
             { key: 'size', label: 'Qualidade', type: 'select', options: ['standard', 'high'], default: 'standard' },
             { key: 'remove_watermark', label: 'Sem Watermark', type: 'bool', default: true }
         ]
