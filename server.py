@@ -4,6 +4,7 @@ Wraps kie_api.py functions into REST endpoints for the frontend.
 """
 
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -26,6 +27,8 @@ ROOT_PATH = os.environ.get("ROOT_PATH", "")
 # Callback URL for KIE.ai webhooks (set by parent Node.js server from RAILWAY_PUBLIC_DOMAIN)
 CALLBACK_URL = os.environ.get("KIE_CALLBACK_URL", "")
 
+logger = logging.getLogger(__name__)
+
 
 def _safe_unlink(path: str) -> None:
     """Remove temporary files without masking the original request error."""
@@ -33,8 +36,8 @@ def _safe_unlink(path: str) -> None:
         os.unlink(path)
     except FileNotFoundError:
         pass
-    except Exception as e:
-        print(f"[tmp] Failed to remove temp file {path}: {e}")
+    except Exception:
+        logger.warning("[tmp] Failed to remove temp file %s", path, exc_info=True)
 
 def _ensure_callback_url(payload: dict) -> dict:
     """Inject default callback URL if not already set."""
