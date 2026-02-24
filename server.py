@@ -565,6 +565,58 @@ async def flux_kontext_task(task_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== Server-Side History ====================
+
+HISTORY_DIR = Path(os.environ.get("HISTORY_DIR", "/data"))
+HISTORY_FILE = HISTORY_DIR / "kie_history.json"
+HISTORY_MAX = 500  # Keep last N entries
+
+def _load_server_history() -> list:
+    try:
+        if HISTORY_FILE.exists():
+            return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return []
+
+def _save_server_history(history: list):
+    try:
+        HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+        HISTORY_FILE.write_text(json.dumps(history[:HISTORY_MAX], ensure_ascii=False), encoding="utf-8")
+    except Exception as e:
+        print(f"[history] Failed to save: {e}")
+
+@app.post("/api/history")
+async def save_history_entry(
+    entry_json: str = Form(...),
+):
+    """Save a task result to server-side history."""
+    try:
+        entry = json.loads(entry_json)
+        if not entry.get("id"):
+            raise HTTPException(status_code=400, detail="Entry must have id")
+        history = _load_server_history()
+        # Remove duplicate
+        history = [h for h in history if h.get("id") != entry["id"]]
+        history.insert(0, entry)
+        _save_server_history(history)
+        return {"success": True, "count": len(history)}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/history")
+async def get_history(cat: Optional[str] = None, limit: int = 100):
+    """Get server-side history, optionally filtered by category."""
+    history = _load_server_history()
+    if cat:
+        history = [h for h in history if h.get("cat") == cat]
+    return {"history": history[:limit], "total": len(history)}
+
+
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 

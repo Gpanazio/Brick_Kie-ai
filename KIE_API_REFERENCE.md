@@ -158,7 +158,7 @@ Authorization: Bearer YOUR_API_KEY
 Content-Type: application/json
 
 {
-  "base64": "iVBORw0KGgoAAAANSUhEUgAA...",   // or "data:image/png;base64,..."
+  "base64Data": "iVBORw0KGgoAAAANSUhEUgAA...",   // or "data:image/png;base64,..."
   "fileName": "my-image.png",                  // optional
   "uploadPath": "uploads"                      // optional
 }

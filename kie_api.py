@@ -165,6 +165,7 @@ SUNO_API_PATHS: Dict[str, str] = {
     "suno/generate-music": "/api/v1/generate",
     "suno/generate-lyrics": "/api/v1/lyrics",
     "suno/extend-music": "/api/v1/generate/extend",
+    "suno/upload-extend": "/api/v1/generate/upload-extend",
     "suno/upload-cover": "/api/v1/generate/upload-cover",
     "suno/add-instrumental": "/api/v1/generate/add-instrumental",
     "suno/add-vocals": "/api/v1/generate/add-vocals",

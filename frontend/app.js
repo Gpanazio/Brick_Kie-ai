@@ -822,6 +822,11 @@ function addToHistory(task) {
     saveHistory(history);
     renderHistoryGallery();
     updateHistoryCount();
+
+    // Sync to server (fire & forget)
+    const fd = new FormData();
+    fd.append('entry_json', JSON.stringify(entry));
+    fetch(`${API}/api/history`, { method: 'POST', body: fd }).catch(() => { });
 }
 
 // ==================== DOM ====================
@@ -4214,6 +4219,16 @@ window.mockSunoGeneration = function () {
         observer.observe(tasksList, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     }
 
+    // ── Fetch server-side history ──
+    async function _fetchServerHistory(cat) {
+        try {
+            const resp = await fetch(`${API}/api/history?cat=${encodeURIComponent(cat)}&limit=100`);
+            if (!resp.ok) return [];
+            const json = await resp.json();
+            return json.history || [];
+        } catch { return []; }
+    }
+
     // ── Refresh gallery from existing tasks (on show) ──
     function refreshV2Gallery() {
         // Clear everything except the empty state
@@ -4222,6 +4237,23 @@ window.mockSunoGeneration = function () {
         // Find all tasks created via V2 workspace (tracked by v2Tasks array) or from history matching the current category
         // Check both active tasks and history so finished/failed tasks don't disappear
         const allTracked = [...tasks, ...loadHistory()];
+
+        // Also fetch server-side history (async merge)
+        _fetchServerHistory(currentCat).then(serverItems => {
+            if (!serverItems.length) return;
+            const existingIds = new Set(v2.gallery.querySelectorAll('.v2-gallery-item').length ?
+                [...v2.gallery.querySelectorAll('.v2-gallery-item')].map(el => el.dataset.baseTaskId || el.dataset.taskId) : []);
+            serverItems.forEach(task => {
+                if (existingIds.has(task.id)) return;
+                if (task.state === 'success' && Array.isArray(task.urls) && task.urls.length > 0) {
+                    const isMjTask = task.cat === 'mj';
+                    task.urls.forEach((url, i) => {
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id);
+                    });
+                }
+            });
+            updateV2GalleryCount();
+        }).catch(() => { });
 
         const v2TaskList = allTracked.filter(t => {
             let tc = t.cat;
