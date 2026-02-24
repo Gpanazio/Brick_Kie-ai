@@ -26,6 +26,16 @@ ROOT_PATH = os.environ.get("ROOT_PATH", "")
 # Callback URL for KIE.ai webhooks (set by parent Node.js server from RAILWAY_PUBLIC_DOMAIN)
 CALLBACK_URL = os.environ.get("KIE_CALLBACK_URL", "")
 
+
+def _safe_unlink(path: str) -> None:
+    """Remove temporary files without masking the original request error."""
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"[tmp] Failed to remove temp file {path}: {e}")
+
 def _ensure_callback_url(payload: dict) -> dict:
     """Inject default callback URL if not already set."""
     if CALLBACK_URL and "callBackUrl" not in payload:
@@ -93,7 +103,10 @@ async def favicon():
 # Serve static files (CSS, JS, images) — handles ?v=N query string automatically
 @app.get("/static/{filename:path}", response_class=FileResponse)
 async def serve_static(filename: str):
-    file_path = FRONTEND_DIR / filename
+    base_dir = FRONTEND_DIR.resolve()
+    file_path = (FRONTEND_DIR / filename).resolve()
+    if base_dir not in file_path.parents and file_path != base_dir:
+        raise HTTPException(status_code=403, detail="Invalid static file path")
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail=f"Static file not found: {filename}")
     return FileResponse(str(file_path))
@@ -141,7 +154,7 @@ async def upload_file(
             url = kie_api._extract_uploaded_url(resp)
             return {"success": True, "upload": resp, "url": url}
         finally:
-            os.unlink(tmp_path)
+            _safe_unlink(tmp_path)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -272,7 +285,7 @@ async def shortcut_recraft_rmbg(
             )
             return resp
         finally:
-            os.unlink(tmp_path)
+            _safe_unlink(tmp_path)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -297,7 +310,7 @@ async def shortcut_topaz_upscale(
             )
             return resp
         finally:
-            os.unlink(tmp_path)
+            _safe_unlink(tmp_path)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -345,7 +358,7 @@ async def process_file(
                 "task": task_resp,
             }
         finally:
-            os.unlink(tmp_path)
+            _safe_unlink(tmp_path)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input_json")
     except Exception as e:
