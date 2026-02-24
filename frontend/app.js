@@ -2006,6 +2006,11 @@ async function submitMixMarketModel() {
 
     let resolvedModel = selectedModel.model;
     let extra = collectModelParams();
+
+    // Remap Seedream model names to what KIE API actually expects
+    if (resolvedModel === 'bytedance/4.5-text-to-image') {
+        resolvedModel = selectedFile ? 'seedream/4.5-edit' : 'seedream/4.5-text-to-image';
+    }
     const prompt = els.configPrompt.value.trim();
     if (prompt) extra.prompt = prompt;
 
@@ -2047,6 +2052,9 @@ async function submitTextModel() {
     const prompt = els.configPrompt.value.trim();
     let extra = collectModelParams();
     let resolvedModel = selectedModel.model;
+
+    // Remap Seedream model names to what KIE API actually expects
+    if (resolvedModel === 'bytedance/4.5-text-to-image') resolvedModel = 'seedream/4.5-text-to-image';
 
     if (selectedModel.field === 'text') extra.text = prompt;
     else extra.prompt = prompt;
@@ -2245,10 +2253,46 @@ function initClearTasks() {
 
 // ==================== Task Card Rendering ====================
 
+// Map resolved/variant model names back to the template's base model name
+const MODEL_REVERSE_MAP = {
+    'seedream/4.5-edit': 'bytedance/4.5-text-to-image',
+    'seedream/4.5-text-to-image': 'bytedance/4.5-text-to-image',
+    'bytedance/seedream-v4-text-to-image': 'bytedance/4.5-text-to-image',
+    'bytedance/seedream-v4-edit': 'bytedance/4.5-text-to-image',
+    'grok-imagine/image-to-image': 'grok-imagine/text-to-image',
+    'grok-imagine/image-to-video': 'grok-imagine/text-to-video',
+    'sora-2-pro-image-to-video': 'sora-2-pro-text-to-video',
+    'wan/2-6-image-to-video': 'wan/2-6-text-to-video',
+    'veo3/text-to-video-fast': 'veo3/text-to-video',
+    'veo3/text-to-video-quality': 'veo3/text-to-video',
+    'veo3/image-to-video-fast': 'veo3/text-to-video',
+    'veo3/image-to-video-quality': 'veo3/text-to-video',
+    'veo3/image-to-video': 'veo3/text-to-video',
+    'veo3/extend-fast': 'veo3/text-to-video',
+    'veo3/extend-quality': 'veo3/text-to-video',
+    'suno/generate-lyrics': 'suno/generate-music',
+    'suno/extend-music': 'suno/generate-music',
+    'suno/upload-cover': 'suno/generate-music',
+    'suno/upload-extend': 'suno/generate-music',
+    'suno/add-instrumental': 'suno/generate-music',
+    'suno/add-vocals': 'suno/generate-music',
+    'suno/separate-vocals': 'suno/generate-music',
+    'suno/music-video': 'suno/generate-music',
+    'suno/convert-wav': 'suno/generate-music',
+    'suno/get-lyrics': 'suno/generate-music',
+    'suno/generate-persona': 'suno/generate-music',
+    'suno/cover-suno': 'suno/generate-music',
+    'suno/generate-midi': 'suno/generate-music',
+};
+
 function getModelDetails(modelKey) {
     const tpl = document.getElementById('tpl-models');
     if (!tpl) return null;
-    const item = tpl.content.querySelector(`[data-model="${modelKey}"]`);
+    // Try exact match first, then reverse-mapped fallback
+    let item = tpl.content.querySelector(`[data-model="${modelKey}"]`);
+    if (!item && MODEL_REVERSE_MAP[modelKey]) {
+        item = tpl.content.querySelector(`[data-model="${MODEL_REVERSE_MAP[modelKey]}"]`);
+    }
     return item ? item.dataset : null;
 }
 
@@ -2681,11 +2725,15 @@ function openHistoryLightbox(entry) {
         mediaHtml = '<div style="display:flex; flex-direction:column; gap:16px;">';
         const sunoArr = entry.sunoData || [];
 
-        // Backward compatibility for old history items
-        if (sunoArr.length === 0 && entry.urls) {
+        // Backward compatibility for old history items — also handle empty sunoData
+        if (sunoArr.length === 0 && entry.urls && entry.urls.length > 0) {
             entry.urls.forEach((u, i) => {
                 sunoArr.push({ audioUrl: u, imageUrl: entry.coverUrl || '', title: entry.trackTitle || `Faixa ${i + 1}` });
             });
+        }
+        // If still empty, show a placeholder so lightbox at least opens
+        if (sunoArr.length === 0) {
+            sunoArr.push({ audioUrl: '', imageUrl: '', title: 'Áudio Gerado' });
         }
 
         sunoArr.forEach((track, i) => {
@@ -4140,12 +4188,16 @@ window.mockSunoGeneration = function () {
         }
         delete extra.suno_mode;
 
+        // Remap model names based on whether images are present
         if (v2Files.length > 0) {
             if (resolvedModel === 'grok-imagine/text-to-image') resolvedModel = 'grok-imagine/image-to-image';
             if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
             if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
             if (resolvedModel === 'wan/2-6-text-to-video') resolvedModel = 'wan/2-6-image-to-video';
             if (resolvedModel === 'bytedance/4.5-text-to-image') resolvedModel = 'seedream/4.5-edit';
+        } else {
+            // Text-only: remap to correct API model names
+            if (resolvedModel === 'bytedance/4.5-text-to-image') resolvedModel = 'seedream/4.5-text-to-image';
         }
 
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
@@ -4163,10 +4215,27 @@ window.mockSunoGeneration = function () {
         fd.append('model', resolvedModel);
         fd.append('input_json', JSON.stringify(extra));
 
-        // Route to correct API endpoint
+        // Route to correct API endpoint based on model
         const isSuno = resolvedModel.startsWith('suno/');
-        const endpoint = isSuno ? `${API}/api/suno/create` : `${API}/api/market/create-json`;
-        const mode = isSuno ? 'suno' : 'market';
+        const isGpt4o = resolvedModel === 'gpt4o-image';
+        const isFluxKontext = resolvedModel.startsWith('flux-kontext');
+        let endpoint, mode;
+        if (isSuno) {
+            endpoint = `${API}/api/suno/create`;
+            mode = 'suno';
+        } else if (isGpt4o) {
+            endpoint = `${API}/api/gpt4o-image/create`;
+            mode = 'gpt4o-image';
+        } else if (isFluxKontext) {
+            // Flux Kontext needs the model name in the input
+            extra.model = resolvedModel;
+            fd.set('input_json', JSON.stringify(extra));
+            endpoint = `${API}/api/flux-kontext/create`;
+            mode = 'flux-kontext';
+        } else {
+            endpoint = `${API}/api/market/create-json`;
+            mode = 'market';
+        }
 
         const resp = await fetch(endpoint, { method: 'POST', body: fd });
         const json = await resp.json();
@@ -4314,13 +4383,18 @@ window.mockSunoGeneration = function () {
 
         // Allow opening lightbox by clicking the item
         item.addEventListener('click', (e) => {
-            // Do not trigger if clicking an action button or explicitly interacting with video controls
-            if (e.target.closest('button') || e.target.closest('.v2-item-actions') || e.target.closest('.v2-mj-actions') || (e.target.tagName.toLowerCase() === 'video' && e.offsetX > e.target.clientWidth - 40)) return;
-            // Search in-memory tasks first, fall back to history
+            // Do not trigger if clicking an action button/link or interacting with video controls
+            // Note: do NOT block on .v2-item-actions itself - only on interactive children inside it
+            if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.v2-mj-actions') || (e.target.tagName.toLowerCase() === 'video' && e.offsetX > e.target.clientWidth - 40)) return;
+            // Search in-memory tasks first, fall back to localStorage history, then server cache
             let t = tasks.find(x => x.id === item.dataset.baseTaskId);
             let fromHistory = false;
             if (!t) {
                 t = loadHistory().find(x => x.id === item.dataset.baseTaskId);
+                fromHistory = true;
+            }
+            if (!t) {
+                t = _serverHistoryCache.get(item.dataset.baseTaskId);
                 fromHistory = true;
             }
             if (t) {
@@ -4436,6 +4510,9 @@ window.mockSunoGeneration = function () {
     }
 
     // ── Fetch server-side history ──
+    // Cache for server-side history items (not in localStorage, need special lookup on click)
+    const _serverHistoryCache = new Map(); // taskId -> entry object
+
     async function _fetchServerHistory(cat) {
         try {
             const resp = await fetch(`${API}/api/history?cat=${encodeURIComponent(cat)}&limit=100`);
@@ -4469,6 +4546,8 @@ window.mockSunoGeneration = function () {
                 if (amNorm && MULTI_MODEL_CATS_SRV.includes(currentCat)) {
                     if (modelFamily(task.model) !== amNorm) return;
                 }
+                // Cache this server item so the click handler can find it
+                _serverHistoryCache.set(task.id, task);
                 if (task.state === 'success' && Array.isArray(task.urls) && task.urls.length > 0) {
                     const isMjTask = task.cat === 'mj';
                     const coverU = task.coverUrl || null;

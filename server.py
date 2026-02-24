@@ -12,7 +12,7 @@ from typing import Optional
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
+
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -55,8 +55,28 @@ app.add_middleware(
 
 # ==================== Static Frontend ====================
 
+# ── Path-rewriting middleware: /kie-ai/* → /* (for local dev without Node proxy) ──
+# In production, the Node.js reverse proxy forwards /kie-ai/* to this server.
+# When running locally on port 8420 directly, the browser still sends /kie-ai/api/...
+# and /kie-ai/static/... — this middleware rewrites the path so the routes below match.
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+class KieAiPrefixMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        path = request.scope.get("path", "")
+        # Rewrite /kie-ai/api/... → /api/...
+        # /kie-ai/static/... → /static/...  (served below)
+        if path.startswith("/kie-ai/"):
+            request.scope["path"] = "/" + path[len("/kie-ai/"):]
+        return await call_next(request)
+
+app.add_middleware(KieAiPrefixMiddleware)
+
 
 @app.get("/", response_class=FileResponse)
+@app.get("/kie-ai", response_class=FileResponse)
+@app.get("/kie-ai/", response_class=FileResponse)
 async def serve_index():
     response = FileResponse(FRONTEND_DIR / "index.html", media_type="text/html")
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -68,6 +88,23 @@ async def serve_index():
 @app.get("/favicon.ico")
 async def favicon():
     return Response(content=b"", media_type="image/x-icon", status_code=204)
+
+
+# Serve static files (CSS, JS, images) — handles ?v=N query string automatically
+@app.get("/static/{filename:path}", response_class=FileResponse)
+async def serve_static(filename: str):
+    file_path = FRONTEND_DIR / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Static file not found: {filename}")
+    return FileResponse(str(file_path))
+
+
+# Stub for socket.io (not used in local dev mode)
+@app.get("/socket.io/socket.io.js")
+async def socket_io_stub():
+    """Return a minimal socket.io stub so the page doesn't throw errors."""
+    stub = "var io = function(){ return { on: function(){}, emit: function(){}, connected: false }; };"
+    return Response(content=stub, media_type="application/javascript")
 
 
 # ==================== Credits ====================
@@ -716,7 +753,8 @@ async def import_history_tasks(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+
 
 
 if __name__ == "__main__":
