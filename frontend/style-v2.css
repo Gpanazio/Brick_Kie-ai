@@ -2987,7 +2987,7 @@ body.cat-veo3 .btn-primary:hover {
     letter-spacing: 0.08em;
 }
 
-/* ── Suno Rich Track Cards ── */
+/* ── Suno Rich Track Cards (task card inline view) ── */
 /* ── Suno Track Card ── */
 .suno-track-card {
     border-bottom: 1px solid var(--border);
@@ -2998,6 +2998,193 @@ body.cat-veo3 .btn-primary:hover {
 .suno-track-card:last-child {
     border-bottom: none;
 }
+
+/* ── Suno Lightbox Premium Design ── */
+.suno-lightbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 520px;
+    max-width: 92vw;
+    padding: 4px 0;
+}
+
+.suno-lb-card {
+    background: #0d0d0d;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+
+.suno-lb-card:hover {
+    border-color: rgba(220, 38, 38, 0.3);
+}
+
+/* Hero zone: cover art OR gradient background */
+.suno-lb-hero {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 6;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1a0505 0%, #2a0a0a 50%, #111 100%);
+}
+
+.suno-lb-cover {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    filter: brightness(0.6) saturate(1.1);
+}
+
+.suno-lb-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right,
+        rgba(0,0,0,0.92) 0%,
+        rgba(0,0,0,0.5) 55%,
+        rgba(0,0,0,0.15) 100%);
+    pointer-events: none;
+}
+
+.suno-lb-meta {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 14px 18px;
+    gap: 4px;
+    min-width: 0;
+}
+
+.suno-lb-track-num {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    opacity: 0.9;
+}
+
+.suno-lb-title {
+    font-family: var(--font);
+    font-size: 17px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 70%;
+}
+
+.suno-lb-tags {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 70%;
+}
+
+.suno-lb-dur {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(255,255,255,0.6);
+    background: rgba(0,0,0,0.55);
+    display: inline-block;
+    width: fit-content;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-top: 2px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Decorative waveform bars (no-cover state) */
+.suno-lb-waveform {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 44px;
+    opacity: 0.25;
+    z-index: 1;
+}
+
+.suno-lb-waveform span {
+    display: block;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+    min-height: 4px;
+}
+
+/* Audio player */
+.suno-lb-player {
+    padding: 10px 14px 6px;
+    background: rgba(0,0,0,0.35);
+    border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.suno-lb-player audio {
+    width: 100%;
+    height: 32px;
+    border-radius: 6px;
+    accent-color: var(--accent);
+    background: transparent;
+}
+
+/* Action buttons row */
+.suno-lb-actions {
+    display: flex;
+    gap: 3px;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.2);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    flex-wrap: wrap;
+}
+
+.suno-lb-btn {
+    flex: 1;
+    min-width: 60px;
+    padding: 5px 6px;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: rgba(255,255,255,0.45);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.suno-lb-btn:hover {
+    color: var(--accent);
+    border-color: rgba(220,38,38,0.4);
+    background: rgba(220,38,38,0.08);
+}
+
+.suno-lb-btn.loading {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
 
 /* Full-width cover with overlay */
 .suno-track-header {

@@ -2722,7 +2722,7 @@ function openHistoryLightbox(entry) {
         mediaHtml += '</div>';
     } else if (entry.model && entry.model.startsWith('suno/')) {
         // Multi-audio (Suno tracks) with premium layout
-        mediaHtml = '<div style="display:flex; flex-direction:column; gap:16px;">';
+        mediaHtml = '<div class="suno-lightbox-list">';
         const sunoArr = entry.sunoData || [];
 
         // Backward compatibility for old history items — also handle empty sunoData
@@ -2731,7 +2731,6 @@ function openHistoryLightbox(entry) {
                 sunoArr.push({ audioUrl: u, imageUrl: entry.coverUrl || '', title: entry.trackTitle || `Faixa ${i + 1}` });
             });
         }
-        // If still empty, show a placeholder so lightbox at least opens
         if (sunoArr.length === 0) {
             sunoArr.push({ audioUrl: '', imageUrl: '', title: 'Áudio Gerado' });
         }
@@ -2743,29 +2742,39 @@ function openHistoryLightbox(entry) {
             const tags = track.tags || '';
             const dur = track.duration ? `${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : '';
             const lyrics = track.prompt || '';
-
             const audioId = track.id || '';
             const parentTaskId = entry.id || '';
-            mediaHtml += `<div class="suno-track-card" style="border: 1px solid var(--border); border-radius: 8px;">
-                <div class="suno-track-header">
-                    ${coverSrc ? `<img src="${esc(coverSrc)}" alt="${esc(title)}" class="suno-track-cover">` : ''}
-                    <div class="suno-track-info">
-                        <div class="suno-track-title">${esc(title)}</div>
-                        ${dur ? `<span class="suno-track-duration">${dur}</span>` : ''}
-                        ${tags ? `<div class="suno-track-tags">${esc(tags.substring(0, 120))}${tags.length > 120 ? '…' : ''}</div>` : ''}
+
+            // No-cover: animated gradient background
+            const bgStyle = coverSrc
+                ? ''
+                : 'background: linear-gradient(135deg, #1a0a0a 0%, #2d0d0d 40%, #1c1c1c 100%);';
+
+            mediaHtml += `<div class="suno-lb-card">
+                <div class="suno-lb-hero" style="${bgStyle}">
+                    ${coverSrc ? `<img src="${esc(coverSrc)}" alt="${esc(title)}" class="suno-lb-cover">` : ''}
+                    <div class="suno-lb-hero-overlay"></div>
+                    <div class="suno-lb-meta">
+                        <div class="suno-lb-track-num">Track ${i + 1}</div>
+                        <div class="suno-lb-title">${esc(title)}</div>
+                        ${tags ? `<div class="suno-lb-tags">${esc(tags.substring(0, 100))}${tags.length > 100 ? '…' : ''}</div>` : ''}
+                        ${dur ? `<div class="suno-lb-dur">${dur}</div>` : ''}
                     </div>
+                    ${!coverSrc ? `<div class="suno-lb-waveform">
+                        ${Array.from({ length: 28 }, (_, k) => `<span style="height:${20 + Math.sin(k * 0.8 + i) * 14 + Math.sin(k * 1.7) * 8}%"></span>`).join('')}
+                    </div>` : ''}
                 </div>
-                <audio src="${esc(audioSrc)}" controls style="width:100%"></audio>
+                <div class="suno-lb-player">
+                    <audio src="${esc(audioSrc)}" controls preload="metadata" id="suno-audio-${parentTaskId}-${i}"></audio>
+                </div>
                 ${lyrics ? `<details class="suno-track-lyrics-wrap"><summary>Ver Letra</summary><pre class="suno-track-lyrics">${esc(lyrics)}</pre></details>` : ''}
-                <div class="suno-actions-row">
-                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/extend-music" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Estender">🔁 Extend</button>
-                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/add-instrumental" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Instrumental">🎸 +Instr</button>
-                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/add-vocals" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Vocais">🎤 +Vocal</button>
-                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/separate-vocals" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Separar">✂️ Separar</button>
-                </div>
-                <div class="suno-actions-row">
-                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/music-video" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Clipe">🎬 Clipe</button>
-                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/convert-wav" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="WAV">📄 WAV</button>
+                <div class="suno-lb-actions">
+                    <button class="suno-lb-btn suno-action" data-suno-model="suno/extend-music" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}">🔁 Extend</button>
+                    <button class="suno-lb-btn suno-action" data-suno-model="suno/add-instrumental" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}">🎸 +Instr</button>
+                    <button class="suno-lb-btn suno-action" data-suno-model="suno/add-vocals" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}">🎤 +Vocal</button>
+                    <button class="suno-lb-btn suno-action" data-suno-model="suno/separate-vocals" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}">✂️ Sep</button>
+                    <button class="suno-lb-btn suno-action" data-suno-model="suno/music-video" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}">🎬 Clipe</button>
+                    <button class="suno-lb-btn suno-action" data-suno-model="suno/convert-wav" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}">📄 WAV</button>
                 </div>
             </div>`;
         });
