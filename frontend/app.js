@@ -2088,14 +2088,14 @@ async function submitMJ() {
 
 // ==================== Task Management ====================
 
-function addTask(taskId, model, mode, inputFileUrl = null, extraParams = null) {
+function addTask(taskId, model, mode, inputFileUrl = null, extraParams = null, overrideCat = null) {
     const v2PromptEl = document.getElementById('v2-prompt');
     const promptText = els.configPrompt?.value?.trim() || v2PromptEl?.value?.trim() || '';
     const task = {
         id: taskId,
         model,
         mode,
-        cat: currentCat, // Store the category the task was created in
+        cat: overrideCat || currentCat, // Store the category the task was created in
         state: 'processing',
         data: null,
         pollTimer: null,
@@ -2310,8 +2310,9 @@ function renderTaskResult(task) {
     const urls = _extractResultUrls(data);
     const unique = [...new Set(urls.filter(u => typeof u === 'string' && u.startsWith('http')))];
     if (unique.length > 0) {
-        const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(unique[0]);
-        const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(unique[0]);
+        const isVidModel = task.cat === 'video' || task.cat === 'veo3' || task.model === 'mj-video';
+        const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(unique[0]) || isVidModel;
+        const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(unique[0]) || task.model?.startsWith('suno/');
         html += '<div class="task-result-media">';
 
         // Suno rich track cards
@@ -2643,8 +2644,9 @@ function openHistoryLightbox(entry) {
     if (existing) existing.remove();
 
     const url = entry.urls[0] || '';
-    const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url);
-    const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(url);
+    const isVidModel = entry.cat === 'video' || entry.cat === 'veo3' || entry.model === 'mj-video';
+    const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url) || isVidModel;
+    const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(url) || entry.model?.startsWith('suno/');
 
     let mediaHtml;
     if (entry.urls.length > 1 && !isVid && !isAud) {
@@ -2674,6 +2676,8 @@ function openHistoryLightbox(entry) {
             const dur = track.duration ? `${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : '';
             const lyrics = track.prompt || '';
 
+            const audioId = track.id || '';
+            const parentTaskId = entry.id || '';
             mediaHtml += `<div class="suno-track-card" style="border: 1px solid var(--border); border-radius: 8px;">
                 <div class="suno-track-header">
                     ${coverSrc ? `<img src="${esc(coverSrc)}" alt="${esc(title)}" class="suno-track-cover">` : ''}
@@ -2685,6 +2689,16 @@ function openHistoryLightbox(entry) {
                 </div>
                 <audio src="${esc(audioSrc)}" controls style="width:100%"></audio>
                 ${lyrics ? `<details class="suno-track-lyrics-wrap"><summary>Ver Letra</summary><pre class="suno-track-lyrics">${esc(lyrics)}</pre></details>` : ''}
+                <div class="suno-actions-row">
+                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/extend-music" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Estender">🔁 Extend</button>
+                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/add-instrumental" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Instrumental">🎸 +Instr</button>
+                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/add-vocals" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Vocais">🎤 +Vocal</button>
+                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/separate-vocals" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Separar">✂️ Separar</button>
+                </div>
+                <div class="suno-actions-row">
+                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/music-video" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Clipe">🎬 Clipe</button>
+                    <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/convert-wav" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="WAV">📄 WAV</button>
+                </div>
             </div>`;
         });
         mediaHtml += '</div>';
@@ -2918,8 +2932,6 @@ document.body.addEventListener('click', async (e) => {
     btn.disabled = true;
     btn.classList.add('loading');
 
-    currentCat = 'veo3';
-
     try {
         let resp, json;
 
@@ -2942,7 +2954,7 @@ document.body.addEventListener('click', async (e) => {
                 const taskId = json?.data?.taskId || json?.taskId;
                 if (taskId) {
                     const veoInputUrl = Array.isArray(existingTask?.inputFileUrl) ? existingTask.inputFileUrl[0] : (existingTask?.inputFileUrl || null);
-                    addTask(taskId, actionModel, 'veo', veoInputUrl);
+                    addTask(taskId, actionModel, 'veo', veoInputUrl, null, 'veo3');
                     toast('✅ Processando 1080p...', 'success');
                 } else {
                     toast('✅ Requisição 1080p enviada! Verifique o JSON para detalhes.', 'success');
@@ -2968,7 +2980,7 @@ document.body.addEventListener('click', async (e) => {
                 const taskId = json?.data?.taskId || json?.taskId;
                 if (taskId) {
                     const veoInputUrl = Array.isArray(existingTask?.inputFileUrl) ? existingTask.inputFileUrl[0] : (existingTask?.inputFileUrl || null);
-                    addTask(taskId, actionModel, 'veo', veoInputUrl);
+                    addTask(taskId, actionModel, 'veo', veoInputUrl, null, 'veo3');
                     toast('✅ Processando 4K... (pode demorar)', 'success');
                 } else {
                     toast('✅ Requisição 4K enviada! Verifique o JSON para detalhes.', 'success');
@@ -2988,7 +3000,7 @@ document.body.addEventListener('click', async (e) => {
             const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
             if (taskId) {
                 const veoInputUrl = Array.isArray(existingTask?.inputFileUrl) ? existingTask.inputFileUrl[0] : (existingTask?.inputFileUrl || null);
-                addTask(taskId, actionModel, 'veo', veoInputUrl);
+                addTask(taskId, actionModel, 'veo', veoInputUrl, null, 'veo3');
                 toast(`✅ ${actionModel.split('/').pop()} enviado!`, 'success');
             }
         }
@@ -3056,8 +3068,7 @@ document.body.addEventListener('click', async (e) => {
 
         const taskId = json?.data?.taskId;
         if (taskId) {
-            currentCat = 'mj';
-            addTask(taskId, `mj-${op}`, 'midjourney', null, { parentTaskId: originalTaskId, op, index });
+            addTask(taskId, `mj-${op}`, 'midjourney', null, { parentTaskId: originalTaskId, op, index }, 'mj');
             toast(`✅ ${opLabel} enviado!`, 'success');
 
             // Close lightbox if clicking from history
@@ -4069,7 +4080,7 @@ window.mockSunoGeneration = function () {
 
         // Resolve quality suffix (Fast → -fast, Quality → -quality)
         if (resolvedModel === 'veo3/text-to-video' || resolvedModel === 'veo3/image-to-video') {
-            const quality = (collectModelParams()?.quality || 'Fast').toLowerCase();
+            const quality = (v2CollectModelParams()?.quality || 'Fast').toLowerCase();
             resolvedModel = `${resolvedModel}-${quality}`;
         }
 
@@ -4323,17 +4334,18 @@ window.mockSunoGeneration = function () {
         updateV2GalleryCount();
     }
 
-    function updateV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId) {
+    function updateV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl, taskModel) {
         const item = document.getElementById(`v2-item-${CSS.escape(elementId)}`);
         if (!item) return;
 
+        const isSunoItem = (taskModel || '').startsWith('suno/');
         const isVid = mediaUrl && isVideoUrl(mediaUrl);
         item.className = `v2-gallery-item ${state}${isVid ? ' video-item' : ''}`;
         // Ensure baseTaskId is set if missing
         if (!item.dataset.baseTaskId) item.dataset.baseTaskId = baseTaskId || elementId;
 
         if (state === 'success' && mediaUrl) {
-            item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId);
+            item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl, isSunoItem);
         } else if (state === 'fail' || state === 'failed') {
             item.className = 'v2-gallery-item failed';
             item.innerHTML = '<span>Falhou</span>';
@@ -4351,10 +4363,13 @@ window.mockSunoGeneration = function () {
     const _origUpdateTaskCard = window.updateTaskCard || (typeof updateTaskCard === 'function' ? updateTaskCard : null);
 
     // Patch: after each updateTaskCard call, check if the task is ours
+    const _v2CompletedTasks = new Set();
     const checkV2TaskUpdate = (task) => {
         if (!v2Tasks.includes(task.id)) return;
+        if (_v2CompletedTasks.has(task.id)) return; // Already processed — prevent MutationObserver duplicates
 
         if (task.state === 'success') {
+            _v2CompletedTasks.add(task.id);
             const data = task.data?.data || {};
             const urls = _extractResultUrls(data);
             const isMjTask = task.mode === 'midjourney';
@@ -4371,6 +4386,7 @@ window.mockSunoGeneration = function () {
                 updateV2GalleryItem(task.id, 'success');
             }
         } else if (task.state === 'fail') {
+            _v2CompletedTasks.add(task.id);
             updateV2GalleryItem(task.id, 'failed');
         }
     };
@@ -4415,8 +4431,6 @@ window.mockSunoGeneration = function () {
             const existingIds = new Set(v2.gallery.querySelectorAll('.v2-gallery-item').length ?
                 [...v2.gallery.querySelectorAll('.v2-gallery-item')].map(el => el.dataset.baseTaskId || el.dataset.taskId) : []);
 
-            // Normalise model for family matching
-            const normalise = m => (m || '');
             const MULTI_MODEL_CATS_SRV = ['image', 'tools', 'audio', 'video'];
             const amNorm = v2Model?.model ? modelFamily(v2Model.model) : null;
 
@@ -4526,7 +4540,8 @@ window.mockSunoGeneration = function () {
 
         deduped.forEach(task => {
             // Ensure tracked
-            if (!v2Tasks.includes(task.id)) {
+            // Only track active (processing) tasks for MutationObserver — history items don't need watching
+            if (task.state === 'processing' && !v2Tasks.includes(task.id)) {
                 v2Tasks.push(task.id);
             }
             const isMjTask = task.mode === 'midjourney' || task.cat === 'mj';
