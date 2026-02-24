@@ -639,6 +639,25 @@
                     </div>
                 </div>
 
+                <!-- Negative Prompt (shown for models that support it) -->
+                <div class="v2-form-group hidden" id="v2-group-negative-prompt">
+                    <label class="v2-label">Prompt Negativo <span class="v2-label-hint">— opcional</span></label>
+                    <textarea id="v2-negative-prompt" class="v2-textarea"
+                        placeholder="O que você NÃO quer no resultado..." rows="2" style="min-height: 60px;"></textarea>
+                </div>
+
+                <!-- Multi-Shot Editor (Kling 3.0) -->
+                <div class="v2-form-group hidden" id="v2-group-multishot">
+                    <div class="v2-param-header">
+                        <label class="v2-label">Shots</label>
+                        <span class="v2-label-hint" id="v2-multishot-total">Total: 0s / 15s</span>
+                    </div>
+                    <div id="v2-multishot-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                    <button type="button" id="v2-multishot-add" class="v2-btn-secondary"
+                        style="margin-top: 10px; width: 100%; padding: 10px; border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 13px;">+
+                        Adicionar Shot</button>
+                </div>
+
                 <!-- Upload -->
                 <div class="v2-form-group" id="v2-group-upload">
                     <div class="v2-label-row">

@@ -273,12 +273,12 @@ const MODEL_CONFIGS = {
     },
     'kling-3.0/video': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16'], default: '16:9' },
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['3', '5', '10', '15'], default: '5' },
             { key: 'mode', label: 'Modo', type: 'select', options: ['std', 'pro'], default: 'pro' },
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 5, min: 3, max: 15, step: 1 },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '9:16', '1:1'], default: '16:9' },
             { key: 'sound', label: 'Som', type: 'bool', default: true },
-            { key: 'multi_shots', label: 'Multi-Shot', type: 'bool', default: false },
             { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
+            { key: 'multi_shots', label: 'Multi-Shot', type: 'bool', default: false },
         ]
     },
     'wan/2-6-text-to-video': {
@@ -323,7 +323,135 @@ const MODEL_CONFIGS = {
     // ──── AUDIO ────
     'elevenlabs/text-to-speech-turbo-2-5': {
         params: [
-            { key: 'voice', label: 'Voz', type: 'select', options: ['Rachel', 'Domi', 'Bella', 'Antoni', 'Elli', 'Josh', 'Arnold', 'Adam', 'Sam', 'Glinda', 'Clyde', 'Dorothy', 'Fin', 'Gigi', 'Charlotte', 'Daniel', 'Callum', 'Charlie', 'Emily', 'Lily'], default: 'Rachel' },
+            {
+                key: 'voice', label: 'Voz', type: 'select', options: [
+                    // ── Featured ──
+                    'Rachel', 'Aria', 'Roger', 'Sarah', 'Laura', 'Charlie', 'George', 'Callum', 'River', 'Liam', 'Charlotte', 'Alice', 'Matilda', 'Will', 'Jessica', 'Eric', 'Chris', 'Brian', 'Daniel', 'Lily', 'Bill',
+                    // ── Professional & Narration ──
+                    'BIvP0GN1cAtSRTxNHnWS', // Ellen - Serious, Direct
+                    'aMSt68OGf4xUZAnLpTU8', // Juniper - Grounded
+                    'RILOU7YmBhvwJGDGjNmP', // Jane - Professional Audiobook
+                    'EkK5I93UQWFDigLMpZcX', // James - Husky, Bold
+                    'KoQQbl9zjAdLgKZjm8Ol', // Pro Narrator
+                    '6aDn1KB0hjpdcocrUkmq', // Tiffany - Natural
+                    'hpp4J3VqNfWAUOO0d1Us', // Bella - Professional
+                    'DYkrAHD8iwork3YSUBbs', // Tom - Conversations & Books
+                    'eR40ATw9ArzDf9h3v7t7', // Addison 2.0 - Audiobook
+                    '1hlpeD1ydbI2ow0Tt3EW', // Olivia - Smooth, Warm
+                    'wJqPPQ618aTW29mptyoc', // Ana Rita - Expressive
+                    '6F5Zhi321D3Oq7v1oNT4', // Hank - Deep Narrator
+                    '8JVbfL6oEdmuxKn5DK2C', // Johnny Kid - Calm Narrator
+                    // ── Conversational ──
+                    'exsUS4vynmxd379XN4yO', // Blondie - Conversational
+                    'BpjGufoPiobT79j2vtj4', // Priyanka - Calm, Neutral
+                    '2zRM7PkgwBPiau2jvVXc', // Monika Sogam - Deep
+                    '1SM7GgM6IMuvQlz2BwM3', // Mark - Casual
+                    '5l5f8iK3YPeGga21rQIX', // Adeline - Feminine
+                    'scOwDtmlUjD3prqpp97I', // Sam - Support Agent
+                    'BZgkqPqms7Kj9ulSkVzn', // Eve - Energetic
+                    'wo6udizrrtpIxWGp2qJk', // Northern Terry
+                    'Bj9UqZbhQsanLzgalpEG', // Austin - Raspy
+                    'c6SfcYrb2t09NHXiT80T', // Jarnathan - Versatile
+                    'B8gJV1IhpuegLxdpXFOE', // Kuon - Cheerful
+                    'IjnA9kwZJHJ20Fp7Vmy6', // Matthew - Friendly
+                    'UgBBYS2sOqTuMpoF3BR0', // Mark - Natural
+                    'lcMyyd2HUfFzxdCaC4Ta', // Lucy - Fresh
+                    'cgSgspJ2msm6clMCkdW9', // Jessica - Playful
+                    'MnUw1cSnpiLoLhpd3Hqp', // Heather Rey - Friendly
+                    'FUfBrNit0NNZAwb58KWH', // Angela - Conversational
+                    'g6xIsTj2HwM6VR4iXFCw', // Jessica Anne Bogart - Chatty
+                    'ZF6FPAbjXT4488VcRRnw', // Amelia - Expressive
+                    'DTKMou8ccj1ZaWGBiotd', // Jamahal - Vibrant
+                    'Tsns2HvNFKfGiNjllgqo', // Sven - Emotional
+                    '56AoDkrOh6qfVPDXZ7Pt', // Cassidy - Crisp
+                    'pPdl9cQBQq4p6mRkZy2Z', // Emma - Adorable
+                    // ── Social Media & Energetic ──
+                    'kPzsL2i3teMYv0FxEYQ6', // Brittney - Social Media
+                    'TX3LPaxmHKxFdv7VOQHJ', // Liam - Social Media Creator
+                    'iP95p4xoKVk53GoZ742B', // Chris - Down-to-Earth
+                    'vBKc2FfBKJfcZNyEt1n6', // Finn - Youthful
+                    'FGY2WhTYpPnrIDTdsKH5', // Laura - Quirky
+                    'uYXf8XasLslADfZ2MB4u', // Hope - Bubbly
+                    'tnSpp4vdxKPjI9w0GnoV', // Hope - Upbeat
+                    // ── Announcers & Radio ──
+                    'YOq2y2Up4RgXP2HyXjE5', // Xavier - Metalic Announcer
+                    'NNl6r8mD7vthiJatiJt1', // Bradford - Expressive
+                    'LG95yZDEHg6fCZdQjLqj', // Phil - Explosive Announcer
+                    'CeNX9CMwmxDxUF5Q2Inm', // Johnny Dynamite - Radio DJ
+                    'st7NwhTPEzqo2riw7qWC', // Blondie - Radio Host
+                    'aD6riP1btT197c6dACmy', // Rachel M - British Radio
+                    'x70vRnQBMBu4FAYhjJbO', // Nathan - Virtual Radio
+                    'cTNP6ZM2mLTKj2BFhxEh', // Paul French - Podcaster
+                    'gU0LNdkMOQCOrPrwtbee', // British Football Announcer
+                    'dHd5gvgSOzSfduK4CvEg', // Ed - Late Night Announcer
+                    'FF7KdobWPaiR0vkcALHF', // David - Movie Trailer
+                    'mtrellq69YZsNwzUSyXh', // Rex Thunder - Deep N Tough
+                    // ── Deep & Commanding ──
+                    'pNInz6obpgDQGcFmaJgB', // Adam - Dominant, Firm
+                    'nPczCjzI2devNBz1zQrb', // Brian - Deep, Resonant
+                    'DGzg6RaUqxGRTHSBjfgF', // Brock - Commanding Sergeant
+                    'gs0tAILXbY5DNrJrsM6F', // Jeff - Classy, Strong
+                    'TmNe0cCqkZBMwPWOd3RD', // Smith - Mellow, Bassy
+                    'EiNlNiXeDU1pqqOPrYMO', // John Doe - Deep
+                    'U1Vk2oyatMdYs096Ety7', // Michael - Deep, Dark
+                    'qNkzaJoHLLdpvgh5tISm', // Carter - Rich, Rugged
+                    'L0Dsvb3SLTyegXwtm47J', // Archer
+                    'zYcjlYFOd3taleS0gkk3', // Edward - Loud, Cocky
+                    // ── International & Documentary ──
+                    'DGTOOUoGpoP6UZ9uSWfA', // Célian - Documentary
+                    'P1bg08DkjqiVEzOn76yG', // Viraj - Rich, Soft
+                    'qDuRKMlYmrm8trt5QyBn', // Taksh - Calm, Smooth
+                    'Sq93GQT4X1lKDXsQcixO', // Felix - Warm RP
+                    'AeRdCCKzvd23BpJoofzx', // Nathaniel - British, Calm
+                    '4YYIPFl9wE5c4L2eu2Gb', // Burt Reynolds™ - Deep
+                    '1U02n4nD6AdIZ9CjF053', // Viraj - Smooth, Gentle
+                    // ── Cowboy & Western ──
+                    'KTPVrSVAEUSJRClDzBw7', // Bob - Warm Cowboy
+                    'OYWwCdDHouzDwiZJWOOu', // David - Gruff Cowboy
+                    'YXpFCvM1S3JbWEJhoskW', // Wyatt - Rustic Cowboy
+                    '9PVP7ENhDskL0KYHAKtD', // Jerry B. - Southern
+                    'ruirxsoakN0GWmGNIo04', // John Morgan - Gritty Cowboy
+                    // ── Characters & Villains ──
+                    'Z3R5wn05IrDiVCyEkUrK', // Arabella - Mysterious
+                    'ouL9IsyrSnUkCmfnD02u', // Grimblewood - Snarky Gnome
+                    'NOpBlnGInO9m6vDvFkFC', // Spuds Oxley - Wise
+                    'yjJ45q8TVCrtMhEKurxY', // Dr. Von - Mad Scientist
+                    'kUUTqKQ05NMGulF08DDf', // Guadeloupe - Emotional
+                    'qXpMhyvQqiRxWQs4qSSB', // Horatius - Energetic
+                    'SOYHLrjzK2X1ezoPC6cr', // Harry - Fierce Warrior
+                    'N2lVS1w4EtoT3dr4eOWO', // Callum - Husky Trickster
+                    'XB0fDUnXU5powFXDhCwa', // Charlotte
+                    '0SpgpJ3D3MpHCiWdyTg3', // Matthew Schmitz - Tyrant
+                    'UFO0Yv86wqRxAt1DmXUu', // Sarcastic Sultry Villain
+                    'TC0Zp7WVFzhA8zpTlRqV', // Aria - Sultry Villain
+                    'esy0r39YPLQjOczyOib8', // Britney - Calculative Villain
+                    'bwCXcoVxWNYMlC6Esa8u', // Matthew Schmitz - Anti-Hero
+                    'flHkNRp1BlvT73UL6gyz', // Jessica A.B. - Villain
+                    'eVItLK1UvXctxuaRV2Oq', // Jean - Femme Fatale
+                    'nzeAacJi50IvxcyDnMXa', // Marshal - Funny Professor
+                    '9yzdeviXkFddZ4Oz8Mok', // Lutz - Giggly
+                    'PPzYpIqttlTYA83688JI', // Pirate Marshal
+                    // ── Fantasy & Sci-Fi ──
+                    'vfaqCOvlrKi4Zp7C2IAm', // Malyx - Deep Demon
+                    'piI8Kku0DcvcL6TTSeQt', // Flicker - Cheerful Fairy
+                    'oR4uRy4fHDUGGISL0Rev', // Myrrdin - Magical Narrator
+                    'ljo9gAlSqKOvF6D8sOsX', // Viking Bjorn - Medieval
+                    '1KFdM0QCwQn4rmn5nn9C', // Parasyte - Whispers
+                    'D2jw4N9m4xePLTQ3IHjU', // Ian - Alien
+                    // ── Meditation & ASMR ──
+                    'Atp5cNFg1Wj5gyKD7HWV', // Natasha - Gentle Meditation
+                    '1cxc5c3E9K6F1wlqOJGV', // Emily - Soft, Meditative
+                    'HgyIHe81F3nXywNwkraY', // Nate - Sultry, Seductive
+                    'LruHrtVF6PSyGItzMNHS', // Benjamin - Calming
+                    'Qggl4b0xRMiqOwhPtVWT', // Clara - Relaxing
+                    'zA6D7RyKdc2EClouEMkP', // AImee - ASMR
+                    '1wGbFxmAM3Fgw63G1zZJ', // Allison - Soothing
+                    'hqfrgApggtO1785R4Fsn', // Theodore HQ - Serene
+                    'sH0WdfE5fsKuM2otdQZr', // Koraly - Soft-spoken
+                    'MJ0RnG71ty4LH3dvNfSd', // Leon - Grounded
+                    'iCrDUkL56s3C8sCRl7wb', // Hope - Poetic
+                ], default: 'Rachel'
+            },
             { key: 'stability', label: 'Estabilidade', type: 'number', default: 0.5, min: 0, max: 1, step: 0.05 },
             { key: 'similarity_boost', label: 'Similaridade', type: 'number', default: 0.75, min: 0, max: 1, step: 0.05 },
             { key: 'style', label: 'Estilo', type: 'number', default: 0, min: 0, max: 1, step: 0.05 },
@@ -578,6 +706,15 @@ function loadHistory() {
                 if (!h.cat && h.model.startsWith('mj-')) {
                     h.cat = 'mj';
                     migrated = true;
+                }
+                // Infer cat from model name if still missing
+                if (!h.cat && h.model) {
+                    const m = h.model;
+                    if (m.includes('suno')) { h.cat = 'music'; migrated = true; }
+                    else if (m.includes('elevenlabs')) { h.cat = 'audio'; migrated = true; }
+                    else if (m.includes('topaz') || m.includes('crisp') || m.includes('recraft')) { h.cat = 'tools'; migrated = true; }
+                    else if (m.includes('video') || m.includes('kling') || m.includes('wan') || m.includes('hailuo') || m.includes('sora') || m.includes('veo')) { h.cat = 'video'; migrated = true; }
+                    else if (m.includes('grok-imagine') || m.includes('flux') || m.includes('nano-banana') || m.includes('imagen') || m.includes('qwen') || m.includes('seedream') || m.includes('bytedance') || m.includes('gpt4o')) { h.cat = 'image'; migrated = true; }
                 }
             }
         });
@@ -3160,7 +3297,13 @@ window.mockSunoGeneration = function () {
 
         // ── Generate button label ──
         const btnSpan = v2.btnGenerate.querySelector('span');
-        if (btnSpan) btnSpan.textContent = isVideo ? 'Gerar Vídeo' : isMj ? 'Gerar' : 'Gerar Imagem';
+        const isAudioCat = currentCat === 'audio' || currentCat === 'music';
+        if (btnSpan) {
+            if (isVideo) btnSpan.textContent = 'Gerar Vídeo';
+            else if (isAudioCat) btnSpan.textContent = 'Gerar';
+            else if (isMj) btnSpan.textContent = 'Gerar';
+            else btnSpan.textContent = 'Gerar Imagem';
+        }
 
         // ── Prompt show/hide ──
         const promptGroup = v2.prompt?.closest('.v2-form-group');
@@ -3168,17 +3311,40 @@ window.mockSunoGeneration = function () {
         if (promptGroup) promptGroup.style.display = needsPrompt ? '' : 'none';
 
         // ── Upload zone show/hide + label + max files ──
-        const needsFile = isMjNeedsFile || data.input === 'file' || data.input === 'mix';
+        const isAudio = currentCat === 'audio' || currentCat === 'music';
+        const needsFile = !isAudio && (isMjNeedsFile || data.input === 'file' || data.input === 'mix');
         const uploadGroup = document.getElementById('v2-group-upload');
         if (uploadGroup) uploadGroup.style.display = needsFile ? '' : 'none';
 
-        // For MJ image types: 1 reference; image-to-video: 1; image: up to 8
-        const isAudio = currentCat === 'audio' || currentCat === 'music';
-        v2MaxFiles = isMjNeedsFile ? 1 : (isVideo && data.input === 'file') ? 1 : isAudio ? 1 : 8;
+        // Per-model max reference files (from API docs)
+        const MODEL_MAX_FILES = {
+            'nano-banana-pro': 8,              // up to 8 images
+            'google/nano-banana-edit': 10,      // up to 10 images
+            'bytedance/4.5-text-to-image': 14,  // seedream edit: up to 14
+            'gpt4o-image': 5,                   // up to 5 image URLs
+            'qwen/image-edit': 1,               // single image_url
+            'grok-imagine/text-to-image': 1,    // max one per request
+            'flux-kontext-pro': 1,              // single inputImage
+            'flux-kontext-max': 1,              // single inputImage
+            'flux-2/pro-text-to-image': 0,      // text only
+            'google/imagen4': 0,                // text only
+            'kling-3.0/video': 2,              // first + last frame
+        };
+        const modelKey = data.model || '';
+        if (isMj || isMjNeedsFile) {
+            v2MaxFiles = 1;
+        } else if (isVideo || isAudio) {
+            v2MaxFiles = 1;
+        } else if (modelKey in MODEL_MAX_FILES) {
+            v2MaxFiles = MODEL_MAX_FILES[modelKey];
+        } else {
+            v2MaxFiles = 1; // safe default
+        }
+
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
-            if (isMjNeedsFile || (isVideo && data.input === 'file') || isAudio) {
-                uploadLabel.innerHTML = 'Arquivo de referência <span class="v2-label-hint">— opcional</span>';
+            if (v2MaxFiles <= 1) {
+                uploadLabel.innerHTML = 'Imagem de referência <span class="v2-label-hint">— opcional</span>';
             } else {
                 uploadLabel.innerHTML = `Imagens de referência <span class="v2-label-hint">— opcional, até ${v2MaxFiles}</span>`;
             }
@@ -3189,6 +3355,12 @@ window.mockSunoGeneration = function () {
             v2RenderFilesGrid();
             updateV2GenerateState();
         }
+
+        // ── Negative prompt show/hide ──
+        const negPromptGroup = document.getElementById('v2-group-negative-prompt');
+        const cfg = MODEL_CONFIGS[modelKey];
+        const hasNegPrompt = cfg && cfg.params.some(p => p.key === 'negative_prompt');
+        if (negPromptGroup) negPromptGroup.classList.toggle('hidden', !hasNegPrompt);
     }
 
     function _getMjCostFromV2() {
@@ -3212,6 +3384,9 @@ window.mockSunoGeneration = function () {
         const isSunoGenerate = modelKey === 'suno/generate-music';
 
         cfg.params.forEach(p => {
+            // Skip negative_prompt — rendered in dedicated form field below prompt
+            if (p.key === 'negative_prompt') return;
+
             const group = document.createElement('div');
             group.className = 'v2-param-group';
             group.dataset.paramGroupKey = p.key;
@@ -3221,18 +3396,13 @@ window.mockSunoGeneration = function () {
             }
 
             if (p.type === 'radio') {
-                // Header with current value
+                // Header label only (no redundant value span)
                 const header = document.createElement('div');
                 header.className = 'v2-param-header';
                 const label = document.createElement('label');
                 label.className = 'v2-label';
                 label.textContent = p.label;
-                const valSpan = document.createElement('span');
-                valSpan.className = 'v2-param-value';
-                valSpan.dataset.paramVal = p.key;
-                valSpan.textContent = String(p.default);
                 header.appendChild(label);
-                header.appendChild(valSpan);
                 group.appendChild(header);
 
                 // Pill grid
@@ -3248,7 +3418,6 @@ window.mockSunoGeneration = function () {
                     btn.addEventListener('click', () => {
                         pills.querySelectorAll('.v2-param-pill').forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
-                        valSpan.textContent = opt;
                         v2UpdateCost();
                     });
                     pills.appendChild(btn);
@@ -3261,12 +3430,7 @@ window.mockSunoGeneration = function () {
                 const label = document.createElement('label');
                 label.className = 'v2-label';
                 label.textContent = p.label;
-                const valSpan = document.createElement('span');
-                valSpan.className = 'v2-param-value';
-                valSpan.dataset.paramVal = p.key;
-                valSpan.textContent = String(p.default);
                 header.appendChild(label);
-                header.appendChild(valSpan);
                 group.appendChild(header);
 
                 const sel = document.createElement('select');
@@ -3280,7 +3444,6 @@ window.mockSunoGeneration = function () {
                     sel.appendChild(o);
                 });
                 sel.addEventListener('change', () => {
-                    valSpan.textContent = sel.value;
                     v2UpdateCost();
                 });
                 group.appendChild(sel);
@@ -3291,12 +3454,7 @@ window.mockSunoGeneration = function () {
                 const label = document.createElement('label');
                 label.className = 'v2-label';
                 label.textContent = p.label;
-                const valSpan = document.createElement('span');
-                valSpan.className = 'v2-param-value';
-                valSpan.dataset.paramVal = p.key;
-                valSpan.textContent = String(p.default);
                 header.appendChild(label);
-                header.appendChild(valSpan);
                 group.appendChild(header);
 
                 const wrap = document.createElement('div');
@@ -3314,7 +3472,7 @@ window.mockSunoGeneration = function () {
                 rangeVal.textContent = String(p.default);
                 inp.addEventListener('input', () => {
                     rangeVal.textContent = inp.value;
-                    valSpan.textContent = inp.value;
+                    v2UpdateCost();
                 });
                 wrap.appendChild(inp);
                 wrap.appendChild(rangeVal);
@@ -3357,6 +3515,30 @@ window.mockSunoGeneration = function () {
                                 : 'Descreva o estilo de música que deseja gerar...';
                         }
                     }
+
+                    // Kling multi_shots toggle
+                    if (modelKey === 'kling-3.0/video' && p.key === 'multi_shots') {
+                        const promptGroup = v2.prompt?.closest('.v2-form-group');
+                        const msGroup = document.getElementById('v2-group-multishot');
+                        if (promptGroup) promptGroup.style.display = isActive ? 'none' : '';
+                        if (msGroup) msGroup.classList.toggle('hidden', !isActive);
+                        if (isActive) {
+                            // Also hide the duration select since each shot has its own
+                            const durGroup = container.querySelector('[data-param-group-key="duration"]');
+                            if (durGroup) durGroup.classList.add('hidden');
+                            // Initialize with 2 shots if empty
+                            const msList = document.getElementById('v2-multishot-list');
+                            if (msList && msList.children.length === 0) {
+                                _addMultiShot(msList);
+                                _addMultiShot(msList);
+                            }
+                        } else {
+                            const durGroup = container.querySelector('[data-param-group-key="duration"]');
+                            if (durGroup) durGroup.classList.remove('hidden');
+                        }
+                    }
+
+                    v2UpdateCost();
                 });
                 group.appendChild(toggle);
 
@@ -3427,12 +3609,109 @@ window.mockSunoGeneration = function () {
             }
         });
 
+        // Collect negative_prompt from dedicated form field
+        const negPromptEl = document.getElementById('v2-negative-prompt');
+        if (negPromptEl && negPromptEl.value.trim()) {
+            params.negative_prompt = negPromptEl.value.trim();
+        }
+
+        // Collect multi_prompt for Kling multi-shots
+        if (params.multi_shots === true) {
+            const msList = document.getElementById('v2-multishot-list');
+            if (msList) {
+                const multiPrompt = [];
+                msList.querySelectorAll('.v2-multishot-card').forEach(card => {
+                    const textarea = card.querySelector('textarea');
+                    const durSlider = card.querySelector('input[type="range"]');
+                    if (textarea) {
+                        multiPrompt.push({
+                            prompt: textarea.value.trim(),
+                            duration: durSlider ? parseInt(durSlider.value) : 5
+                        });
+                    }
+                });
+                params.multi_prompt = multiPrompt;
+                delete params.duration; // duration is per-shot in multi-shot mode
+            }
+        }
+
         return params;
+    }
+
+    // ── Multi-Shot helpers (Kling 3.0) ──
+    function _addMultiShot(container) {
+        const idx = container.children.length + 1;
+        const card = document.createElement('div');
+        card.className = 'v2-multishot-card';
+        card.style.cssText = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px;';
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 600; font-size: 13px; color: var(--text-primary);">Shot ${idx}</span>
+                <button type="button" class="v2-multishot-remove" style="background: none; border: none; color: var(--accent-red, #e74c3c); cursor: pointer; font-size: 16px; padding: 2px 6px;" title="Remover">🗑️</button>
+            </div>
+            <textarea class="v2-textarea" placeholder="Prompt do shot ${idx} (máx 2500 chars)" rows="3" maxlength="2500" style="min-height: 70px; margin-bottom: 8px; font-size: 13px;"></textarea>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">Duração</label>
+                <input type="range" min="1" max="12" step="1" value="5" style="flex: 1; accent-color: var(--accent-red, #c0392b);">
+                <span class="v2-ms-dur-val" style="font-size: 13px; color: var(--text-primary); min-width: 24px; text-align: center;">5s</span>
+            </div>
+        `;
+
+        // Duration slider update
+        const slider = card.querySelector('input[type="range"]');
+        const durVal = card.querySelector('.v2-ms-dur-val');
+        slider.addEventListener('input', () => {
+            durVal.textContent = slider.value + 's';
+            _updateMultiShotTotal();
+        });
+
+        // Remove button
+        card.querySelector('.v2-multishot-remove').addEventListener('click', () => {
+            card.remove();
+            _renumberMultiShots();
+            _updateMultiShotTotal();
+        });
+
+        container.appendChild(card);
+        _updateMultiShotTotal();
+    }
+
+    function _renumberMultiShots() {
+        const cards = document.querySelectorAll('#v2-multishot-list .v2-multishot-card');
+        cards.forEach((card, i) => {
+            const title = card.querySelector('span');
+            if (title) title.textContent = `Shot ${i + 1}`;
+        });
+    }
+
+    function _updateMultiShotTotal() {
+        const cards = document.querySelectorAll('#v2-multishot-list .v2-multishot-card');
+        let total = 0;
+        cards.forEach(card => {
+            const slider = card.querySelector('input[type="range"]');
+            if (slider) total += parseInt(slider.value);
+        });
+        const remaining = Math.max(0, 15 - total);
+        const el = document.getElementById('v2-multishot-total');
+        if (el) {
+            el.textContent = `Total: ${total}s / 15s (Restante: ${remaining}s)`;
+            el.style.color = total > 15 ? 'var(--accent-red, #e74c3c)' : '';
+        }
+    }
+
+    // + Add Shot button
+    const addShotBtn = document.getElementById('v2-multishot-add');
+    if (addShotBtn) {
+        addShotBtn.addEventListener('click', () => {
+            const msList = document.getElementById('v2-multishot-list');
+            if (msList) _addMultiShot(msList);
+        });
     }
 
     function v2UpdateCost() {
         const isMj = currentCat === 'mj';
         const isVeo = currentCat === 'veo3';
+        const isKling = v2Model?.model === 'kling-3.0/video';
         if (isMj) {
             if (v2.creditsAmount) v2.creditsAmount.textContent = `~${_getMjCostFromV2()} créditos`;
         } else if (isVeo) {
@@ -3441,6 +3720,42 @@ window.mockSunoGeneration = function () {
             const base = (v2Model?.model || 'veo3/text-to-video').replace('-video', `-video-${quality}`);
             const cost = getModelCost(base) || getModelCost(v2Model?.model);
             if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
+        } else if (isKling) {
+            const params = v2CollectModelParams();
+            const isPro = params.mode === 'pro';
+            const hasSound = params.sound !== false;
+            // Per-second rates: pro+audio=40, pro-audio=27, std+audio=30, std-audio=20
+            const rate = isPro ? (hasSound ? 40 : 27) : (hasSound ? 30 : 20);
+            let dur = params.duration || 5;
+            if (params.multi_shots && params.multi_prompt) {
+                dur = params.multi_prompt.reduce((sum, s) => sum + (s.duration || 5), 0);
+            }
+            const cost = rate * dur;
+            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${cost} créditos`;
+        } else if (v2Model?.model?.startsWith('wan/')) {
+            const params = v2CollectModelParams();
+            const res = params.resolution || '720p';
+            // Wan 2.6 per-video costs (5s default): 720p=70, 1080p=104.5
+            const wanCost = res === '1080p' ? 104.5 : 70;
+            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${wanCost} créditos`;
+        } else if (v2Model?.model?.startsWith('grok-imagine/') && (v2Model.model.includes('video'))) {
+            const params = v2CollectModelParams();
+            const res = params.resolution || '480p';
+            const dur = parseInt(params.duration) || 6;
+            // Grok video: 480p 6s=10, 10s=20; 720p 6s=20, 10s=30
+            let grokCost;
+            if (res === '720p') {
+                grokCost = dur <= 6 ? 20 : 30;
+            } else {
+                grokCost = dur <= 6 ? 10 : 20;
+            }
+            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${grokCost} créditos`;
+        } else if (v2Model?.model === 'topaz/image-upscale') {
+            const params = v2CollectModelParams();
+            const factor = parseInt(params.upscale_factor) || 2;
+            // Topaz: 2K (factor 2) = 10, 4K (factor 4) = 20
+            const topazCost = factor >= 4 ? 20 : 10;
+            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${topazCost} créditos`;
         } else {
             const cost = typeof getModelCost === 'function' ? getModelCost(v2Model?.model) : null;
             if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
@@ -3908,11 +4223,24 @@ window.mockSunoGeneration = function () {
             if (tc === 'suno') tc = 'music';
             if (tc === 'midjourney') tc = 'mj';
             if (tc === 'veo') tc = 'video';
+            if (tc === 'veo3') tc = 'video';
+            if (tc === 'vid-txt') tc = 'video';
+            if (tc === 'vid-img') tc = 'video';
+
+            // Fallback: if no cat, try to infer from mode
+            if (!tc && t.mode === 'midjourney') tc = 'mj';
+            if (!tc && t.mode === 'market') {
+                // Try to infer from model name
+                const m = t.model || '';
+                if (m.includes('suno')) tc = 'music';
+                else if (m.includes('elevenlabs')) tc = 'audio';
+                else if (m.includes('topaz') || m.includes('crisp') || m.includes('recraft')) tc = 'tools';
+                else if (m.includes('video') || m.includes('kling') || m.includes('wan') || m.includes('hailuo') || m.includes('sora') || m.includes('veo')) tc = 'video';
+                else tc = 'image';
+            }
 
             // Show any task matching the current category
             if (tc !== currentCat) return false;
-
-            // Allow if it matches current category (it'll be added to v2Tasks below)
             return true;
         });
 
@@ -3924,17 +4252,29 @@ window.mockSunoGeneration = function () {
 
         v2.galleryEmpty.style.display = 'none';
 
-        v2TaskList.forEach(task => {
+        // Deduplicate by task id (active tasks take priority over history entries)
+        const seen = new Set();
+        const deduped = v2TaskList.filter(t => {
+            if (seen.has(t.id)) return false;
+            seen.add(t.id);
+            return true;
+        });
+
+        deduped.forEach(task => {
             // Ensure tracked
             if (!v2Tasks.includes(task.id)) {
                 v2Tasks.push(task.id);
-                sessionStorage.setItem('v2_tasks', JSON.stringify(v2Tasks));
             }
-            const isMjTask = task.mode === 'midjourney';
+            const isMjTask = task.mode === 'midjourney' || task.cat === 'mj';
 
             if (task.state === 'success') {
+                // Active tasks have data.data; history entries have urls[] directly
                 const data = task.data?.data || {};
-                const urls = _extractResultUrls(data);
+                let urls = _extractResultUrls(data);
+                // Fallback: history items from localStorage store URLs in task.urls
+                if (urls.length === 0 && Array.isArray(task.urls) && task.urls.length > 0) {
+                    urls = task.urls;
+                }
                 if (urls.length > 0) {
                     urls.forEach((url, i) => {
                         addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id);
@@ -3946,6 +4286,7 @@ window.mockSunoGeneration = function () {
                 addV2GalleryItem(task.id, 'processing');
             }
         });
+        sessionStorage.setItem('v2_tasks', JSON.stringify(v2Tasks));
         updateV2GalleryCount();
     }
 
