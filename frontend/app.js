@@ -174,7 +174,7 @@ const MODEL_CONFIGS = {
     // ──── IMAGE MODELS ────
     'nano-banana-pro': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
             { key: 'output_format', label: 'Formato', type: 'select', options: ['png', 'jpg'], default: 'png' },
         ]
@@ -3100,7 +3100,6 @@ window.mockSunoGeneration = function () {
         fileInput: document.getElementById('v2-file-input'),
         filesGrid: document.getElementById('v2-files-grid'),
         fileCounter: document.getElementById('v2-file-counter'),
-        filter: document.getElementById('v2-filter'),
         btnGenerate: document.getElementById('v2-btn-generate'),
         btnBack: document.getElementById('v2-btn-back'),
         btnReset: document.getElementById('v2-btn-reset'),
@@ -3176,10 +3175,7 @@ window.mockSunoGeneration = function () {
         const cost = isMj ? _getMjCostFromV2() : (typeof getModelCost === 'function' ? getModelCost(data.model) : null);
         if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
 
-        // Filter only for image (not MJ, not video)
-        const hideImageExtras = isVideo || isMj;
-        const filterGroup = document.getElementById('v2-group-filter');
-        if (filterGroup) filterGroup.style.display = hideImageExtras ? 'none' : '';
+        // Filter removed
 
         // ── Generate button label ──
         const btnSpan = v2.btnGenerate.querySelector('span');
@@ -3552,7 +3548,6 @@ window.mockSunoGeneration = function () {
     v2.btnReset.addEventListener('click', () => {
         v2Settings = { ...DEFAULT_V2_SETTINGS };
         if (v2Model?.model) v2RenderModelParams(v2Model.model);
-        if (v2.filter) v2.filter.value = DEFAULT_V2_SETTINGS.filter;
         if (v2.creditsAmount) v2.creditsAmount.textContent = '—';
         v2ClearAllFiles();
     });
@@ -3663,13 +3658,6 @@ window.mockSunoGeneration = function () {
     async function _handleStandardSubmission(prompt, btnSpan, modelParams) {
         const extra = { ...modelParams };
         if (prompt) extra.prompt = prompt;
-
-        // Apply filter style to prompt if set
-        const filterVal = v2.filter?.value;
-        if (filterVal && filterVal !== 'none') {
-            extra.prompt = extra.prompt ? `${extra.prompt}, ${filterVal} style` : `${filterVal} style`;
-        }
-
         const resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
 
