@@ -778,11 +778,22 @@ function _extractResultUrls(data) {
         if (Array.isArray(data.response.resultUrls)) urls.push(...data.response.resultUrls);
         if (Array.isArray(data.response.originUrls)) urls.push(...data.response.originUrls);
     }
-    // Suno: response.sunoData[] with audioUrl
+    // Suno: response.sunoData[] with audioUrl (camelCase) OR audio_url (snake_case)
     if (data.response && Array.isArray(data.response.sunoData)) {
         data.response.sunoData.forEach(track => {
             if (track.audioUrl) urls.push(track.audioUrl);
+            else if (track.audio_url) urls.push(track.audio_url);
             if (track.sourceAudioUrl && track.sourceAudioUrl !== track.audioUrl) urls.push(track.sourceAudioUrl);
+            else if (track.source_audio_url && track.source_audio_url !== track.audio_url) urls.push(track.source_audio_url);
+        });
+    }
+    // Suno alternative shape: data.data[] = array of tracks (some API versions)
+    if (Array.isArray(data.data)) {
+        data.data.forEach(track => {
+            if (typeof track === 'object' && track !== null) {
+                const au = track.audioUrl || track.audio_url || track.sourceAudioUrl || track.source_audio_url;
+                if (au && typeof au === 'string' && au.startsWith('http')) urls.push(au);
+            }
         });
     }
     // Flat video_url (Runway etc)
@@ -808,10 +819,19 @@ function addToHistory(task) {
         extraParams: task._extraParams || null,
         timestamp: Date.now(),
         costTime: data.costTime || null,
-        // Suno cover art for thumbnail display
-        coverUrl: data.response?.sunoData?.[0]?.imageUrl || null,
-        trackTitle: data.response?.sunoData?.[0]?.title || null,
-        sunoData: data.response?.sunoData || null,
+        // Suno: normalise track data regardless of API response shape
+        coverUrl: data.response?.sunoData?.[0]?.imageUrl
+            || data.response?.sunoData?.[0]?.image_url
+            || (Array.isArray(data.data) ? data.data[0]?.imageUrl || data.data[0]?.image_url : null)
+            || null,
+        trackTitle: data.response?.sunoData?.[0]?.title
+            || (Array.isArray(data.data) ? data.data[0]?.title : null)
+            || null,
+        sunoData: data.response?.sunoData
+            || (Array.isArray(data.data) && data.data[0]?.audioUrl !== undefined ? data.data : null)
+            || (Array.isArray(data.data) && data.data[0]?.audio_url !== undefined ?
+                data.data.map(t => ({ ...t, audioUrl: t.audio_url || t.audioUrl, imageUrl: t.image_url || t.imageUrl })) : null)
+            || null,
     };
 
     const history = loadHistory();
@@ -4309,6 +4329,15 @@ window.mockSunoGeneration = function () {
                     entry = t; // history entries already have the right shape
                 } else {
                     const data = t.data?.data || {};
+                    // Normalise sunoData — handle both response shapes and camelCase vs snake_case
+                    const rawSunoData = data.response?.sunoData
+                        || (Array.isArray(data.data) && (data.data[0]?.audioUrl || data.data[0]?.audio_url) ? data.data : null);
+                    const normSunoData = rawSunoData?.map(s => ({
+                        ...s,
+                        audioUrl: s.audioUrl || s.audio_url || '',
+                        imageUrl: s.imageUrl || s.image_url || '',
+                        sourceAudioUrl: s.sourceAudioUrl || s.source_audio_url || '',
+                    })) || null;
                     entry = {
                         id: t.id,
                         model: t.model,
@@ -4320,9 +4349,9 @@ window.mockSunoGeneration = function () {
                         extraParams: t._extraParams || null,
                         timestamp: Date.now(),
                         costTime: data.costTime || null,
-                        coverUrl: data.response?.sunoData?.[0]?.imageUrl || null,
-                        trackTitle: data.response?.sunoData?.[0]?.title || null,
-                        sunoData: data.response?.sunoData || null,
+                        coverUrl: normSunoData?.[0]?.imageUrl || null,
+                        trackTitle: normSunoData?.[0]?.title || null,
+                        sunoData: normSunoData,
                         data: data
                     };
                 }
