@@ -2696,7 +2696,7 @@ function openHistoryLightbox(entry) {
 
     const overlay = document.createElement('div');
     overlay.id = 'history-lightbox';
-    overlay.className = 'lightbox-overlay';
+    overlay.className = `lightbox-overlay${isVid ? ' video-mode' : ''}`;
     overlay.innerHTML = `
         <div class="lightbox-backdrop"></div>
         <div class="lightbox-content">
