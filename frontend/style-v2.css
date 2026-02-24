@@ -3169,6 +3169,133 @@ body.cat-veo3 .btn-primary:hover {
     pointer-events: none;
 }
 
+/* ── Suno Inline Edit Panel ── */
+.suno-inline-panel {
+    margin-top: 10px;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    animation: fadeSlideIn 0.15s ease;
+}
+
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.suno-panel-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.suno-panel-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.suno-panel-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.suno-panel-hint {
+    opacity: 0.5;
+    font-size: 9px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.suno-panel-input {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--mono);
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.suno-panel-input:focus {
+    border-color: var(--accent);
+}
+
+.suno-panel-radios {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.suno-panel-radio {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.suno-panel-radio input {
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.suno-panel-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.suno-panel-confirm {
+    padding: 6px 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.suno-panel-confirm:hover {
+    opacity: 0.85;
+}
+
+.suno-panel-confirm:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.suno-panel-cancel {
+    padding: 6px 12px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.suno-panel-cancel:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text);
+}
+
 /* ── Lightbox Grid ── */
 .lightbox-grid {
     max-width: 100%;

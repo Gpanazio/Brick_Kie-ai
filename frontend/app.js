@@ -486,6 +486,7 @@ const MODEL_CONFIGS = {
     // ──── SUNO / MUSIC ────
     'suno/generate-music': {
         params: [
+            { key: 'suno_mode', label: 'Modo', type: 'select', options: ['Música', 'Letra'], default: 'Música' },
             { key: 'model', label: 'Modelo Suno', type: 'select', options: ['V3_5', 'V4', 'V4_5', 'V4_5PLUS', 'V5'], default: 'V4_5' },
             { key: 'custom_mode', label: 'Modo Avançado', type: 'bool', default: false },
             { key: 'style', label: 'Estilo Musical', type: 'text', default: '' },
@@ -493,7 +494,6 @@ const MODEL_CONFIGS = {
             { key: 'instrumental', label: 'Só Instrumental', type: 'bool', default: false },
         ]
     },
-    'suno/generate-lyrics': { params: [] },
     'suno/edit-audio': {
         params: [
             { key: 'suno_action', label: 'Ação', type: 'select', options: ['Extend Music', 'Add Instrumental', 'Add Vocals', 'Separate Vocals'], default: 'Extend Music' },
@@ -1146,6 +1146,15 @@ function enterWorkspace(cat) {
     if (els.btnModelPicker) els.btnModelPicker.classList.remove('has-model');
     // Hide inline params
     if (els.configPanel) els.configPanel.classList.add('hidden');
+    if (cat === 'music') {
+        // Suno goes directly to workspace — no model picker step
+        const tplItem = tpl?.content.querySelector('[data-model="suno/generate-music"]');
+        if (tplItem && typeof window._v2ShowWorkspace === 'function') {
+            setTimeout(() => window._v2ShowWorkspace({ ...tplItem.dataset }), 60);
+        }
+        return;
+    }
+
     // Open model picker modal so user chooses a model first
     if (_currentCatItems.length > 0) {
         setTimeout(() => openModelPickerModal(), 50);
@@ -1813,6 +1822,12 @@ async function submitSunoModel() {
         resolvedModel = SUNO_ACTION_MAP[resolvedModel][action] || resolvedModel;
         delete extra.suno_action;
     }
+
+    // Route suno_mode toggle: 'Letra' uses suno/generate-lyrics endpoint
+    if (resolvedModel === 'suno/generate-music' && extra.suno_mode === 'Letra') {
+        resolvedModel = 'suno/generate-lyrics';
+    }
+    delete extra.suno_mode; // don't send this meta-key to the API
 
     // If "Generate Music" and there's a file, it means they want an audio Cover
     if (resolvedModel === 'suno/generate-music' && selectedFile) {
@@ -3090,7 +3105,99 @@ document.body.addEventListener('click', async (e) => {
     }
 });
 
-// Suno post-actions (Extend, Add Instrumental, Add Vocals, Separate, Music Video, WAV)
+// ── Suno post-actions (Extend, Separate, +Instr, +Vocal, Clipe, WAV) ──
+// Actions needing extra params expand an inline panel inside the track card;
+// simple actions submit immediately.
+const SUNO_NEEDS_PANEL = new Set(['suno/extend-music', 'suno/separate-vocals']);
+
+async function _submitSunoAction(model, audioId, taskId, extra, lightboxEl) {
+    const fd = new FormData();
+    fd.append('model', model);
+    fd.append('input_json', JSON.stringify({ audioId, taskId, ...extra }));
+    const resp = await fetch(`${API}/api/suno/create`, { method: 'POST', body: fd });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.detail || 'Falha ao executar ação Suno');
+    const newTaskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
+    if (newTaskId) {
+        const label = model.split('/').pop().replace(/-/g, ' ');
+        addTask(newTaskId, model, 'suno', null, { parentTaskId: taskId, audioId });
+        toast(`✅ Suno ${label} enviado!`, 'success');
+        if (lightboxEl) closeLightbox(lightboxEl);
+    }
+}
+
+function _buildSunoPanel(model, audioId, taskId, lightboxEl) {
+    const panel = document.createElement('div');
+    panel.className = 'suno-inline-panel';
+    panel.dataset.model = model;
+
+    if (model === 'suno/extend-music') {
+        panel.innerHTML = `
+            <div class="suno-panel-fields">
+                <div class="suno-panel-field">
+                    <label class="suno-panel-label">Estilo <span class="suno-panel-hint">— opcional</span></label>
+                    <input class="suno-panel-input" id="sp-style" type="text" placeholder="ex: synthwave, epic, dark...">
+                </div>
+                <div class="suno-panel-field">
+                    <label class="suno-panel-label">Continuar em (seg) <span class="suno-panel-hint">— 0 = fim</span></label>
+                    <input class="suno-panel-input" id="sp-continue" type="number" min="0" max="600" placeholder="0" value="0">
+                </div>
+                <div class="suno-panel-field">
+                    <label class="suno-panel-label">Tags <span class="suno-panel-hint">— opcional</span></label>
+                    <input class="suno-panel-input" id="sp-tags" type="text" placeholder="ex: bass, guitar...">
+                </div>
+            </div>
+            <div class="suno-panel-actions">
+                <button class="suno-panel-confirm">🔁 Gerar Extend</button>
+                <button class="suno-panel-cancel">Cancelar</button>
+            </div>`;
+
+        panel.querySelector('.suno-panel-confirm').addEventListener('click', async (ev) => {
+            const confirmBtn = ev.currentTarget;
+            const extra = {};
+            const style = panel.querySelector('#sp-style').value.trim();
+            const cont = parseInt(panel.querySelector('#sp-continue').value) || 0;
+            const tags = panel.querySelector('#sp-tags').value.trim();
+            if (style) extra.style = style;
+            if (cont > 0) extra.continueAt = cont;
+            if (tags) extra.tags = tags;
+            confirmBtn.textContent = '⏳ Enviando...';
+            confirmBtn.disabled = true;
+            try { await _submitSunoAction(model, audioId, taskId, extra, lightboxEl); panel.remove(); }
+            catch (err) { toast(`❌ ${err.message}`, 'error'); confirmBtn.textContent = '🔁 Gerar Extend'; confirmBtn.disabled = false; }
+        });
+
+    } else if (model === 'suno/separate-vocals') {
+        panel.innerHTML = `
+            <div class="suno-panel-fields">
+                <div class="suno-panel-field">
+                    <label class="suno-panel-label">Separar</label>
+                    <div class="suno-panel-radios">
+                        <label class="suno-panel-radio"><input type="radio" name="sp-type" value="vocals"> Só Vocais</label>
+                        <label class="suno-panel-radio"><input type="radio" name="sp-type" value="instrumental"> Só Instrumental</label>
+                        <label class="suno-panel-radio"><input type="radio" name="sp-type" value="both" checked> Ambos</label>
+                    </div>
+                </div>
+            </div>
+            <div class="suno-panel-actions">
+                <button class="suno-panel-confirm">✂️ Separar</button>
+                <button class="suno-panel-cancel">Cancelar</button>
+            </div>`;
+
+        panel.querySelector('.suno-panel-confirm').addEventListener('click', async (ev) => {
+            const confirmBtn = ev.currentTarget;
+            const type = panel.querySelector('input[name="sp-type"]:checked')?.value || 'both';
+            confirmBtn.textContent = '⏳ Enviando...';
+            confirmBtn.disabled = true;
+            try { await _submitSunoAction(model, audioId, taskId, { type }, lightboxEl); panel.remove(); }
+            catch (err) { toast(`❌ ${err.message}`, 'error'); confirmBtn.textContent = '✂️ Separar'; confirmBtn.disabled = false; }
+        });
+    }
+
+    panel.querySelector('.suno-panel-cancel').addEventListener('click', () => panel.remove());
+    return panel;
+}
+
 document.body.addEventListener('click', async (e) => {
     const btn = e.target.closest('.suno-action');
     if (!btn) return;
@@ -3100,51 +3207,33 @@ document.body.addEventListener('click', async (e) => {
     const taskId = btn.dataset.taskId;
     if (!model || !taskId) return;
 
+    const trackCard = btn.closest('.suno-track-card');
+    const lightboxEl = btn.closest('#history-lightbox');
+
+    // Toggle inline panel for actions needing extra params
+    if (SUNO_NEEDS_PANEL.has(model)) {
+        const existing = trackCard?.querySelector(`.suno-inline-panel[data-model="${model}"]`);
+        if (existing) { existing.remove(); return; } // toggle off
+        trackCard?.querySelectorAll('.suno-inline-panel').forEach(p => p.remove()); // close others
+        const panel = _buildSunoPanel(model, audioId, taskId, lightboxEl);
+        // Insert after last action row
+        const lastRow = trackCard?.querySelector('.suno-actions-row:last-of-type') || btn.parentElement;
+        lastRow.after(panel);
+        panel.querySelector('input:not([type="radio"])')?.focus();
+        return;
+    }
+
+    // Simple actions — submit immediately
     const prevText = btn.textContent;
-    btn.textContent = '...';
+    btn.textContent = '⏳';
     btn.disabled = true;
-    btn.classList.add('loading');
-
     try {
-        const extra = {};
-        if (audioId) extra.audioId = audioId;
-        if (taskId) extra.taskId = taskId;
-
-        // For extend-music, ask for style/tags optionally
-        if (model === 'suno/extend-music') {
-            const style = window.prompt('Estilo musical para extensão (opcional, deixe vazio para manter):');
-            if (style === null) { btn.textContent = prevText; btn.disabled = false; btn.classList.remove('loading'); return; }
-            if (style.trim()) extra.style = style.trim();
-        }
-
-        // For separate-vocals, set type=both by default
-        if (model === 'suno/separate-vocals') {
-            extra.type = 'both';
-        }
-
-        const fd = new FormData();
-        fd.append('model', model);
-        fd.append('input_json', JSON.stringify(extra));
-
-        const resp = await fetch(`${API}/api/suno/create`, { method: 'POST', body: fd });
-        const json = await resp.json();
-        if (!resp.ok) throw new Error(json.detail || 'Falha ao executar ação Suno');
-
-        const newTaskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
-        if (newTaskId) {
-            const label = model.split('/').pop().replace(/-/g, ' ');
-            addTask(newTaskId, model, 'suno', null, { parentTaskId: taskId, audioId });
-            toast(`✅ Suno ${label} enviado!`, 'success');
-
-            const targetLightbox = e.target.closest('#history-lightbox');
-            if (targetLightbox) closeLightbox(targetLightbox);
-        }
+        await _submitSunoAction(model, audioId, taskId, {}, lightboxEl);
     } catch (err) {
         toast(`❌ Erro Suno: ${err.message}`, 'error');
     } finally {
         btn.textContent = prevText;
         btn.disabled = false;
-        btn.classList.remove('loading');
     }
 });
 
@@ -3303,8 +3392,10 @@ window.mockSunoGeneration = function () {
         // ── Generate button label ──
         const btnSpan = v2.btnGenerate.querySelector('span');
         const isAudioCat = currentCat === 'audio' || currentCat === 'music';
+        const isSunoMain = data.model === 'suno/generate-music';
         if (btnSpan) {
             if (isVideo) btnSpan.textContent = 'Gerar Vídeo';
+            else if (isSunoMain) btnSpan.textContent = 'Gerar Música';
             else if (isAudioCat) btnSpan.textContent = 'Gerar';
             else if (isMj) btnSpan.textContent = 'Gerar';
             else btnSpan.textContent = 'Gerar Imagem';
@@ -3450,6 +3541,21 @@ window.mockSunoGeneration = function () {
                 });
                 sel.addEventListener('change', () => {
                     v2UpdateCost();
+                    // Suno mode toggle: show/hide music-only params
+                    if (p.key === 'suno_mode') {
+                        const isLyrics = sel.value === 'Letra';
+                        const MUSIC_ONLY = new Set(['model', 'custom_mode', 'style', 'title', 'instrumental']);
+                        container.querySelectorAll('.v2-param-group').forEach(g => {
+                            if (MUSIC_ONLY.has(g.dataset.paramGroupKey)) {
+                                g.classList.toggle('hidden', isLyrics);
+                            }
+                        });
+                        const btnSpan = v2.btnGenerate?.querySelector('span');
+                        if (btnSpan) btnSpan.textContent = isLyrics ? 'Gerar Letra' : 'Gerar Música';
+                        if (v2.prompt) v2.prompt.placeholder = isLyrics
+                            ? 'Descreva o tema, vibe ou história da letra...'
+                            : 'Descreva o estilo, vibe ou letra da música...';
+                    }
                 });
                 group.appendChild(sel);
 
@@ -3987,6 +4093,13 @@ window.mockSunoGeneration = function () {
         if (prompt) extra.prompt = prompt;
 
         let resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
+
+        // Suno mode toggle: 'Letra' → suno/generate-lyrics
+        if (resolvedModel === 'suno/generate-music' && extra.suno_mode === 'Letra') {
+            resolvedModel = 'suno/generate-lyrics';
+        }
+        delete extra.suno_mode;
+
         if (v2Files.length > 0) {
             if (resolvedModel === 'grok-imagine/text-to-image') resolvedModel = 'grok-imagine/image-to-image';
             if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
@@ -4286,17 +4399,33 @@ window.mockSunoGeneration = function () {
         // Check both active tasks and history so finished/failed tasks don't disappear
         const allTracked = [...tasks, ...loadHistory()];
 
-        // Also fetch server-side history (async merge)
+        // Also fetch server-side history (async merge) — filter by model too
         _fetchServerHistory(currentCat).then(serverItems => {
             if (!serverItems.length) return;
             const existingIds = new Set(v2.gallery.querySelectorAll('.v2-gallery-item').length ?
                 [...v2.gallery.querySelectorAll('.v2-gallery-item')].map(el => el.dataset.baseTaskId || el.dataset.taskId) : []);
+
+            // Normalise model strings for variant matching (same as v2TaskList filter)
+            const normalise = m => (m || '')
+                .replace('image-to-image', 'text-to-image')
+                .replace('image-to-video', 'text-to-video')
+                .replace('-image-to-video', '-text-to-video')
+                .replace('/edit', '/text-to-image')
+                .replace('image-upscale', 'video-upscale');
+            const MULTI_MODEL_CATS_SRV = ['image', 'tools', 'audio', 'video'];
+            const amNorm = v2Model?.model ? normalise(v2Model.model) : null;
+
             serverItems.forEach(task => {
                 if (existingIds.has(task.id)) return;
+                // Filter by model for shared categories
+                if (amNorm && MULTI_MODEL_CATS_SRV.includes(currentCat)) {
+                    if (normalise(task.model) !== amNorm) return;
+                }
                 if (task.state === 'success' && Array.isArray(task.urls) && task.urls.length > 0) {
                     const isMjTask = task.cat === 'mj';
+                    const coverU = task.coverUrl || null;
                     task.urls.forEach((url, i) => {
-                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id);
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU);
                     });
                 }
             });
