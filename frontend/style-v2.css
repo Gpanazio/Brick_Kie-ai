@@ -5383,7 +5383,7 @@ body.cat-veo3 .btn-primary:hover {
     background: var(--surface-3);
     border: 1px solid var(--border);
     color: var(--text-muted);
-    transition: all 0.15s;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .lightbox-overlay.video-mode .lightbox-close:hover {
@@ -5451,8 +5451,8 @@ body.cat-veo3 .btn-primary:hover {
 }
 
 .lightbox-overlay.video-mode .btn-download:hover {
-    background: #b91c1c;
-    border-color: #b91c1c;
+    background: var(--accent-dark, #b91c1c);
+    border-color: var(--accent-dark, #b91c1c);
     color: #fff;
 }
 
@@ -5477,11 +5477,7 @@ body.cat-veo3 .btn-primary:hover {
     margin-left: auto;
 }
 
-.lightbox-overlay.video-mode .lightbox-delete:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-dim);
-}
+/* .lightbox-delete:hover is handled by .btn-ghost.btn-sm:hover above */
 
 /* Veo / MJ special model actions — subtle highlight */
 .lightbox-overlay.video-mode .veo-action,
@@ -5523,5 +5519,4 @@ body.cat-veo3 .btn-primary:hover {
     .lightbox-overlay.video-mode .lightbox-delete {
         margin-left: 0;
     }
-}
 }
