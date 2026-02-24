@@ -176,18 +176,16 @@ const MODEL_CONFIGS = {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
-            { key: 'output_format', label: 'Formato', type: 'select', options: ['png', 'jpg'], default: 'png' },
         ]
     },
     'google/nano-banana-edit': {
         params: [
-            { key: 'image_size', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '5:4', '4:5', '21:9', 'auto'], default: '1:1' },
-            { key: 'output_format', label: 'Formato', type: 'select', options: ['png', 'jpeg'], default: 'png' },
+            { key: 'image_size', label: 'Aspect Ratio', type: 'select', options: ['1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '5:4', '4:5', '21:9', 'auto'], default: '1:1' },
         ]
     },
     'grok-imagine/text-to-image': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '16:9', '9:16'], default: '1:1' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '16:9', '9:16'], default: '1:1' },
         ]
     },
     'grok-imagine/image-to-image': {
@@ -195,23 +193,21 @@ const MODEL_CONFIGS = {
     },
     'gpt4o-image': {
         params: [
-            { key: 'size', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '1:1' },
+            { key: 'size', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '1:1' },
             { key: 'nVariants', label: 'Variantes', type: 'select', options: ['1', '2', '3', '4'], default: '1' },
             { key: 'isEnhance', label: 'Enhance Prompt', type: 'bool', default: false },
         ]
     },
     'flux-kontext-pro': {
         params: [
-            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
-            { key: 'outputFormat', label: 'Formato', type: 'select', options: ['jpeg', 'png'], default: 'jpeg' },
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
             { key: 'promptUpsampling', label: 'Prompt Upsampling', type: 'bool', default: false },
             { key: 'safetyTolerance', label: 'Safety Tolerance', type: 'number', default: 2, min: 0, max: 6, step: 1 },
         ]
     },
     'flux-kontext-max': {
         params: [
-            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
-            { key: 'outputFormat', label: 'Formato', type: 'select', options: ['jpeg', 'png'], default: 'jpeg' },
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
             { key: 'promptUpsampling', label: 'Prompt Upsampling', type: 'bool', default: false },
             { key: 'safetyTolerance', label: 'Safety Tolerance', type: 'number', default: 2, min: 0, max: 6, step: 1 },
         ]
@@ -225,19 +221,19 @@ const MODEL_CONFIGS = {
     },
     'seedream/4.5-edit': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], default: '1:1' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], default: '1:1' },
             { key: 'quality', label: 'Qualidade', type: 'select', options: ['basic', 'high'], default: 'basic' },
         ]
     },
     'flux-2/pro-text-to-image': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K'], default: '1K' },
         ]
     },
     'google/imagen4': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
             { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
             { key: 'seed', label: 'Seed', type: 'text', default: '' },
         ]
@@ -257,7 +253,6 @@ const MODEL_CONFIGS = {
             { key: 'image_size', label: 'Tamanho', type: 'select', options: ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'square_hd' },
             { key: 'num_inference_steps', label: 'Steps', type: 'number', default: 30, min: 1, max: 50, step: 1 },
             { key: 'guidance_scale', label: 'Guidance', type: 'number', default: 2.5, min: 1, max: 20, step: 0.5 },
-            { key: 'output_format', label: 'Formato', type: 'select', options: ['png', 'jpeg', 'webp'], default: 'png' },
             { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
             { key: 'enable_safety_checker', label: 'Safety', type: 'bool', default: true },
             { key: 'acceleration', label: 'Aceleração', type: 'select', options: ['none'], default: 'none' },
@@ -299,7 +294,7 @@ const MODEL_CONFIGS = {
     },
     'kling-3.0/video': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16'], default: '16:9' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16'], default: '16:9' },
             { key: 'duration', label: 'Duração (s)', type: 'select', options: ['3', '5', '10', '15'], default: '5' },
             { key: 'mode', label: 'Modo', type: 'select', options: ['std', 'pro'], default: 'pro' },
             { key: 'sound', label: 'Som', type: 'bool', default: true },
@@ -310,7 +305,7 @@ const MODEL_CONFIGS = {
     'wan/2-2-a14b-text-to-video-turbo': {
         params: [
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '16:9' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '16:9' },
             { key: 'enable_prompt_expansion', label: 'Expand Prompt', type: 'bool', default: false },
             { key: 'seed', label: 'Seed', type: 'number', default: 0, min: 0, max: 99999, step: 1 },
             { key: 'acceleration', label: 'Aceleração', type: 'select', options: ['none'], default: 'none' },
@@ -318,7 +313,7 @@ const MODEL_CONFIGS = {
     },
     'grok-imagine/text-to-video': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '16:9', '9:16', '2:3', '3:2', '4:3', '3:4'], default: '16:9' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '2:3', '3:2', '4:3', '3:4'], default: '16:9' },
             { key: 'mode', label: 'Modo', type: 'select', options: ['fun', 'normal', 'spicy'], default: 'normal' },
             { key: 'duration', label: 'Duração (s)', type: 'select', options: ['6', '10'], default: '6' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '480p' },
@@ -420,14 +415,14 @@ const MODEL_CONFIGS = {
     // ──── MIDJOURNEY ────
     'mj-txt': {
         params: [
-            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
             { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
             { key: 'version', label: 'Version', type: 'radio', options: ['7', '6.1', '6'], default: '7' },
         ]
     },
     'mj-img': {
         params: [
-            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
             { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
             { key: 'version', label: 'Version', type: 'radio', options: ['7', '6.1', '6'], default: '7' },
         ]
@@ -439,7 +434,7 @@ const MODEL_CONFIGS = {
     },
     'mj-ref': {
         params: [
-            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'radio', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
+            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
             { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
             { key: 'version', label: 'Version', type: 'radio', options: ['7', '6.1', '6'], default: '7' },
         ]
@@ -449,13 +444,13 @@ const MODEL_CONFIGS = {
     'veo3/text-to-video': {
         params: [
             { key: 'quality', label: 'Quality', type: 'radio', options: ['Fast', 'Quality'], default: 'Fast' },
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '9:16'], default: '16:9' },
         ]
     },
     'veo3/image-to-video': {
         params: [
             { key: 'quality', label: 'Quality', type: 'radio', options: ['Fast', 'Quality'], default: 'Fast' },
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'radio', options: ['16:9', '9:16'], default: '16:9' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '9:16'], default: '16:9' },
         ]
     },
     'veo3/extend-fast': {
