@@ -188,9 +188,7 @@ const MODEL_CONFIGS = {
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '16:9', '9:16'], default: '1:1' },
         ]
     },
-    'grok-imagine/image-to-image': {
-        params: []
-    },
+
     'gpt4o-image': {
         params: [
             { key: 'size', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '1:1' },
@@ -3653,7 +3651,12 @@ window.mockSunoGeneration = function () {
     async function _handleStandardSubmission(prompt, btnSpan, modelParams) {
         const extra = { ...modelParams };
         if (prompt) extra.prompt = prompt;
-        const resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
+
+        let resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
+        if (resolvedModel === 'grok-imagine/text-to-image' && v2Files.length > 0) {
+            resolvedModel = 'grok-imagine/image-to-image';
+        }
+
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
 
         if (v2Files.length > 0) {
