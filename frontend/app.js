@@ -1665,6 +1665,17 @@ function formatSize(b) {
 
 // ==================== Submit ====================
 
+function resolveVeoModelByInput(model, hasImage) {
+    if (!model || !model.startsWith('veo3/')) return model;
+
+    // Auto-switch between text/image Veo families while preserving quality suffix, if present.
+    const m = model.match(/^veo3\/(text|image)-to-video(?:-(fast|quality))?$/);
+    if (!m) return model;
+
+    const qualitySuffix = m[2] ? `-${m[2]}` : '';
+    return `veo3/${hasImage ? 'image' : 'text'}-to-video${qualitySuffix}`;
+}
+
 function _getCurrentModelCost() {
     if (!selectedModel) return null;
     let model = selectedModel.model;
@@ -1677,12 +1688,19 @@ function _getCurrentModelCost() {
         return 8; // fast
     }
 
-    // Veo: resolve virtual models to actual cost keys
-    if (model === 'veo3/text-to-video' || model === 'veo3/image-to-video') {
-        const q = document.querySelector('input[name="param-quality"]:checked')?.value || 'Fast';
-        const suffix = q === 'Quality' ? '-quality' : '-fast';
-        const base = model.replace('veo3/', 'veo3/').replace('-video', `-video${suffix}`);
-        return getModelCost(base) || getModelCost(model);
+    // Veo: auto-switch text/image based on input file and resolve quality suffix
+    if (model.startsWith('veo3/')) {
+        const hasImage = !!selectedFile || (Array.isArray(selectedFiles) && selectedFiles.length > 0);
+        model = resolveVeoModelByInput(model, hasImage);
+
+        if (model === 'veo3/text-to-video' || model === 'veo3/image-to-video') {
+            const q = document.querySelector('input[name="param-quality"]:checked')?.value || 'Fast';
+            const suffix = q === 'Quality' ? '-quality' : '-fast';
+            const base = model.replace('-video', `-video${suffix}`);
+            return getModelCost(base) || getModelCost(model);
+        }
+
+        return getModelCost(model);
     }
 
     return getModelCost(model);
@@ -1882,6 +1900,9 @@ async function submitVeoModel() {
     let resolvedModel = selectedModel.model;
     let extra = collectModelParams();
     const prompt = els.configPrompt.value.trim();
+
+    // Auto-adapt Veo mode by input type
+    resolvedModel = resolveVeoModelByInput(resolvedModel, !!selectedFile);
 
     // Veo 3 quality parsing logic from submitTextModel & submitFileModel
     if (resolvedModel === 'veo3/image-to-video' || resolvedModel === 'veo3/text-to-video') {
@@ -4177,7 +4198,9 @@ window.mockSunoGeneration = function () {
         if (prompt) extra.prompt = prompt;
         extra.aspect_ratio = v2Settings.videoAr || '16:9';
 
+        const hasImageInput = v2Files.length > 0;
         let resolvedModel = v2Model?.model || 'veo3/text-to-video';
+        resolvedModel = resolveVeoModelByInput(resolvedModel, hasImageInput);
 
         // Resolve quality suffix (Fast → -fast, Quality → -quality)
         if (resolvedModel === 'veo3/text-to-video' || resolvedModel === 'veo3/image-to-video') {
@@ -4185,7 +4208,7 @@ window.mockSunoGeneration = function () {
             resolvedModel = `${resolvedModel}-${quality}`;
         }
 
-        if (v2Files.length > 0) {
+        if (hasImageInput) {
             btnSpan.textContent = 'Uploading...';
             const url = await v2UploadSingleFile(v2Files[0], 0, 1);
             extra.imageUrls = [url];
