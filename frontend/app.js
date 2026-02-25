@@ -820,9 +820,9 @@ function addToHistory(task) {
         timestamp: Date.now(),
         costTime: data.costTime || null,
         // Suno: normalise track data regardless of API response shape
-        coverUrl: data.response?.sunoData?.[0]?.imageUrl
+        coverUrl: data.response?.sunoData?.[0]?.image_large_url || data.response?.sunoData?.[0]?.imageLargeUrl || data.response?.sunoData?.[0]?.imageUrl
             || data.response?.sunoData?.[0]?.image_url
-            || (Array.isArray(data.data) ? data.data[0]?.imageUrl || data.data[0]?.image_url : null)
+            || (Array.isArray(data.data) ? data.data[0]?.image_large_url || data.data[0]?.imageLargeUrl || data.data[0]?.imageUrl || data.data[0]?.image_url : null)
             || null,
         trackTitle: data.response?.sunoData?.[0]?.title
             || (Array.isArray(data.data) ? data.data[0]?.title : null)
@@ -830,7 +830,7 @@ function addToHistory(task) {
         sunoData: data.response?.sunoData
             || (Array.isArray(data.data) && data.data[0]?.audioUrl !== undefined ? data.data : null)
             || (Array.isArray(data.data) && data.data[0]?.audio_url !== undefined ?
-                data.data.map(t => ({ ...t, audioUrl: t.audio_url || t.audioUrl, imageUrl: t.image_url || t.imageUrl })) : null)
+                data.data.map(t => ({ ...t, audioUrl: t.audio_url || t.audioUrl, imageUrl: t.image_large_url || t.imageLargeUrl || t.image_url || t.imageUrl })) : null)
             || null,
     };
 
@@ -2702,10 +2702,22 @@ function formatTimeAgo(ts) {
 
 // ==================== History Lightbox ====================
 
+function getLightboxNavigableEntries() {
+    const allHistory = loadHistory();
+    const byCategory = allHistory.filter(h => h.cat === currentCat);
+    const filterModel = els.historyFilter?.value || '';
+    return filterModel ? byCategory.filter(h => h.model === filterModel) : byCategory;
+}
+
 function openHistoryLightbox(entry) {
     // Remove existing
     const existing = document.getElementById('history-lightbox');
     if (existing) existing.remove();
+
+    const navEntries = getLightboxNavigableEntries();
+    const currentIdx = navEntries.findIndex(h => h.id === entry.id);
+    const prevEntry = currentIdx > 0 ? navEntries[currentIdx - 1] : null;
+    const nextEntry = currentIdx >= 0 && currentIdx < navEntries.length - 1 ? navEntries[currentIdx + 1] : null;
 
     const url = entry.urls[0] || '';
     const isVidModel = entry.cat === 'video' || entry.cat === 'veo3' || entry.model === 'mj-video';
@@ -2819,7 +2831,9 @@ function openHistoryLightbox(entry) {
                 </button>
             </div>
             <div class="lightbox-body">
+                ${prevEntry ? `<button class="lightbox-nav lightbox-nav-prev" title="Anterior (←)">‹</button>` : ''}
                 ${mediaHtml}
+                ${nextEntry ? `<button class="lightbox-nav lightbox-nav-next" title="Próximo (→)">›</button>` : ''}
             </div>
             ${promptHtml}
             <div class="lightbox-actions">
@@ -2870,7 +2884,17 @@ function openHistoryLightbox(entry) {
     // Close handlers
     overlay.querySelector('.lightbox-backdrop').addEventListener('click', () => closeLightbox(overlay));
     overlay.querySelector('.lightbox-close').addEventListener('click', () => closeLightbox(overlay));
-    overlay.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(overlay); });
+
+    const prevBtn = overlay.querySelector('.lightbox-nav-prev');
+    const nextBtn = overlay.querySelector('.lightbox-nav-next');
+    if (prevBtn && prevEntry) prevBtn.addEventListener('click', e => { e.stopPropagation(); openHistoryLightbox(prevEntry); });
+    if (nextBtn && nextEntry) nextBtn.addEventListener('click', e => { e.stopPropagation(); openHistoryLightbox(nextEntry); });
+
+    overlay.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeLightbox(overlay);
+        if (e.key === 'ArrowLeft' && prevEntry) openHistoryLightbox(prevEntry);
+        if (e.key === 'ArrowRight' && nextEntry) openHistoryLightbox(nextEntry);
+    });
 
     // Reuse handler
     overlay.querySelector('.lightbox-reuse')?.addEventListener('click', async () => {
@@ -4418,7 +4442,7 @@ window.mockSunoGeneration = function () {
                     const normSunoData = rawSunoData?.map(s => ({
                         ...s,
                         audioUrl: s.audioUrl || s.audio_url || '',
-                        imageUrl: s.imageUrl || s.image_url || '',
+                        imageUrl: s.image_large_url || s.imageLargeUrl || s.imageUrl || s.image_url || '',
                         sourceAudioUrl: s.sourceAudioUrl || s.source_audio_url || '',
                     })) || null;
                     entry = {
@@ -4490,7 +4514,7 @@ window.mockSunoGeneration = function () {
                 const existing = document.getElementById(`v2-item-${CSS.escape(task.id)}`);
                 if (existing) existing.remove();
                 // Add items for each result URL
-                const coverU = data.response?.sunoData?.[0]?.imageUrl || null;
+                const coverU = data.response?.sunoData?.[0]?.image_large_url || data.response?.sunoData?.[0]?.imageLargeUrl || data.response?.sunoData?.[0]?.imageUrl || data.response?.sunoData?.[0]?.image_url || null;
                 urls.forEach((url, i) => {
                     addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
                 });
@@ -4673,7 +4697,7 @@ window.mockSunoGeneration = function () {
                 }
                 if (urls.length > 0) {
                     const data2 = task.data?.data || {};
-                    const coverU = data2.response?.sunoData?.[0]?.imageUrl || task.coverUrl || null;
+                    const coverU = data2.response?.sunoData?.[0]?.image_large_url || data2.response?.sunoData?.[0]?.imageLargeUrl || data2.response?.sunoData?.[0]?.imageUrl || data2.response?.sunoData?.[0]?.image_url || task.coverUrl || null;
                     urls.forEach((url, i) => {
                         addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
                     });

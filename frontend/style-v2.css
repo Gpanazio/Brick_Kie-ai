@@ -4052,6 +4052,44 @@ body.cat-veo3 .btn-primary:hover {
     object-fit: contain;
 }
 
+.lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 30px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 3;
+    transition: all 0.18s ease;
+}
+
+.lightbox-nav:hover {
+    background: rgba(220, 38, 38, 0.35);
+    border-color: rgba(220, 38, 38, 0.7);
+}
+
+.lightbox-nav-prev { left: 12px; }
+.lightbox-nav-next { right: 12px; }
+
+@media (max-width: 768px) {
+    .lightbox-nav {
+        width: 36px;
+        height: 36px;
+        font-size: 26px;
+    }
+    .lightbox-nav-prev { left: 8px; }
+    .lightbox-nav-next { right: 8px; }
+}
+
 .lightbox-prompt {
     font-family: var(--sans);
     font-size: 12px;
