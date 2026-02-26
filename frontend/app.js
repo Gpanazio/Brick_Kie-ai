@@ -18,8 +18,9 @@ const MODEL_COST_ESTIMATES = {
     // ── Image ──
     'nano-banana-pro': 18,                // 1/2K = 18, 4K = 24
     'google/nano-banana-edit': 4,          // image editing
-    'bytedance/4.5-text-to-image': 10,    // estimated
-    'seedream/4.5-edit': 10,              // estimated (image editing)
+    'seedream/5-lite': 5.5,               // base UI key
+    'seedream/5-lite-text-to-image': 5.5, // per image
+    'seedream/5-lite-image-to-image': 5.5,  // 5.5 cr/image ($0.0275)
     'flux-2/pro-text-to-image': 5,        // 1K = 5, 2K = 7
     'google/imagen4': 10,                 // estimated
 
@@ -111,8 +112,9 @@ const PROMPT_CHAR_LIMITS = {
     'gpt4o-image': 5000,
     'flux-kontext-pro': 5000,
     'flux-kontext-max': 5000,
-    'bytedance/4.5-text-to-image': 2000,
-    'seedream/4.5-edit': 3000,
+    'seedream/5-lite': 2995,
+    'seedream/5-lite-text-to-image': 2995,
+    'seedream/5-lite-image-to-image': 2996,
     'flux-2/pro-text-to-image': 2000,
     'google/imagen4': 2000,
 
@@ -212,13 +214,10 @@ const MODEL_CONFIGS = {
             { key: 'safetyTolerance', label: 'Safety Tolerance', type: 'number', default: 2, min: 0, max: 6, step: 1 },
         ]
     },
-    'bytedance/4.5-text-to-image': {
+    'seedream/5-lite': {
         params: [
-            { key: 'image_size', label: 'Tamanho (Gerar)', type: 'select', options: ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'], default: 'square_hd' },
-            { key: 'guidance_scale', label: 'Guidance (Gerar)', type: 'number', default: 2.5, min: 1, max: 20, step: 0.5 },
-            { key: 'enable_safety_checker', label: 'Safety (Gerar)', type: 'bool', default: true },
-            { key: 'aspect_ratio', label: 'Aspect Ratio (Editar)', type: 'select', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], default: '16:9' },
-            { key: 'quality', label: 'Qualidade (Editar)', type: 'select', options: ['basic', 'high'], default: 'high' }
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], default: '1:1' },
+            { key: 'quality', label: 'Qualidade', type: 'select', options: ['basic', 'high'], default: 'basic' }
         ]
     },
     'flux-2/pro-text-to-image': {
@@ -2029,8 +2028,8 @@ async function submitMixMarketModel() {
     let extra = collectModelParams();
 
     // Remap Seedream model names to what KIE API actually expects
-    if (resolvedModel === 'bytedance/4.5-text-to-image') {
-        resolvedModel = selectedFile ? 'seedream/4.5-edit' : 'seedream/4.5-text-to-image';
+    if (resolvedModel === 'seedream/5-lite') {
+        resolvedModel = selectedFile ? 'seedream/5-lite-image-to-image' : 'seedream/5-lite-text-to-image';
     }
     const prompt = els.configPrompt.value.trim();
     if (prompt) extra.prompt = prompt;
@@ -2075,7 +2074,7 @@ async function submitTextModel() {
     let resolvedModel = selectedModel.model;
 
     // Remap Seedream model names to what KIE API actually expects
-    if (resolvedModel === 'bytedance/4.5-text-to-image') resolvedModel = 'seedream/4.5-text-to-image';
+    if (resolvedModel === 'seedream/5-lite') resolvedModel = 'seedream/5-lite-text-to-image';
 
     if (selectedModel.field === 'text') extra.text = prompt;
     else extra.prompt = prompt;
@@ -2276,10 +2275,10 @@ function initClearTasks() {
 
 // Map resolved/variant model names back to the template's base model name
 const MODEL_REVERSE_MAP = {
-    'seedream/4.5-edit': 'bytedance/4.5-text-to-image',
-    'seedream/4.5-text-to-image': 'bytedance/4.5-text-to-image',
-    'bytedance/seedream-v4-text-to-image': 'bytedance/4.5-text-to-image',
-    'bytedance/seedream-v4-edit': 'bytedance/4.5-text-to-image',
+    'seedream/5-lite-image-to-image': 'seedream/5-lite',
+    'seedream/5-lite-text-to-image': 'seedream/5-lite',
+    'bytedance/4.5-text-to-image': 'seedream/5-lite',
+    'seedream/4.5-edit': 'seedream/5-lite',
     'grok-imagine/image-to-image': 'grok-imagine/text-to-image',
     'grok-imagine/image-to-video': 'grok-imagine/text-to-video',
     'sora-2-pro-image-to-video': 'sora-2-pro-text-to-video',
@@ -3558,7 +3557,7 @@ window.mockSunoGeneration = function () {
         const MODEL_MAX_FILES = {
             'nano-banana-pro': 8,              // up to 8 images
             'google/nano-banana-edit': 10,      // up to 10 images
-            'bytedance/4.5-text-to-image': 14,  // seedream edit: up to 14
+            'seedream/5-lite': 14,              // up to 14 images
             'gpt4o-image': 5,                   // up to 5 image URLs
             'qwen/image-edit': 1,               // single image_url
             'grok-imagine/text-to-image': 1,    // max one per request
@@ -4250,10 +4249,10 @@ window.mockSunoGeneration = function () {
             if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
             if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
             if (resolvedModel === 'wan/2-6-text-to-video') resolvedModel = 'wan/2-6-image-to-video';
-            if (resolvedModel === 'bytedance/4.5-text-to-image') resolvedModel = 'seedream/4.5-edit';
+            if (resolvedModel === 'seedream/5-lite') resolvedModel = 'seedream/5-lite-image-to-image';
         } else {
             // Text-only: remap to correct API model names
-            if (resolvedModel === 'bytedance/4.5-text-to-image') resolvedModel = 'seedream/4.5-text-to-image';
+            if (resolvedModel === 'seedream/5-lite') resolvedModel = 'seedream/5-lite-text-to-image';
         }
 
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
