@@ -217,7 +217,6 @@ const MODEL_CONFIGS = {
     'seedream/5-lite': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], default: '1:1' },
-            { key: 'quality', label: 'Qualidade', type: 'select', options: ['basic', 'high'], default: 'basic' }
         ]
     },
     'flux-2/pro-text-to-image': {
@@ -682,9 +681,11 @@ window.addEventListener('storage', (e) => {
     updateActiveCount();
 });
 
-// ==================== History (localStorage + cloud sync) ====================
-const HISTORY_KEY = 'kie-history';
+// ==================== History (server-only, in-memory cache) ====================
 const HISTORY_MAX = 500;
+
+// In-memory cache — populated from server on init, updated locally on each new entry
+let _historyCache = null; // null = not yet loaded from server
 
 function _migrateHistoryEntry(h) {
     if (h.cat || !h.model) return false;
@@ -709,62 +710,28 @@ function _migrateHistoryEntry(h) {
 }
 
 function loadHistory() {
-    try {
-        const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-        let migrated = false;
-        history.forEach(h => { if (_migrateHistoryEntry(h)) migrated = true; });
-        if (migrated) {
-            localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX)));
-        }
-        return history;
-    } catch { return []; }
+    return _historyCache || [];
 }
 
 function saveHistory(history) {
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX))); }
-    catch (e) { console.error('History save error:', e); }
+    _historyCache = history.slice(0, HISTORY_MAX);
 }
 
-// Fetch history from server and merge with localStorage (server = source of truth)
+// Load history from server into in-memory cache (server is the only source of truth)
 function syncHistoryFromServer() {
     fetch(`${API}/api/history?limit=${HISTORY_MAX}`)
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(json => {
             const serverHistory = json.history || [];
-            if (!serverHistory.length) return; // nothing on server
-
-            const localHistory = loadHistory();
-            const idMap = new Map();
-
-            // Server entries first (source of truth)
-            serverHistory.forEach(h => {
-                _migrateHistoryEntry(h);
-                idMap.set(h.id, h);
-            });
-
-            // Merge local entries that aren't on server yet
-            localHistory.forEach(h => {
-                if (!idMap.has(h.id)) {
-                    idMap.set(h.id, h);
-                    // Push local-only entries to server (fire & forget)
-                    const fd = new FormData();
-                    fd.append('entry_json', JSON.stringify(h));
-                    fetch(`${API}/api/history`, { method: 'POST', body: fd }).catch(() => { });
-                }
-            });
-
-            // Sort by timestamp descending
-            const merged = [...idMap.values()]
-                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-                .slice(0, HISTORY_MAX);
-
-            saveHistory(merged);
+            serverHistory.forEach(h => _migrateHistoryEntry(h));
+            _historyCache = serverHistory.slice(0, HISTORY_MAX);
             renderHistoryGallery();
             updateHistoryCount();
-            console.log(`[history] Synced: ${serverHistory.length} server + ${localHistory.length} local → ${merged.length} merged`);
+            console.log(`[history] Loaded ${_historyCache.length} entries from server`);
         })
         .catch(err => {
-            console.warn('[history] Cloud sync failed, using localStorage only:', err);
+            console.warn('[history] Failed to load from server:', err);
+            if (!_historyCache) _historyCache = [];
         });
 }
 
@@ -872,16 +839,15 @@ function addToHistory(task) {
             || null,
     };
 
-    const history = loadHistory();
-    // Avoid duplicates
-    const idx = history.findIndex(h => h.id === entry.id);
-    if (idx >= 0) history.splice(idx, 1);
-    history.unshift(entry);
-    saveHistory(history);
+    if (!_historyCache) _historyCache = [];
+    const idx = _historyCache.findIndex(h => h.id === entry.id);
+    if (idx >= 0) _historyCache.splice(idx, 1);
+    _historyCache.unshift(entry);
+    _historyCache = _historyCache.slice(0, HISTORY_MAX);
     renderHistoryGallery();
     updateHistoryCount();
 
-    // Sync to server (fire & forget)
+    // Save to server (permanent storage)
     const fd = new FormData();
     fd.append('entry_json', JSON.stringify(entry));
     fetch(`${API}/api/history`, { method: 'POST', body: fd }).catch(() => { });
@@ -1651,6 +1617,27 @@ function initUploadZone() {
         }
     });
     els.filePreviewRemove.addEventListener('click', clearFile);
+
+    // Ctrl+V paste image directly into prompt → set as reference image
+    if (els.configPrompt) {
+        els.configPrompt.addEventListener('paste', (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (!file) continue;
+                    // Only intercept if this model supports file upload
+                    if (els.uploadWrapper && !els.uploadWrapper.classList.contains('hidden')) {
+                        e.preventDefault();
+                        handleFileSelect(file);
+                        toast('Imagem colada como referência', 'success');
+                    }
+                    break;
+                }
+            }
+        });
+    }
 }
 
 function handleFileSelect(file) {
@@ -2069,6 +2056,7 @@ async function submitMixMarketModel() {
     // Remap Seedream model names to what KIE API actually expects
     if (resolvedModel === 'seedream/5-lite') {
         resolvedModel = selectedFile ? 'seedream/5-lite-image-to-image' : 'seedream/5-lite-text-to-image';
+        extra.quality = 'high';
     }
     const prompt = els.configPrompt.value.trim();
     if (prompt) extra.prompt = prompt;
@@ -2113,7 +2101,10 @@ async function submitTextModel() {
     let resolvedModel = selectedModel.model;
 
     // Remap Seedream model names to what KIE API actually expects
-    if (resolvedModel === 'seedream/5-lite') resolvedModel = 'seedream/5-lite-text-to-image';
+    if (resolvedModel === 'seedream/5-lite') {
+        resolvedModel = 'seedream/5-lite-text-to-image';
+        extra.quality = 'high';
+    }
 
     if (selectedModel.field === 'text') extra.text = prompt;
     else extra.prompt = prompt;
@@ -2618,11 +2609,12 @@ function initHistory() {
     if (els.btnClearHistory) {
         els.btnClearHistory.addEventListener('click', () => {
             if (!confirm('Limpar histórico desta categoria?')) return;
-            // Keep history from other categories, clear current
             const keptHistory = loadHistory().filter(h => h.cat !== currentCat);
             saveHistory(keptHistory);
             renderHistoryGallery();
             updateHistoryCount();
+            // Delete this category from server
+            fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE' }).catch(() => { });
             toast('🗑️ Histórico limpo', 'info');
         });
     }
@@ -3047,6 +3039,8 @@ function openHistoryLightbox(entry) {
         saveHistory(history);
         renderHistoryGallery();
         updateHistoryCount();
+        // Delete from server
+        fetch(`${API}/api/history/${encodeURIComponent(entry.id)}`, { method: 'DELETE' }).catch(() => { });
         closeLightbox(overlay);
         toast('🗑️ Geração removida do histórico', 'info');
     });
@@ -3552,8 +3546,10 @@ window.mockSunoGeneration = function () {
         if (badgeTag) badgeTag.textContent = inputLabel;
 
         // ── Model info ──
+        const modelInfoEl = ws.querySelector('.v2-model-info');
         const modelInfoValue = ws.querySelector('.v2-model-info-value');
         if (modelInfoValue) modelInfoValue.textContent = data.model || '';
+        if (modelInfoEl) modelInfoEl.style.display = (data.model === 'seedream/5-lite') ? 'none' : '';
 
         // ── Gallery title & empty hint ──
         const galleryTitle = document.getElementById('v2-gallery-title');
@@ -4091,6 +4087,27 @@ window.mockSunoGeneration = function () {
         if (selectedFiles.length) v2AddFiles(selectedFiles);
     });
 
+    // Ctrl+V paste image in v2 prompt → add as reference image
+    if (v2.prompt) {
+        v2.prompt.addEventListener('paste', (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (!file) continue;
+                    const uploadGroup = document.getElementById('v2-group-upload');
+                    if (uploadGroup && uploadGroup.style.display !== 'none') {
+                        e.preventDefault();
+                        v2AddFiles([file]);
+                        toast('Imagem colada como referência', 'success');
+                    }
+                    break;
+                }
+            }
+        });
+    }
+
     function v2AddFiles(newFiles) {
         // Filter to images only
         const images = newFiles.filter(f => f.type.startsWith('image/'));
@@ -4291,10 +4308,10 @@ window.mockSunoGeneration = function () {
             if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
             if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
             if (resolvedModel === 'wan/2-6-text-to-video') resolvedModel = 'wan/2-6-image-to-video';
-            if (resolvedModel === 'seedream/5-lite') resolvedModel = 'seedream/5-lite-image-to-image';
+            if (resolvedModel === 'seedream/5-lite') { resolvedModel = 'seedream/5-lite-image-to-image'; extra.quality = 'high'; }
         } else {
             // Text-only: remap to correct API model names
-            if (resolvedModel === 'seedream/5-lite') resolvedModel = 'seedream/5-lite-text-to-image';
+            if (resolvedModel === 'seedream/5-lite') { resolvedModel = 'seedream/5-lite-text-to-image'; extra.quality = 'high'; }
         }
 
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
@@ -4471,6 +4488,8 @@ window.mockSunoGeneration = function () {
                 const bid = e.currentTarget.dataset.baseId;
                 const history = loadHistory().filter(h => h.id !== bid);
                 saveHistory(history);
+                // Delete from server
+                fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE' }).catch(() => { });
                 item.style.transition = 'opacity 0.2s, transform 0.2s';
                 item.style.opacity = '0';
                 item.style.transform = 'scale(0.9)';
@@ -4483,7 +4502,7 @@ window.mockSunoGeneration = function () {
             // Do not trigger if clicking an action button/link or interacting with video controls
             // Note: do NOT block on .v2-item-actions itself - only on interactive children inside it
             if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.v2-mj-actions') || (e.target.tagName.toLowerCase() === 'video' && e.offsetX > e.target.clientWidth - 40)) return;
-            // Search in-memory tasks first, fall back to localStorage history, then server cache
+            // Search in-memory tasks first, fall back to history cache, then server cache
             let t = tasks.find(x => x.id === item.dataset.baseTaskId);
             let fromHistory = false;
             if (!t) {

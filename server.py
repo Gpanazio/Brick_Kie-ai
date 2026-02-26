@@ -671,6 +671,25 @@ async def get_history(cat: Optional[str] = None, limit: int = 100):
         history = [h for h in history if h.get("cat") == cat]
     return {"history": history[:limit], "total": len(history)}
 
+@app.delete("/api/history/{entry_id}")
+async def delete_history_entry(entry_id: str):
+    """Delete a specific history entry by ID."""
+    history = _load_server_history()
+    history = [h for h in history if h.get("id") != entry_id]
+    _save_server_history(history)
+    return {"success": True, "count": len(history)}
+
+@app.delete("/api/history")
+async def clear_history(cat: Optional[str] = None):
+    """Clear server-side history, optionally filtered to a specific category."""
+    history = _load_server_history()
+    if cat:
+        history = [h for h in history if h.get("cat") != cat]
+    else:
+        history = []
+    _save_server_history(history)
+    return {"success": True}
+
 
 def _extract_result_urls(data: dict) -> list:
     """Extract result URLs from task data, checking multiple response formats."""
