@@ -1139,7 +1139,7 @@ function enterWorkspace(cat) {
     // Set breadcrumb
     const label = CAT_LABELS[cat] || cat;
     currentCatLabel = label;
-    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${label}</span>`;
+    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${esc(label)}</span>`;
     if (els.workspaceCatLabel) els.workspaceCatLabel.textContent = label;
 
     // Update History & Active tabs to only show tasks and history for this cat
@@ -1261,7 +1261,7 @@ function openModelPickerModal() {
                 <div class="mpm-v2-glow-border"></div>
                 <div class="mpm-v2-inner">
                     <div class="mpm-v2-header">
-                        <div class="mpm-v2-icon">${data.icon}</div>
+                        <div class="mpm-v2-icon">${sanitizeSvg(data.icon)}</div>
                         <div class="mpm-v2-badge">${esc(data.provider)}</div>
                     </div>
                     <div class="mpm-v2-body">
@@ -1281,7 +1281,7 @@ function openModelPickerModal() {
             card.innerHTML = `
                 <div class="mpm-card-accent ${data.color || ''}"></div>
                 <div class="mpm-card-top">
-                    <div class="mpm-card-icon ${data.color}">${data.icon}</div>
+                    <div class="mpm-card-icon ${data.color}">${sanitizeSvg(data.icon)}</div>
                     ${costHtml}
                 </div>
                 <div>
@@ -1327,7 +1327,7 @@ function selectModelFromData(data) {
     };
 
     // Update trigger button
-    els.mptIcon.innerHTML = data.icon; // Using innerHTML as data.icon contains SVG
+    els.mptIcon.innerHTML = sanitizeSvg(data.icon);
     els.mptIcon.className = `mpt-icon ${data.color}`;
     els.mptName.textContent = `${data.name} — ${data.provider}`;
     els.btnModelPicker.classList.add('has-model');
@@ -1337,7 +1337,7 @@ function selectModelFromData(data) {
     updateCostBadge(els.mptCost, cost, 'mpt-cost', 'cr');
 
     // Update header breadcrumb
-    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${currentCatLabel} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${data.name}</span>`;
+    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${esc(currentCatLabel)} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${esc(data.name)}</span>`;
 
     const isMj = selectedModel.input === 'mj';
     const isMix = selectedModel.input === 'mix';
@@ -3078,6 +3078,27 @@ function toast(msg, type = 'info') {
 
 function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 
+/** Sanitize SVG string — only allow safe SVG elements, strip everything else */
+function sanitizeSvg(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    const ALLOWED = new Set([
+        'svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'ellipse',
+        'g', 'defs', 'use', 'text', 'tspan', 'clippath', 'mask', 'pattern',
+        'lineargradient', 'radialgradient', 'stop'
+    ]);
+    try {
+        const doc = new DOMParser().parseFromString(raw, 'image/svg+xml');
+        const err = doc.querySelector('parsererror');
+        if (err) return esc(raw);
+        // Walk all elements, remove any not in allowlist
+        doc.querySelectorAll('*').forEach(el => {
+            if (!ALLOWED.has(el.tagName.toLowerCase())) el.remove();
+        });
+        const svg = doc.documentElement;
+        return svg.tagName.toLowerCase() === 'svg' ? svg.outerHTML : esc(raw);
+    } catch { return esc(raw); }
+}
+
 // ==================== Post-Generation Actions ====================
 
 // Veo post-actions (HD, 4K, Extend)
@@ -4129,7 +4150,7 @@ const v2Registry = {};
     }
 
     // Register handler for reuse from lightbox (outside this closure)
-    v2Registry.addFilesFromReuse = function(files) {
+    v2Registry.addFilesFromReuse = function (files) {
         v2ClearAllFiles();
         v2AddFiles(files);
     };
