@@ -3003,20 +3003,25 @@ function openHistoryLightbox(entry) {
                 const inputUrls = Array.isArray(entry.inputFileUrl) ? entry.inputFileUrl : [entry.inputFileUrl];
                 try {
                     toast('Baixando mídia original...', 'info');
-                    const firstUrl = inputUrls[0];
-                    const resp = await fetch(firstUrl);
-                    if (!resp.ok) throw new Error('Download failed');
-                    const blob = await resp.blob();
+                    // In v2 workspace, load all reference images; in v1, load only the first
+                    const urlsToLoad = useV2 ? inputUrls : [inputUrls[0]];
+                    const files = await Promise.all(urlsToLoad.map(async (url) => {
+                        const resp = await fetch(url);
+                        if (!resp.ok) throw new Error('Download failed');
+                        const blob = await resp.blob();
+                        let ext = 'jpg';
+                        if (url.includes('.mp4')) ext = 'mp4';
+                        else if (url.includes('.png')) ext = 'png';
+                        else if (url.includes('.webm')) ext = 'webm';
+                        else if (url.includes('.mp3')) ext = 'mp3';
+                        return new File([blob], `input.${ext}`, { type: blob.type });
+                    }));
 
-                    // Determine filename and type from URL if possible
-                    let ext = 'jpg';
-                    if (firstUrl.includes('.mp4')) ext = 'mp4';
-                    else if (firstUrl.includes('.png')) ext = 'png';
-                    else if (firstUrl.includes('.webm')) ext = 'webm';
-                    else if (firstUrl.includes('.mp3')) ext = 'mp3';
-
-                    const file = new File([blob], `input.${ext}`, { type: blob.type });
-                    handleFileSelect(file);
+                    if (useV2 && typeof window._v2AddFilesFromReuse === 'function') {
+                        window._v2AddFilesFromReuse(files);
+                    } else {
+                        handleFileSelect(files[0]);
+                    }
                 } catch (err) {
                     console.error('Failed to load input file', err);
                     toast('⚠️ Não foi possível carregar a mídia original', 'error');
@@ -4126,6 +4131,12 @@ window.mockSunoGeneration = function () {
         v2RenderFilesGrid();
         updateV2GenerateState();
     }
+
+    // Expose for reuse from lightbox (outside this closure)
+    window._v2AddFilesFromReuse = function(files) {
+        v2ClearAllFiles();
+        v2AddFiles(files);
+    };
 
     function v2RemoveFile(index) {
         v2Files.splice(index, 1);
