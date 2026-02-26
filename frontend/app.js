@@ -3001,30 +3001,29 @@ function openHistoryLightbox(entry) {
             if (entry.inputFileUrl) {
                 // Support both single URL string and array of URLs
                 const inputUrls = Array.isArray(entry.inputFileUrl) ? entry.inputFileUrl : [entry.inputFileUrl];
-                try {
-                    toast('Baixando mídia original...', 'info');
-                    // In v2 workspace, load all reference images; in v1, load only the first
-                    const urlsToLoad = useV2 ? inputUrls : [inputUrls[0]];
-                    const files = await Promise.all(urlsToLoad.map(async (url) => {
-                        const resp = await fetch(url);
-                        if (!resp.ok) throw new Error('Download failed');
-                        const blob = await resp.blob();
-                        let ext = 'jpg';
-                        if (url.includes('.mp4')) ext = 'mp4';
-                        else if (url.includes('.png')) ext = 'png';
-                        else if (url.includes('.webm')) ext = 'webm';
-                        else if (url.includes('.mp3')) ext = 'mp3';
-                        return new File([blob], `input.${ext}`, { type: blob.type });
-                    }));
-
-                    if (useV2 && typeof window._v2AddFilesFromReuse === 'function') {
-                        window._v2AddFilesFromReuse(files);
+                // In v2 workspace, load all reference images; in v1, load only the first
+                const urlsToLoad = useV2 ? inputUrls : [inputUrls[0]];
+                const mimeToExt = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm', 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3' };
+                toast(`Baixando ${urlsToLoad.length > 1 ? urlsToLoad.length + ' imagens' : 'mídia'} original...`, 'info');
+                const results = await Promise.allSettled(urlsToLoad.map(async (url) => {
+                    const resp = await fetch(url);
+                    if (!resp.ok) throw new Error(`Download failed: ${url}`);
+                    const blob = await resp.blob();
+                    const ext = mimeToExt[blob.type] || 'jpg';
+                    return new File([blob], `input.${ext}`, { type: blob.type });
+                }));
+                const files = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+                const failed = results.filter(r => r.status === 'rejected').length;
+                if (failed > 0) {
+                    console.warn(`${failed} file(s) failed to download`);
+                    toast(`⚠️ ${failed} arquivo(s) não puderam ser carregados`, 'error');
+                }
+                if (files.length > 0) {
+                    if (useV2 && typeof v2Registry.addFilesFromReuse === 'function') {
+                        v2Registry.addFilesFromReuse(files);
                     } else {
                         handleFileSelect(files[0]);
                     }
-                } catch (err) {
-                    console.error('Failed to load input file', err);
-                    toast('⚠️ Não foi possível carregar a mídia original', 'error');
                 }
             }
 
@@ -3475,6 +3474,9 @@ window.mockSunoGeneration = function () {
 //  IMAGE V2 — WORKSPACE OVERLAY CONTROLLER
 //  Fully functional: connects to existing submit infrastructure
 // ============================================================
+
+// Registry for cross-closure communication with v2 workspace
+const v2Registry = {};
 
 (function initV2Workspace() {
     const ws = document.getElementById('v2-workspace');
@@ -4132,8 +4134,8 @@ window.mockSunoGeneration = function () {
         updateV2GenerateState();
     }
 
-    // Expose for reuse from lightbox (outside this closure)
-    window._v2AddFilesFromReuse = function(files) {
+    // Register handler for reuse from lightbox (outside this closure)
+    v2Registry.addFilesFromReuse = function(files) {
         v2ClearAllFiles();
         v2AddFiles(files);
     };
