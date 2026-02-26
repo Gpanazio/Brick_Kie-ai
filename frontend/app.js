@@ -682,41 +682,37 @@ window.addEventListener('storage', (e) => {
     updateActiveCount();
 });
 
-// ==================== History (localStorage) ====================
+// ==================== History (localStorage + cloud sync) ====================
 const HISTORY_KEY = 'kie-history';
-const HISTORY_MAX = 200;
+const HISTORY_MAX = 500;
+
+function _migrateHistoryEntry(h) {
+    if (h.cat || !h.model) return false;
+    let migrated = false;
+    const tpl = document.getElementById('tpl-models');
+    if (tpl) {
+        try {
+            const item = tpl.content.querySelector(`[data-model="${h.model}"]`);
+            if (item && item.dataset.cat) { h.cat = item.dataset.cat; migrated = true; }
+        } catch (e) { }
+    }
+    if (!h.cat && h.model.startsWith('mj-')) { h.cat = 'mj'; migrated = true; }
+    if (!h.cat && h.model) {
+        const m = h.model;
+        if (m.includes('suno')) { h.cat = 'music'; migrated = true; }
+        else if (m.includes('elevenlabs')) { h.cat = 'audio'; migrated = true; }
+        else if (m.includes('topaz') || m.includes('crisp') || m.includes('recraft')) { h.cat = 'tools'; migrated = true; }
+        else if (m.includes('video') || m.includes('kling') || m.includes('wan') || m.includes('hailuo') || m.includes('sora') || m.includes('veo')) { h.cat = 'video'; migrated = true; }
+        else if (m.includes('grok-imagine') || m.includes('flux') || m.includes('nano-banana') || m.includes('imagen') || m.includes('qwen') || m.includes('seedream') || m.includes('bytedance') || m.includes('gpt4o')) { h.cat = 'image'; migrated = true; }
+    }
+    return migrated;
+}
 
 function loadHistory() {
     try {
         const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
         let migrated = false;
-        history.forEach(h => {
-            if (!h.cat && h.model) {
-                const tpl = document.getElementById('tpl-models');
-                if (tpl) {
-                    try {
-                        const item = tpl.content.querySelector(`[data-model="${h.model}"]`);
-                        if (item && item.dataset.cat) {
-                            h.cat = item.dataset.cat;
-                            migrated = true;
-                        }
-                    } catch (e) { }
-                }
-                if (!h.cat && h.model.startsWith('mj-')) {
-                    h.cat = 'mj';
-                    migrated = true;
-                }
-                // Infer cat from model name if still missing
-                if (!h.cat && h.model) {
-                    const m = h.model;
-                    if (m.includes('suno')) { h.cat = 'music'; migrated = true; }
-                    else if (m.includes('elevenlabs')) { h.cat = 'audio'; migrated = true; }
-                    else if (m.includes('topaz') || m.includes('crisp') || m.includes('recraft')) { h.cat = 'tools'; migrated = true; }
-                    else if (m.includes('video') || m.includes('kling') || m.includes('wan') || m.includes('hailuo') || m.includes('sora') || m.includes('veo')) { h.cat = 'video'; migrated = true; }
-                    else if (m.includes('grok-imagine') || m.includes('flux') || m.includes('nano-banana') || m.includes('imagen') || m.includes('qwen') || m.includes('seedream') || m.includes('bytedance') || m.includes('gpt4o')) { h.cat = 'image'; migrated = true; }
-                }
-            }
-        });
+        history.forEach(h => { if (_migrateHistoryEntry(h)) migrated = true; });
         if (migrated) {
             localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX)));
         }
@@ -727,6 +723,49 @@ function loadHistory() {
 function saveHistory(history) {
     try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX))); }
     catch (e) { console.error('History save error:', e); }
+}
+
+// Fetch history from server and merge with localStorage (server = source of truth)
+function syncHistoryFromServer() {
+    fetch(`${API}/api/history?limit=${HISTORY_MAX}`)
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(json => {
+            const serverHistory = json.history || [];
+            if (!serverHistory.length) return; // nothing on server
+
+            const localHistory = loadHistory();
+            const idMap = new Map();
+
+            // Server entries first (source of truth)
+            serverHistory.forEach(h => {
+                _migrateHistoryEntry(h);
+                idMap.set(h.id, h);
+            });
+
+            // Merge local entries that aren't on server yet
+            localHistory.forEach(h => {
+                if (!idMap.has(h.id)) {
+                    idMap.set(h.id, h);
+                    // Push local-only entries to server (fire & forget)
+                    const fd = new FormData();
+                    fd.append('entry_json', JSON.stringify(h));
+                    fetch(`${API}/api/history`, { method: 'POST', body: fd }).catch(() => { });
+                }
+            });
+
+            // Sort by timestamp descending
+            const merged = [...idMap.values()]
+                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+                .slice(0, HISTORY_MAX);
+
+            saveHistory(merged);
+            renderHistoryGallery();
+            updateHistoryCount();
+            console.log(`[history] Synced: ${serverHistory.length} server + ${localHistory.length} local → ${merged.length} merged`);
+        })
+        .catch(err => {
+            console.warn('[history] Cloud sync failed, using localStorage only:', err);
+        });
 }
 
 // Shared helper: extract all result URLs from any API response shape
@@ -2566,6 +2605,9 @@ function initHistory() {
     renderHistoryGallery();
     updateHistoryCount();
     updateActiveCount();
+
+    // Fetch from cloud and merge (async, re-renders when done)
+    syncHistoryFromServer();
 
     // Filter handler
     if (els.historyFilter) {
