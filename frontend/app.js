@@ -843,7 +843,7 @@ function addToHistory(task) {
     const idx = _historyCache.findIndex(h => h.id === entry.id);
     if (idx >= 0) _historyCache.splice(idx, 1);
     _historyCache.unshift(entry);
-    _historyCache = _historyCache.slice(0, HISTORY_MAX);
+    saveHistory(_historyCache);
     renderHistoryGallery();
     updateHistoryCount();
 
@@ -1595,6 +1595,26 @@ function collectModelParams() {
 
 // ==================== Upload Zone ====================
 
+function setupPasteImageHandler(promptElement, fileHandler, conditionCheck) {
+    if (!promptElement) return;
+    promptElement.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (!file) continue;
+                if (conditionCheck()) {
+                    e.preventDefault();
+                    fileHandler(file);
+                    toast('Imagem colada como referência', 'success');
+                }
+                break;
+            }
+        }
+    });
+}
+
 function initUploadZone() {
     els.uploadZone.addEventListener('click', () => els.fileInput.click());
     els.uploadZone.addEventListener('dragover', e => { e.preventDefault(); els.uploadZone.classList.add('dragover'); });
@@ -1619,25 +1639,11 @@ function initUploadZone() {
     els.filePreviewRemove.addEventListener('click', clearFile);
 
     // Ctrl+V paste image directly into prompt → set as reference image
-    if (els.configPrompt) {
-        els.configPrompt.addEventListener('paste', (e) => {
-            const items = e.clipboardData?.items;
-            if (!items) return;
-            for (const item of items) {
-                if (item.type.startsWith('image/')) {
-                    const file = item.getAsFile();
-                    if (!file) continue;
-                    // Only intercept if this model supports file upload
-                    if (els.uploadWrapper && !els.uploadWrapper.classList.contains('hidden')) {
-                        e.preventDefault();
-                        handleFileSelect(file);
-                        toast('Imagem colada como referência', 'success');
-                    }
-                    break;
-                }
-            }
-        });
-    }
+    setupPasteImageHandler(
+        els.configPrompt,
+        (file) => handleFileSelect(file),
+        () => !!(els.uploadWrapper && !els.uploadWrapper.classList.contains('hidden'))
+    );
 }
 
 function handleFileSelect(file) {
@@ -2046,6 +2052,14 @@ async function submitFluxKontext() {
     return json;
 }
 
+function resolveSeedreamModel(model, extra, hasFile) {
+    if (model === 'seedream/5-lite') {
+        extra.quality = 'high';
+        return hasFile ? 'seedream/5-lite-image-to-image' : 'seedream/5-lite-text-to-image';
+    }
+    return model;
+}
+
 async function submitMixMarketModel() {
     const fd = new FormData();
     if (selectedFile) fd.append('file', selectedFile);
@@ -2054,10 +2068,7 @@ async function submitMixMarketModel() {
     let extra = collectModelParams();
 
     // Remap Seedream model names to what KIE API actually expects
-    if (resolvedModel === 'seedream/5-lite') {
-        resolvedModel = selectedFile ? 'seedream/5-lite-image-to-image' : 'seedream/5-lite-text-to-image';
-        extra.quality = 'high';
-    }
+    resolvedModel = resolveSeedreamModel(resolvedModel, extra, !!selectedFile);
     const prompt = els.configPrompt.value.trim();
     if (prompt) extra.prompt = prompt;
 
@@ -2101,10 +2112,7 @@ async function submitTextModel() {
     let resolvedModel = selectedModel.model;
 
     // Remap Seedream model names to what KIE API actually expects
-    if (resolvedModel === 'seedream/5-lite') {
-        resolvedModel = 'seedream/5-lite-text-to-image';
-        extra.quality = 'high';
-    }
+    resolvedModel = resolveSeedreamModel(resolvedModel, extra, false);
 
     if (selectedModel.field === 'text') extra.text = prompt;
     else extra.prompt = prompt;
@@ -4095,25 +4103,11 @@ const v2Registry = {};
     });
 
     // Ctrl+V paste image in v2 prompt → add as reference image
-    if (v2.prompt) {
-        v2.prompt.addEventListener('paste', (e) => {
-            const items = e.clipboardData?.items;
-            if (!items) return;
-            for (const item of items) {
-                if (item.type.startsWith('image/')) {
-                    const file = item.getAsFile();
-                    if (!file) continue;
-                    const uploadGroup = document.getElementById('v2-group-upload');
-                    if (uploadGroup && uploadGroup.style.display !== 'none') {
-                        e.preventDefault();
-                        v2AddFiles([file]);
-                        toast('Imagem colada como referência', 'success');
-                    }
-                    break;
-                }
-            }
-        });
-    }
+    setupPasteImageHandler(
+        v2.prompt,
+        (file) => v2AddFiles([file]),
+        () => { const g = document.getElementById('v2-group-upload'); return !!(g && g.style.display !== 'none'); }
+    );
 
     function v2AddFiles(newFiles) {
         // Filter to images only
@@ -4321,10 +4315,10 @@ const v2Registry = {};
             if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
             if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
             if (resolvedModel === 'wan/2-6-text-to-video') resolvedModel = 'wan/2-6-image-to-video';
-            if (resolvedModel === 'seedream/5-lite') { resolvedModel = 'seedream/5-lite-image-to-image'; extra.quality = 'high'; }
+            resolvedModel = resolveSeedreamModel(resolvedModel, extra, true);
         } else {
             // Text-only: remap to correct API model names
-            if (resolvedModel === 'seedream/5-lite') { resolvedModel = 'seedream/5-lite-text-to-image'; extra.quality = 'high'; }
+            resolvedModel = resolveSeedreamModel(resolvedModel, extra, false);
         }
 
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
