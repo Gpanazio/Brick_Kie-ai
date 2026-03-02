@@ -3520,7 +3520,7 @@ const v2Registry = {};
         fileInput: document.getElementById('v2-file-input'),
         filesGrid: document.getElementById('v2-files-grid'),
         fileCounter: document.getElementById('v2-file-counter'),
-        
+
         // Frames reference
         uploadFramesGroup: document.getElementById('v2-group-upload-frames'),
         frameInitialZone: document.getElementById('v2-upload-zone-initial'),
@@ -3638,11 +3638,11 @@ const v2Registry = {};
         const needsFile = !isAudio && (isMjNeedsFile || data.input === 'file' || data.input === 'mix');
         const uploadGroup = document.getElementById('v2-group-upload');
         const uploadFramesGroup = v2.uploadFramesGroup;
-        
+
         const isFramesModel = (data.model && (data.model.startsWith('veo3/') || data.model.includes('kling-3.0/video')));
 
-        if (uploadFramesGroup) uploadFramesGroup.style.display = (needsFile && isFramesModel) ? '' : 'none';
-        if (uploadGroup) uploadGroup.style.display = (needsFile && !isFramesModel) ? '' : 'none';
+        if (uploadFramesGroup) uploadFramesGroup.classList.toggle('hidden', !(needsFile && isFramesModel));
+        if (uploadGroup) uploadGroup.classList.toggle('hidden', !(needsFile && !isFramesModel));
 
         // Per-model max reference files (from API docs)
         const MODEL_MAX_FILES = {
@@ -4184,7 +4184,7 @@ const v2Registry = {};
         const grid = type === 'initial' ? v2.frameInitialGrid : v2.frameFinalGrid;
         const file = type === 'initial' ? v2FrameInitial : v2FrameFinal;
         const zone = type === 'initial' ? v2.frameInitialZone : v2.frameFinalZone;
-        
+
         grid.innerHTML = '';
         if (!file) {
             zone.classList.remove('v2-upload-full');
@@ -4224,17 +4224,17 @@ const v2Registry = {};
         (file) => {
             const isFramesModel = (v2Model?.model && (v2Model.model.startsWith('veo3/') || v2Model.model.includes('kling-3.0/video')));
             if (isFramesModel) {
-                 if (!v2FrameInitial) v2AddFrameFile([file], 'initial');
-                 else if (!v2FrameFinal) v2AddFrameFile([file], 'final');
-                 else toast('Ambos frames já preenchidos', 'error');
+                if (!v2FrameInitial) v2AddFrameFile([file], 'initial');
+                else if (!v2FrameFinal) v2AddFrameFile([file], 'final');
+                else toast('Ambos frames já preenchidos', 'error');
             } else {
-                 v2AddFiles([file]);
+                v2AddFiles([file]);
             }
         },
-        () => { 
-            const g1 = document.getElementById('v2-group-upload'); 
+        () => {
+            const g1 = document.getElementById('v2-group-upload');
             const g2 = document.getElementById('v2-group-upload-frames');
-            return !!((g1 && g1.style.display !== 'none') || (g2 && g2.style.display !== 'none')); 
+            return !!((g1 && g1.style.display !== 'none') || (g2 && g2.style.display !== 'none'));
         }
     );
 
@@ -4399,7 +4399,7 @@ const v2Registry = {};
                 urls.push(finalUrl);
             }
             if (urls.length > 0) extra.imageUrls = urls;
-            
+
             // Re-store URL for UI thumbnail
             extra._uploaded_url_override = uploadedUrlForPreview;
             btnSpan.textContent = 'Creating task...';
@@ -4512,7 +4512,7 @@ const v2Registry = {};
         if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
         const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
         if (!taskId) throw new Error(json.msg || 'No taskId returned');
-        
+
         const previewUrl = extra[imgField]?.length ? (Array.isArray(extra[imgField]) ? extra[imgField][0] : extra[imgField]) : null;
         addTask(taskId, resolvedModel, mode, previewUrl, extra);
         v2Tasks.push(taskId);

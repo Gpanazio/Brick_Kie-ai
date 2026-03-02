@@ -439,8 +439,8 @@
             data-desc="Modelo próprio da Kie.ai: geração com prompt, imagens de referência e controle de aspect ratio, resolução e formato.">
         </div>
 
-        <div data-cat="image" data-model="seedream/5-lite" data-name="Seedream 5 Lite"
-            data-provider="ByteDance" data-input="mix" data-field="image_urls"
+        <div data-cat="image" data-model="seedream/5-lite" data-name="Seedream 5 Lite" data-provider="ByteDance"
+            data-input="mix" data-field="image_urls"
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M19 12h-3c-1.1 0-2-.9-2-2V7c0-1.1-.9-2-2-2S10 5.9 10 7v3c0 1.1-.9 2-2 2H5c-1.1 0-2 .9-2 2s.9 2 2 2h3c1.1 0 2 .9 2 2v3c0 1.1.9 2 2 2s2-.9 2-2v-3c0-1.1.9-2 2-2h3c1.1 0 2-.9 2-2s-.9-2-2-2z&quot; fill=&quot;currentColor&quot;/></svg>"
             data-color="mc-bytedance" data-prompt="true"
             data-desc="O poderoso modelo da ByteDance para text-to-image e edição de referência (Seedream 5)."></div>
@@ -645,7 +645,7 @@
                 </div>
 
                 <!-- Upload -->
-                <div class="v2-form-group" id="v2-group-upload">
+                <div class="v2-form-group hidden" id="v2-group-upload">
                     <div class="v2-label-row">
                         <label class="v2-label" id="v2-upload-label">Imagens de referência <span class="v2-label-hint">—
                                 opcional, até 8</span></label>
@@ -670,13 +670,16 @@
                 <!-- Initial/Final Frame Upload (Veo 3 / Kling) -->
                 <div class="v2-form-group hidden" id="v2-group-upload-frames">
                     <div class="v2-frames-container" style="display: flex; gap: 12px;">
-                        
+
                         <!-- Initial Frame -->
                         <div class="v2-frame-dropzone" style="flex: 1;">
-                            <label class="v2-label" style="display: block; margin-bottom: 8px;">Initial Frame <span class="v2-label-hint">— opcional</span></label>
-                            <div class="v2-upload-zone" id="v2-upload-zone-initial" style="padding: 16px 8px; min-height: 120px;">
+                            <label class="v2-label" style="display: block; margin-bottom: 8px;">Initial Frame <span
+                                    class="v2-label-hint">— opcional</span></label>
+                            <div class="v2-upload-zone" id="v2-upload-zone-initial"
+                                style="padding: 16px 8px; min-height: 120px;">
                                 <input type="file" id="v2-file-input-initial" accept="image/*" hidden>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 6px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5" style="margin-bottom: 6px;">
                                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                                     <polyline points="17 8 12 3 7 8" />
                                     <line x1="12" y1="3" x2="12" y2="15" />
@@ -688,10 +691,13 @@
 
                         <!-- Final Frame -->
                         <div class="v2-frame-dropzone" style="flex: 1;">
-                            <label class="v2-label" style="display: block; margin-bottom: 8px;">Final Frame <span class="v2-label-hint">— opcional</span></label>
-                            <div class="v2-upload-zone" id="v2-upload-zone-final" style="padding: 16px 8px; min-height: 120px;">
+                            <label class="v2-label" style="display: block; margin-bottom: 8px;">Final Frame <span
+                                    class="v2-label-hint">— opcional</span></label>
+                            <div class="v2-upload-zone" id="v2-upload-zone-final"
+                                style="padding: 16px 8px; min-height: 120px;">
                                 <input type="file" id="v2-file-input-final" accept="image/*" hidden>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 6px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5" style="margin-bottom: 6px;">
                                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                                     <polyline points="17 8 12 3 7 8" />
                                     <line x1="12" y1="3" x2="12" y2="15" />
@@ -764,7 +770,7 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/kie-ai/static/app.js?v=28"></script>
+    <script src="/kie-ai/static/app.js?v=29"></script>
 </body>
 
 </html>
