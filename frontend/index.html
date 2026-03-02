@@ -673,36 +673,40 @@
 
                         <!-- Initial Frame -->
                         <div class="v2-frame-dropzone" style="flex: 1;">
-                            <label class="v2-label" style="display: block; margin-bottom: 8px;">Initial Frame <span
-                                    class="v2-label-hint">— opcional</span></label>
+                            <label class="v2-label"
+                                style="display: block; margin-bottom: 8px; color: var(--accent);">Foto Inicial <span
+                                    class="v2-label-hint">— como o vídeo começa</span></label>
                             <div class="v2-upload-zone" id="v2-upload-zone-initial"
-                                style="padding: 16px 8px; min-height: 120px;">
+                                style="padding: 16px 8px; min-height: 120px; border-color: rgba(255, 255, 255, 0.2);">
                                 <input type="file" id="v2-file-input-initial" accept="image/*" hidden>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="1.5" style="margin-bottom: 6px;">
-                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                                    <polyline points="17 8 12 3 7 8" />
-                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5" style="margin-bottom: 8px; opacity: 0.7;">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <polyline points="21 15 16 10 5 21" />
                                 </svg>
-                                <span style="font-size: 11px;">Enviar Imagem</span>
+                                <span style="font-size: 12px; font-weight: 500;">Primeira Cena</span>
+                                <span class="v2-upload-hint">Upload ou arraste (opcional)</span>
                             </div>
                             <div class="v2-files-grid" id="v2-files-grid-initial" style="margin-top: 8px;"></div>
                         </div>
 
                         <!-- Final Frame -->
                         <div class="v2-frame-dropzone" style="flex: 1;">
-                            <label class="v2-label" style="display: block; margin-bottom: 8px;">Final Frame <span
-                                    class="v2-label-hint">— opcional</span></label>
+                            <label class="v2-label"
+                                style="display: block; margin-bottom: 8px; color: var(--accent);">Foto Final <span
+                                    class="v2-label-hint">— como o vídeo termina</span></label>
                             <div class="v2-upload-zone" id="v2-upload-zone-final"
-                                style="padding: 16px 8px; min-height: 120px;">
+                                style="padding: 16px 8px; min-height: 120px; border-color: rgba(255, 255, 255, 0.2);">
                                 <input type="file" id="v2-file-input-final" accept="image/*" hidden>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="1.5" style="margin-bottom: 6px;">
-                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                                    <polyline points="17 8 12 3 7 8" />
-                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5" style="margin-bottom: 8px; opacity: 0.7;">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <polyline points="21 15 16 10 5 21" />
                                 </svg>
-                                <span style="font-size: 11px;">Enviar Imagem</span>
+                                <span style="font-size: 12px; font-weight: 500;">Última Cena</span>
+                                <span class="v2-upload-hint">Upload ou arraste (opcional)</span>
                             </div>
                             <div class="v2-files-grid" id="v2-files-grid-final" style="margin-top: 8px;"></div>
                         </div>
