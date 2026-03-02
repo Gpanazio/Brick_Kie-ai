@@ -444,25 +444,8 @@ async def veo_create(
     try:
         input_data = json.loads(input_json)
 
-        # If a file was uploaded (image-to-video), upload it first then add to imageUrls
-        upload_url = None
-        if file and file.filename:
-            suffix = Path(file.filename).suffix or ".tmp"
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                tmp.write(await file.read())
-                tmp_path = tmp.name
-            try:
-                up_resp = kie_api.upload_stream(tmp_path, upload_path="image")
-                upload_url = kie_api._extract_uploaded_url(up_resp)
-                input_data["imageUrls"] = [upload_url]
-            finally:
-                Path(tmp_path).unlink(missing_ok=True)
-
         _ensure_callback_url(input_data)
         resp = kie_api.veo_create_task(model, input_data)
-        # Attach uploaded_url so frontend can display the input image (like gpt4o/flux)
-        if isinstance(resp, dict) and file and file.filename:
-            resp["uploaded_url"] = upload_url
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")

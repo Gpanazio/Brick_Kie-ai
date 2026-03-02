@@ -3520,6 +3520,16 @@ const v2Registry = {};
         fileInput: document.getElementById('v2-file-input'),
         filesGrid: document.getElementById('v2-files-grid'),
         fileCounter: document.getElementById('v2-file-counter'),
+        
+        // Frames reference
+        uploadFramesGroup: document.getElementById('v2-group-upload-frames'),
+        frameInitialZone: document.getElementById('v2-upload-zone-initial'),
+        frameInitialInput: document.getElementById('v2-file-input-initial'),
+        frameInitialGrid: document.getElementById('v2-files-grid-initial'),
+        frameFinalZone: document.getElementById('v2-upload-zone-final'),
+        frameFinalInput: document.getElementById('v2-file-input-final'),
+        frameFinalGrid: document.getElementById('v2-files-grid-final'),
+
         btnGenerate: document.getElementById('v2-btn-generate'),
         btnBack: document.getElementById('v2-btn-back'),
         btnReset: document.getElementById('v2-btn-reset'),
@@ -3533,6 +3543,8 @@ const v2Registry = {};
     // ── State ──
     let v2MaxFiles = 8; // Adjustable per model (1 for image-to-video, 8 for image)
     let v2Files = []; // Array of File objects
+    let v2FrameInitial = null; // File object for Initial Frame
+    let v2FrameFinal = null;   // File object for Final Frame
     let v2Settings = { ...DEFAULT_V2_SETTINGS };
     let v2Tasks = JSON.parse(sessionStorage.getItem('v2_tasks') || '[]'); // Track tasks spawned from V2 workspace
 
@@ -3625,7 +3637,12 @@ const v2Registry = {};
         const isAudio = currentCat === 'audio' || currentCat === 'music';
         const needsFile = !isAudio && (isMjNeedsFile || data.input === 'file' || data.input === 'mix');
         const uploadGroup = document.getElementById('v2-group-upload');
-        if (uploadGroup) uploadGroup.style.display = needsFile ? '' : 'none';
+        const uploadFramesGroup = v2.uploadFramesGroup;
+        
+        const isFramesModel = (data.model && (data.model.startsWith('veo3/') || data.model.includes('kling-3.0/video')));
+
+        if (uploadFramesGroup) uploadFramesGroup.style.display = (needsFile && isFramesModel) ? '' : 'none';
+        if (uploadGroup) uploadGroup.style.display = (needsFile && !isFramesModel) ? '' : 'none';
 
         // Per-model max reference files (from API docs)
         const MODEL_MAX_FILES = {
@@ -4123,11 +4140,102 @@ const v2Registry = {};
         if (selectedFiles.length) v2AddFiles(selectedFiles);
     });
 
+    // ── Frames Upload Zone (Initial / Final) ──
+    function handleFrameUpload(zone, input, type) {
+        zone.addEventListener('click', () => {
+            if (type === 'initial' && v2FrameInitial) return;
+            if (type === 'final' && v2FrameFinal) return;
+            input.click();
+        });
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) v2AddFrameFile(Array.from(e.dataTransfer.files), type);
+        });
+        input.addEventListener('change', () => {
+            const selectedFiles = Array.from(input.files);
+            input.value = '';
+            if (selectedFiles.length) v2AddFrameFile(selectedFiles, type);
+        });
+    }
+
+    if (v2.frameInitialZone && v2.frameInitialInput) {
+        handleFrameUpload(v2.frameInitialZone, v2.frameInitialInput, 'initial');
+    }
+    if (v2.frameFinalZone && v2.frameFinalInput) {
+        handleFrameUpload(v2.frameFinalZone, v2.frameFinalInput, 'final');
+    }
+
+    function v2AddFrameFile(newFiles, type) {
+        const images = newFiles.filter(f => f.type.startsWith('image/'));
+        if (!images.length) return;
+        if (type === 'initial') {
+            v2FrameInitial = images[0];
+        } else {
+            v2FrameFinal = images[0];
+        }
+        v2RenderFrameGrid(type);
+        updateV2GenerateState();
+    }
+
+    function v2RenderFrameGrid(type) {
+        const grid = type === 'initial' ? v2.frameInitialGrid : v2.frameFinalGrid;
+        const file = type === 'initial' ? v2FrameInitial : v2FrameFinal;
+        const zone = type === 'initial' ? v2.frameInitialZone : v2.frameFinalZone;
+        
+        grid.innerHTML = '';
+        if (!file) {
+            zone.classList.remove('v2-upload-full');
+            return;
+        }
+
+        zone.classList.add('v2-upload-full');
+
+        const card = document.createElement('div');
+        card.className = 'v2-file-card';
+        card.style.width = '100%'; // Full width in flex container
+
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.alt = file.name;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'v2-file-card-remove';
+        removeBtn.title = 'Remover';
+        removeBtn.innerHTML = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        removeBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (type === 'initial') v2FrameInitial = null;
+            else v2FrameFinal = null;
+            v2RenderFrameGrid(type);
+            updateV2GenerateState();
+        });
+
+        card.appendChild(img);
+        card.appendChild(removeBtn);
+        grid.appendChild(card);
+    }
+
     // Ctrl+V paste image in v2 prompt → add as reference image
     setupPasteImageHandler(
         v2.prompt,
-        (file) => v2AddFiles([file]),
-        () => { const g = document.getElementById('v2-group-upload'); return !!(g && g.style.display !== 'none'); }
+        (file) => {
+            const isFramesModel = (v2Model?.model && (v2Model.model.startsWith('veo3/') || v2Model.model.includes('kling-3.0/video')));
+            if (isFramesModel) {
+                 if (!v2FrameInitial) v2AddFrameFile([file], 'initial');
+                 else if (!v2FrameFinal) v2AddFrameFile([file], 'final');
+                 else toast('Ambos frames já preenchidos', 'error');
+            } else {
+                 v2AddFiles([file]);
+            }
+        },
+        () => { 
+            const g1 = document.getElementById('v2-group-upload'); 
+            const g2 = document.getElementById('v2-group-upload-frames');
+            return !!((g1 && g1.style.display !== 'none') || (g2 && g2.style.display !== 'none')); 
+        }
     );
 
     function v2AddFiles(newFiles) {
@@ -4137,7 +4245,7 @@ const v2Registry = {};
 
         const remaining = v2MaxFiles - v2Files.length;
         if (remaining <= 0) {
-            toast('Limite de 8 imagens atingido', 'error');
+            toast('Limite de imagens atingido', 'error');
             return;
         }
         const toAdd = images.slice(0, remaining);
@@ -4152,7 +4260,13 @@ const v2Registry = {};
     // Register handler for reuse from lightbox (outside this closure)
     v2Registry.addFilesFromReuse = function (files) {
         v2ClearAllFiles();
-        v2AddFiles(files);
+        const isFramesModel = (v2Model?.model && (v2Model.model.startsWith('veo3/') || v2Model.model.includes('kling-3.0/video')));
+        if (isFramesModel) {
+            if (files[0]) v2AddFrameFile([files[0]], 'initial');
+            if (files[1]) v2AddFrameFile([files[1]], 'final');
+        } else {
+            v2AddFiles(files);
+        }
     };
 
     function v2RemoveFile(index) {
@@ -4163,46 +4277,15 @@ const v2Registry = {};
 
     function v2ClearAllFiles() {
         v2Files = [];
+        v2FrameInitial = null;
+        v2FrameFinal = null;
         v2.fileInput.value = '';
+        if (v2.frameInitialInput) v2.frameInitialInput.value = '';
+        if (v2.frameFinalInput) v2.frameFinalInput.value = '';
         v2RenderFilesGrid();
+        v2RenderFrameGrid('initial');
+        v2RenderFrameGrid('final');
         updateV2GenerateState();
-    }
-
-    function v2RenderFilesGrid() {
-        v2.filesGrid.innerHTML = '';
-
-        v2Files.forEach((file, i) => {
-            const card = document.createElement('div');
-            card.className = 'v2-file-card';
-
-            const img = document.createElement('img');
-            img.src = URL.createObjectURL(file);
-            img.alt = file.name;
-
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'v2-file-card-remove';
-            removeBtn.title = 'Remover';
-            removeBtn.innerHTML = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-            removeBtn.addEventListener('click', e => { e.stopPropagation(); v2RemoveFile(i); });
-
-            const index = document.createElement('span');
-            index.className = 'v2-file-card-index';
-            index.textContent = i + 1;
-
-            card.appendChild(img);
-            card.appendChild(removeBtn);
-            card.appendChild(index);
-            v2.filesGrid.appendChild(card);
-        });
-
-        // Update counter
-        const count = v2Files.length;
-        v2.fileCounter.textContent = `${count} / ${v2MaxFiles}`;
-        v2.fileCounter.classList.toggle('has-files', count > 0);
-        v2.fileCounter.classList.toggle('full', count >= v2MaxFiles);
-
-        // Disable upload zone if full
-        v2.uploadZone.classList.toggle('v2-upload-full', count >= v2MaxFiles);
     }
 
     // ── Settings: Reset — re-render dynamic params with defaults ──
@@ -4217,6 +4300,7 @@ const v2Registry = {};
     function updateV2GenerateState() {
         const hasPrompt = v2.prompt.value.trim().length > 0;
         const hasFiles = v2Files.length > 0;
+        const hasFrames = v2FrameInitial !== null || v2FrameFinal !== null;
         const isMj = currentCat === 'mj';
 
         if (isMj) {
@@ -4229,7 +4313,7 @@ const v2Registry = {};
                 v2.btnGenerate.disabled = !hasPrompt;
             }
         } else {
-            v2.btnGenerate.disabled = !(hasPrompt || hasFiles);
+            v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames);
         }
     }
 
@@ -4284,7 +4368,7 @@ const v2Registry = {};
         if (prompt) extra.prompt = prompt;
         extra.aspect_ratio = v2Settings.videoAr || '16:9';
 
-        const hasImageInput = v2Files.length > 0;
+        const hasImageInput = v2FrameInitial !== null || v2FrameFinal !== null;
         let resolvedModel = v2Model?.model || 'veo3/text-to-video';
         resolvedModel = resolveVeoModelByInput(resolvedModel, hasImageInput);
 
@@ -4295,9 +4379,29 @@ const v2Registry = {};
         }
 
         if (hasImageInput) {
-            btnSpan.textContent = 'Uploading...';
-            const url = await v2UploadSingleFile(v2Files[0], 0, 1);
-            extra.imageUrls = [url];
+            btnSpan.textContent = 'Uploading frames...';
+            let initialUrl = "";
+            let finalUrl = "";
+            let uploadedUrlForPreview = null;
+            if (v2FrameInitial) {
+                initialUrl = await v2UploadSingleFile(v2FrameInitial, 0, 1);
+                uploadedUrlForPreview = initialUrl;
+            }
+            if (v2FrameFinal) {
+                finalUrl = await v2UploadSingleFile(v2FrameFinal, 0, 1);
+                if (!uploadedUrlForPreview) uploadedUrlForPreview = finalUrl;
+            }
+            const urls = [];
+            if (initialUrl || finalUrl) {
+                urls.push(initialUrl);
+            }
+            if (finalUrl) {
+                urls.push(finalUrl);
+            }
+            if (urls.length > 0) extra.imageUrls = urls;
+            
+            // Re-store URL for UI thumbnail
+            extra._uploaded_url_override = uploadedUrlForPreview;
             btnSpan.textContent = 'Creating task...';
         }
 
@@ -4313,7 +4417,7 @@ const v2Registry = {};
             || json?.data?.task_id || json?.task_id;
         if (!tid) throw new Error(json.msg || 'Nenhum taskId retornado');
 
-        addTask(tid, resolvedModel, 'veo', json.uploaded_url || null, extra);
+        addTask(tid, resolvedModel, 'veo', json.uploaded_url || extra._uploaded_url_override || null, extra);
         v2Tasks.push(tid);
         toast('✅ Veo 3 task created!', 'success');
     }
@@ -4330,8 +4434,11 @@ const v2Registry = {};
         }
         delete extra.suno_mode;
 
+        const isFramesModel = resolvedModel.includes('kling-3.0/video');
+        const hasFiles = isFramesModel ? (v2FrameInitial !== null || v2FrameFinal !== null) : (v2Files.length > 0);
+
         // Remap model names based on whether images are present
-        if (v2Files.length > 0) {
+        if (hasFiles) {
             if (resolvedModel === 'grok-imagine/text-to-image') resolvedModel = 'grok-imagine/image-to-image';
             if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
             if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
@@ -4344,12 +4451,32 @@ const v2Registry = {};
 
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
 
-        if (v2Files.length > 0) {
-            btnSpan.textContent = `Uploading ${v2Files.length} image${v2Files.length > 1 ? 's' : ''}...`;
-            const imageUrls = await Promise.all(
-                v2Files.map((file, i) => v2UploadSingleFile(file, i, v2Files.length))
-            );
-            extra[imgField] = imageUrls;
+        if (hasFiles) {
+            if (isFramesModel) {
+                btnSpan.textContent = 'Uploading frames...';
+                let initialUrl = "";
+                let finalUrl = "";
+                if (v2FrameInitial) {
+                    initialUrl = await v2UploadSingleFile(v2FrameInitial, 0, 1);
+                }
+                if (v2FrameFinal) {
+                    finalUrl = await v2UploadSingleFile(v2FrameFinal, 0, 1);
+                }
+                const urls = [];
+                if (initialUrl || finalUrl) {
+                    urls.push(initialUrl);
+                }
+                if (finalUrl) {
+                    urls.push(finalUrl);
+                }
+                if (urls.length > 0) extra[imgField] = urls;
+            } else {
+                btnSpan.textContent = `Uploading ${v2Files.length} image${v2Files.length > 1 ? 's' : ''}...`;
+                const imageUrls = await Promise.all(
+                    v2Files.map((file, i) => v2UploadSingleFile(file, i, v2Files.length))
+                );
+                extra[imgField] = imageUrls;
+            }
             btnSpan.textContent = 'Creating task...';
         }
 
@@ -4385,9 +4512,11 @@ const v2Registry = {};
         if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
         const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
         if (!taskId) throw new Error(json.msg || 'No taskId returned');
-        addTask(taskId, resolvedModel, mode, extra[imgField]?.length ? extra[imgField] : null, extra);
+        
+        const previewUrl = extra[imgField]?.length ? (Array.isArray(extra[imgField]) ? extra[imgField][0] : extra[imgField]) : null;
+        addTask(taskId, resolvedModel, mode, previewUrl, extra);
         v2Tasks.push(taskId);
-        toast(`✅ Task created!${v2Files.length ? ` (${v2Files.length} ref image${v2Files.length > 1 ? 's' : ''})` : ''}`, 'success');
+        toast(`✅ Task created!${hasFiles ? ` (images uploaded)` : ''}`, 'success');
     }
 
     // ── GENERATE — Functional submit with multi-image support ──

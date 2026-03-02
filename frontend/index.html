@@ -667,6 +667,43 @@
                     </div>
                 </div>
 
+                <!-- Initial/Final Frame Upload (Veo 3 / Kling) -->
+                <div class="v2-form-group hidden" id="v2-group-upload-frames">
+                    <div class="v2-frames-container" style="display: flex; gap: 12px;">
+                        
+                        <!-- Initial Frame -->
+                        <div class="v2-frame-dropzone" style="flex: 1;">
+                            <label class="v2-label" style="display: block; margin-bottom: 8px;">Initial Frame <span class="v2-label-hint">— opcional</span></label>
+                            <div class="v2-upload-zone" id="v2-upload-zone-initial" style="padding: 16px 8px; min-height: 120px;">
+                                <input type="file" id="v2-file-input-initial" accept="image/*" hidden>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 6px;">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                </svg>
+                                <span style="font-size: 11px;">Enviar Imagem</span>
+                            </div>
+                            <div class="v2-files-grid" id="v2-files-grid-initial" style="margin-top: 8px;"></div>
+                        </div>
+
+                        <!-- Final Frame -->
+                        <div class="v2-frame-dropzone" style="flex: 1;">
+                            <label class="v2-label" style="display: block; margin-bottom: 8px;">Final Frame <span class="v2-label-hint">— opcional</span></label>
+                            <div class="v2-upload-zone" id="v2-upload-zone-final" style="padding: 16px 8px; min-height: 120px;">
+                                <input type="file" id="v2-file-input-final" accept="image/*" hidden>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 6px;">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                </svg>
+                                <span style="font-size: 11px;">Enviar Imagem</span>
+                            </div>
+                            <div class="v2-files-grid" id="v2-files-grid-final" style="margin-top: 8px;"></div>
+                        </div>
+
+                    </div>
+                </div>
+
 
                 <!-- ── Settings & Credits (Moved from right) ── -->
                 <div class="v2-settings-header" style="margin-top: 8px;">
