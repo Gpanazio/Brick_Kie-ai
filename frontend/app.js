@@ -1010,11 +1010,8 @@ function initSocketCallbacks() {
         console.warn('[Socket] socket.io client not loaded, callbacks disabled');
         return;
     }
-    const apiKey = localStorage.getItem('kie-api-key');
-    if (!apiKey) {
-        console.warn('[Socket] No API key found in localStorage, socket auth may fail');
-    }
-    const socket = io({ auth: { apiKey }, transports: ['websocket', 'polling'] });
+    const socket = io({ transports: ['websocket', 'polling'] });
+
 
     socket.on('connect', () => {
         console.log('[Socket] Connected for KIE callbacks');
@@ -4275,6 +4272,39 @@ const v2Registry = {};
         v2Files.splice(index, 1);
         v2RenderFilesGrid();
         updateV2GenerateState();
+    }
+
+    function v2RenderFilesGrid() {
+        if (!v2.filesGrid) return;
+        v2.filesGrid.innerHTML = '';
+        if (v2Files.length === 0) {
+            v2.uploadZone.classList.remove('v2-upload-full');
+            return;
+        }
+
+        v2.uploadZone.classList.add('v2-upload-full');
+
+        v2Files.forEach((file, index) => {
+            const card = document.createElement('div');
+            card.className = 'v2-file-card';
+
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.alt = file.name;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'v2-file-card-remove';
+            removeBtn.title = 'Remover';
+            removeBtn.innerHTML = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+            removeBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                v2RemoveFile(index);
+            });
+
+            card.appendChild(img);
+            card.appendChild(removeBtn);
+            v2.filesGrid.appendChild(card);
+        });
     }
 
     function v2ClearAllFiles() {
