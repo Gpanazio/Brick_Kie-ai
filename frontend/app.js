@@ -603,7 +603,11 @@ let tasks = [];
 const PENDING_KEY = 'kie-pending-tasks';
 
 function loadPendingTasks() {
-    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }
+    try {
+        const raw = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+        if (!Array.isArray(raw)) { console.warn('[pending] Expected array, got:', typeof raw); return []; }
+        return raw.filter(p => p && typeof p === 'object' && typeof p.id === 'string' && typeof p.model === 'string');
+    }
     catch (e) { console.error('Pending tasks load error:', e); return []; }
 }
 
@@ -641,7 +645,7 @@ function clearAllPendingTasks() {
 
 // Stop all active polling timers
 function stopAllPolling() {
-    tasks.forEach(t => { if (t.pollTimer) clearInterval(t.pollTimer); });
+    tasks.forEach(t => { if (t.pollTimer) { clearTimeout(t.pollTimer); t.pollTimer = null; } });
 }
 
 // Stop all polling, clear the local tasks array, and remove task cards from the DOM
@@ -695,7 +699,7 @@ function _migrateHistoryEntry(h) {
         try {
             const item = tpl.content.querySelector(`[data-model="${h.model}"]`);
             if (item && item.dataset.cat) { h.cat = item.dataset.cat; migrated = true; }
-        } catch (e) { }
+        } catch (e) { console.warn('[history] Failed to migrate entry model:', h.model, e); }
     }
     if (!h.cat && h.model.startsWith('mj-')) { h.cat = 'mj'; migrated = true; }
     if (!h.cat && h.model) {
@@ -760,7 +764,7 @@ function _extractResultUrls(data) {
             if (Array.isArray(parsed.resultUrls)) urls.push(...parsed.resultUrls);
             if (parsed.resultUrl) urls.push(parsed.resultUrl);
             if (parsed.resultObject?.url) urls.push(parsed.resultObject.url);
-        } catch { }
+        } catch (e) { console.warn('[extractResultUrls] Failed to parse resultJson:', e); }
     } else if (data._parsedResult) {
         if (Array.isArray(data._parsedResult.resultUrls)) urls.push(...data._parsedResult.resultUrls);
         if (data._parsedResult.resultUrl) urls.push(data._parsedResult.resultUrl);
@@ -1054,7 +1058,7 @@ function initSocketCallbacks() {
 
         // Stop polling — callback is authoritative (only for final states)
         if (state === 'success' || state === 'fail') {
-            if (task.pollTimer) { clearInterval(task.pollTimer); task.pollTimer = null; }
+            if (task.pollTimer) { clearTimeout(task.pollTimer); task.pollTimer = null; }
             removePendingTask(task.id);
             const failInfo = data.failMsg ? ` — ${data.failMsg}` : '';
             toast(
@@ -1664,7 +1668,8 @@ function handleFileSelect(file) {
         mediaEl.src = _previewObjectURL;
         els.filePreviewThumb.appendChild(mediaEl);
     } else {
-        els.filePreviewThumb.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+        const fallbackIconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+        els.filePreviewThumb.appendChild(new DOMParser().parseFromString(fallbackIconSvg, 'image/svg+xml').documentElement);
     }
     els.uploadZone.classList.add('hidden');
     els.filePreview.classList.remove('hidden');
@@ -1910,7 +1915,7 @@ async function submitSunoModel() {
     if (prompt) extra.prompt = prompt;
 
     if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
     }
 
     fd.append('model', resolvedModel);
@@ -1949,7 +1954,7 @@ async function submitVeoModel() {
     if (prompt) extra.prompt = prompt;
 
     if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
     }
 
     // Strip enableFallback just in case it was passed by user JSON
@@ -1987,7 +1992,7 @@ async function submitFileModel() {
     if (prompt) extra.prompt = prompt;
     // Merge manual JSON if visible
     if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
     }
     fd.append('input_json', JSON.stringify(extra));
     const resp = await fetch(`${API}/api/process`, { method: 'POST', body: fd });
@@ -2009,7 +2014,7 @@ async function submitGpt4oImage() {
     if (prompt) extra.prompt = prompt;
 
     if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
     }
 
     fd.append('model', 'gpt4o-image');
@@ -2039,7 +2044,7 @@ async function submitFluxKontext() {
     extra.model = resolvedModel;
 
     if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
     }
 
     fd.append('model', resolvedModel);
@@ -2077,7 +2082,7 @@ async function submitMixMarketModel() {
     if (prompt) extra.prompt = prompt;
 
     if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
     }
 
     // If there's a file, use /api/process which handles upload + task creation
@@ -2122,7 +2127,7 @@ async function submitTextModel() {
     else extra.prompt = prompt;
     // Merge manual JSON
     if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch { }
+        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
     }
     const fd = new FormData();
     fd.append('model', resolvedModel);
@@ -2230,6 +2235,13 @@ function filterTasksByCategory() {
 function startPolling(task) {
     let pollErrors = 0;
     const MAX_POLL_ERRORS = 5;
+    const BASE_INTERVAL = 5000;
+    let currentInterval = BASE_INTERVAL;
+
+    const schedulePoll = () => {
+        task.pollTimer = setTimeout(poll, currentInterval);
+    };
+
     const poll = async () => {
         try {
             const ep = task.mode === 'midjourney' ? `/api/mj/task/${task.id}` :
@@ -2242,12 +2254,13 @@ function startPolling(task) {
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const json = await resp.json();
             pollErrors = 0; // reset on success
+            currentInterval = BASE_INTERVAL; // reset backoff on success
             task.data = json;
             const data = json?.data || {};
 
             // Parse resultJson if it comes as string (per API docs)
             if (typeof data.resultJson === 'string' && data.resultJson) {
-                try { data._parsedResult = JSON.parse(data.resultJson); } catch { }
+                try { data._parsedResult = JSON.parse(data.resultJson); } catch (e) { console.warn('[poll] Failed to parse resultJson:', e.message); }
             }
 
             // Normalize failMsg from various API response formats (like callback handler does)
@@ -2275,7 +2288,7 @@ function startPolling(task) {
             task.state = state;
             updateTaskCard(task);
             if (state === 'success' || state === 'fail') {
-                clearInterval(task.pollTimer); task.pollTimer = null;
+                task.pollTimer = null;
                 removePendingTask(task.id);
                 const failInfo = data.failMsg ? ` — ${data.failMsg}` : '';
                 toast(
@@ -2286,22 +2299,27 @@ function startPolling(task) {
                 if (state === 'success') addToHistory(task);
                 fetchCredits();
                 updateActiveCount();
+            } else {
+                schedulePoll();
             }
         } catch (err) {
             pollErrors++;
-            console.error(`Poll error (${pollErrors}/${MAX_POLL_ERRORS}):`, err);
+            // Exponential backoff: 5s → 10s → 20s → 40s → give up
+            currentInterval = Math.min(BASE_INTERVAL * Math.pow(2, pollErrors), 60000);
+            console.error(`[poll] Error ${pollErrors}/${MAX_POLL_ERRORS} for ${task.id}, next retry in ${currentInterval / 1000}s:`, err.message);
             if (pollErrors >= MAX_POLL_ERRORS) {
-                clearInterval(task.pollTimer); task.pollTimer = null;
+                task.pollTimer = null;
                 removePendingTask(task.id);
                 task.state = 'fail';
                 task.data = { data: { failMsg: `Erro de rede: ${err.message}`, failCode: 'NETWORK_ERROR' } };
                 updateTaskCard(task);
                 toast(`❌ ${task.model} — conexão perdida após ${MAX_POLL_ERRORS} tentativas`, 'error');
+            } else {
+                schedulePoll();
             }
         }
     };
     poll();
-    task.pollTimer = setInterval(poll, 5000);
 }
 
 function updateTasksEmpty() { els.tasksEmpty.classList.toggle('hidden', tasks.length > 0); }
@@ -3102,7 +3120,7 @@ function sanitizeSvg(raw) {
         });
         const svg = doc.documentElement;
         return svg.tagName.toLowerCase() === 'svg' ? svg.outerHTML : esc(raw);
-    } catch { return esc(raw); }
+    } catch (e) { console.warn('[sanitizeSvg] Failed to parse SVG:', e.message); return esc(raw); }
 }
 
 // ==================== Post-Generation Actions ====================
@@ -3142,7 +3160,7 @@ document.body.addEventListener('click', async (e) => {
                 || (Array.isArray(json?.data?.resultUrls) ? json.data.resultUrls[0] : null);
             if (hdUrl) {
                 toast('✅ Vídeo 1080p disponível! URL copiada.', 'success');
-                try { await navigator.clipboard.writeText(hdUrl); } catch { }
+                try { await navigator.clipboard.writeText(hdUrl); } catch (e) { console.warn('[clipboard] Failed to copy 1080p URL:', e.message); }
                 // Open in new tab
                 window.open(hdUrl, '_blank');
             } else {
@@ -3170,7 +3188,7 @@ document.body.addEventListener('click', async (e) => {
                 || (Array.isArray(json?.data?.resultUrls) ? json.data.resultUrls[0] : null);
             if (url4k) {
                 toast('✅ Vídeo 4K disponível! URL copiada.', 'success');
-                try { await navigator.clipboard.writeText(url4k); } catch { }
+                try { await navigator.clipboard.writeText(url4k); } catch (e) { console.warn('[clipboard] Failed to copy 4K URL:', e.message); }
                 window.open(url4k, '_blank');
             } else {
                 const taskId = json?.data?.taskId || json?.taskId;
@@ -4835,7 +4853,7 @@ const v2Registry = {};
             if (!resp.ok) return [];
             const json = await resp.json();
             return json.history || [];
-        } catch { return []; }
+        } catch (e) { console.warn('[v2] Failed to fetch server history:', e.message); return []; }
     }
 
     // ── Refresh gallery from existing tasks (on show) ──

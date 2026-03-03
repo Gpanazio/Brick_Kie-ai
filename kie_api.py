@@ -64,8 +64,9 @@ def _url(base: str, path: str) -> str:
 # ==================== Upload ====================
 
 
-def upload_stream(file_path: str, upload_path: str = "uploads", file_name: Optional[str] = None) -> Dict[str, Any]:
-    """Uploads a local file (multipart/form-data) and returns the full JSON response."""
+def upload_stream(file_path: str, upload_path: str = "uploads", file_name: Optional[str] = None, max_retries: int = 3) -> Dict[str, Any]:
+    """Uploads a local file (multipart/form-data) and returns the full JSON response.
+    Retries with exponential backoff on transient network errors."""
     p = Path(file_path)
     if not p.exists():
         raise FileNotFoundError(str(p))
@@ -80,11 +81,21 @@ def upload_stream(file_path: str, upload_path: str = "uploads", file_name: Optio
     mime_type, _ = mimetypes.guess_type(file_name or p.name)
     mime_type = mime_type or "application/octet-stream"
 
-    with p.open("rb") as f:
-        files = {"file": (file_name or p.name, f, mime_type)}
-        r = requests.post(url, headers=_auth_headers_no_content_type(), files=files, data=data, timeout=300)
-    r.raise_for_status()
-    return r.json()
+    last_error: Optional[Exception] = None
+    for attempt in range(max_retries + 1):
+        try:
+            with p.open("rb") as f:
+                files = {"file": (file_name or p.name, f, mime_type)}
+                r = requests.post(url, headers=_auth_headers_no_content_type(), files=files, data=data, timeout=300)
+            r.raise_for_status()
+            return r.json()
+        except (requests.ConnectionError, requests.Timeout) as e:
+            last_error = e
+            if attempt < max_retries:
+                wait = 2 ** (attempt + 1)  # 2s, 4s, 8s
+                time.sleep(wait)
+            continue
+    raise last_error  # type: ignore[misc]
 
 
 def upload_url(file_url: str, upload_path: str = "uploads", file_name: Optional[str] = None) -> Dict[str, Any]:
