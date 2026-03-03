@@ -2982,22 +2982,24 @@ function openHistoryLightbox(entry) {
                 setTimeout(() => {
                     const ep = entry.extraParams;
                     // For Midjourney
-                    if (ep.ar) { const el = document.querySelector(`input[name="mj-ar"][value="${ep.ar}"]`); if (el) el.click(); }
-                    if (ep.speed) { const el = document.querySelector(`input[name="mj-speed"][value="${ep.speed}"]`); if (el) el.click(); }
-                    if (ep.version) { const el = document.querySelector(`input[name="mj-version"][value="${ep.version}"]`); if (el) el.click(); }
+                    if (ep.ar) { const el = document.querySelector(`input[name="mj-ar"][value="${CSS.escape(ep.ar)}"]`); if (el) el.click(); }
+                    if (ep.speed) { const el = document.querySelector(`input[name="mj-speed"][value="${CSS.escape(ep.speed)}"]`); if (el) el.click(); }
+                    if (ep.version) { const el = document.querySelector(`input[name="mj-version"][value="${CSS.escape(ep.version)}"]`); if (el) el.click(); }
 
                     // For other models
                     for (const [k, v] of Object.entries(ep)) {
                         // find input
-                        const selectEl = els.configParams.querySelector(`select[data-param-key="${k}"]`);
+                        const selectEl = els.configParams.querySelector(`select[data-param-key="${CSS.escape(k)}"]`);
                         if (selectEl) { selectEl.value = v; continue; }
-                        const radioEl = els.configParams.querySelector(`input[type="radio"][name="param-${k}"][value="${v}"]`);
+                        // Use iteration instead of querySelector for radio values (values may contain special chars)
+                        const radios = els.configParams.querySelectorAll(`input[type="radio"][name="param-${CSS.escape(k)}"]`);
+                        const radioEl = Array.from(radios).find(r => r.value === v);
                         if (radioEl) { radioEl.click(); continue; }
-                        const numEl = els.configParams.querySelector(`input[type="range"][data-param-key="${k}"], input[type="number"][data-param-key="${k}"]`);
+                        const numEl = els.configParams.querySelector(`input[type="range"][data-param-key="${CSS.escape(k)}"], input[type="number"][data-param-key="${CSS.escape(k)}"]`);
                         if (numEl) { numEl.value = v; numEl.dispatchEvent(new Event('input', { bubbles: true })); continue; }
-                        const chkEl = els.configParams.querySelector(`input[type="checkbox"][data-param-key="${k}"]`);
+                        const chkEl = els.configParams.querySelector(`input[type="checkbox"][data-param-key="${CSS.escape(k)}"]`);
                         if (chkEl) { chkEl.checked = v; continue; }
-                        const txtEl = els.configParams.querySelector(`input[type="text"][data-param-key="${k}"]`);
+                        const txtEl = els.configParams.querySelector(`input[type="text"][data-param-key="${CSS.escape(k)}"]`);
                         if (txtEl) { txtEl.value = v; continue; }
                     }
                 }, 100);
