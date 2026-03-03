@@ -1651,16 +1651,18 @@ function handleFileSelect(file) {
     els.filePreviewThumb.innerHTML = '';
     // Revoke previous object URL to prevent memory leak
     if (_previewObjectURL) { URL.revokeObjectURL(_previewObjectURL); _previewObjectURL = null; }
+    let mediaEl;
     if (file.type.startsWith('image/')) {
-        const img = document.createElement('img');
-        _previewObjectURL = URL.createObjectURL(file);
-        img.src = _previewObjectURL;
-        els.filePreviewThumb.appendChild(img);
+        mediaEl = document.createElement('img');
     } else if (file.type.startsWith('video/')) {
-        const vid = document.createElement('video');
+        mediaEl = document.createElement('video');
+        mediaEl.muted = true;
+        mediaEl.preload = 'metadata';
+    }
+    if (mediaEl) {
         _previewObjectURL = URL.createObjectURL(file);
-        vid.src = _previewObjectURL; vid.muted = true; vid.preload = 'metadata';
-        els.filePreviewThumb.appendChild(vid);
+        mediaEl.src = _previewObjectURL;
+        els.filePreviewThumb.appendChild(mediaEl);
     } else {
         els.filePreviewThumb.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
     }
