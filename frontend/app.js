@@ -1643,18 +1643,23 @@ function initUploadZone() {
     );
 }
 
+let _previewObjectURL = null;
 function handleFileSelect(file) {
     selectedFile = file;
     els.filePreviewName.textContent = file.name;
     els.filePreviewSize.textContent = formatSize(file.size);
     els.filePreviewThumb.innerHTML = '';
+    // Revoke previous object URL to prevent memory leak
+    if (_previewObjectURL) { URL.revokeObjectURL(_previewObjectURL); _previewObjectURL = null; }
     if (file.type.startsWith('image/')) {
         const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
+        _previewObjectURL = URL.createObjectURL(file);
+        img.src = _previewObjectURL;
         els.filePreviewThumb.appendChild(img);
     } else if (file.type.startsWith('video/')) {
         const vid = document.createElement('video');
-        vid.src = URL.createObjectURL(file); vid.muted = true; vid.preload = 'metadata';
+        _previewObjectURL = URL.createObjectURL(file);
+        vid.src = _previewObjectURL; vid.muted = true; vid.preload = 'metadata';
         els.filePreviewThumb.appendChild(vid);
     } else {
         els.filePreviewThumb.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
@@ -4197,7 +4202,8 @@ const v2Registry = {};
         card.style.width = '100%'; // Full width in flex container
 
         const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
+        const objUrl = URL.createObjectURL(file);
+        img.src = objUrl;
         img.alt = file.name;
 
         const removeBtn = document.createElement('button');
@@ -4206,6 +4212,7 @@ const v2Registry = {};
         removeBtn.innerHTML = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
         removeBtn.addEventListener('click', e => {
             e.stopPropagation();
+            URL.revokeObjectURL(objUrl);
             if (type === 'initial') v2FrameInitial = null;
             else v2FrameFinal = null;
             v2RenderFrameGrid(type);
@@ -4289,7 +4296,8 @@ const v2Registry = {};
             card.className = 'v2-file-card';
 
             const img = document.createElement('img');
-            img.src = URL.createObjectURL(file);
+            const objUrl = URL.createObjectURL(file);
+            img.src = objUrl;
             img.alt = file.name;
 
             const removeBtn = document.createElement('button');
@@ -4298,6 +4306,7 @@ const v2Registry = {};
             removeBtn.innerHTML = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
             removeBtn.addEventListener('click', e => {
                 e.stopPropagation();
+                URL.revokeObjectURL(objUrl);
                 v2RemoveFile(index);
             });
 
