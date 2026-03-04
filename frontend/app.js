@@ -4466,12 +4466,14 @@ const v2Registry = {};
             let displayModel = v2Model.model;
             const hasAnyFile = hasFiles || hasFrames;
             if (hasAnyFile) {
-                if (displayModel === 'grok-imagine/text-to-video') displayModel = 'grok-imagine/image-to-video';
-                if (displayModel === 'grok-imagine/text-to-image') displayModel = 'grok-imagine/image-to-image';
-                if (displayModel === 'sora-2-pro-text-to-video') displayModel = 'sora-2-pro-image-to-video';
-                if (displayModel === 'wan/2-6-text-to-video') displayModel = 'wan/2-6-image-to-video';
+                if (displayModel === 'grok-imagine/text-to-video')  displayModel = 'grok-imagine/image-to-video';
+                if (displayModel === 'grok-imagine/text-to-image')  displayModel = 'grok-imagine/image-to-image';
+                if (displayModel === 'sora-2-pro-text-to-video')    displayModel = 'sora-2-pro-image-to-video';
+                if (displayModel === 'wan/2-6-text-to-video')       displayModel = 'wan/2-6-image-to-video';
+                if (displayModel === 'seedream/5-lite')             displayModel = 'seedream/5-lite-image-to-image';
                 if (displayModel.startsWith('veo3/')) displayModel = resolveVeoModelByInput(displayModel, true);
             } else {
+                if (displayModel === 'seedream/5-lite')             displayModel = 'seedream/5-lite-text-to-image';
                 if (displayModel.startsWith('veo3/')) displayModel = resolveVeoModelByInput(displayModel, false);
             }
             modelInfoValue.textContent = displayModel;
