@@ -917,6 +917,7 @@ const els = {
     historyEmpty: $('#history-empty'),
     historyFilter: $('#history-filter-model'),
     btnClearHistory: $('#btn-clear-history'),
+    btnImportHistory: $('#btn-import-history'),
     activeCount: $('#active-count'),
     historyCount: $('#history-count'),
 };
@@ -2646,6 +2647,53 @@ function initHistory() {
             // Delete this category from server
             fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE' }).catch(() => { });
             toast('🗑️ Histórico limpo', 'info');
+        });
+    }
+
+    // Import history from KIE
+    if (els.btnImportHistory) {
+        const modal = document.getElementById('modal-import-history');
+        const backdrop = document.getElementById('import-backdrop');
+        const closeBtn = document.getElementById('import-close');
+        const cancelBtn = document.getElementById('btn-import-cancel');
+        const submitBtn = document.getElementById('btn-import-submit');
+        const textarea = document.getElementById('import-task-ids');
+        const status = document.getElementById('import-status');
+
+        function openImportModal() { modal?.classList.remove('hidden'); textarea.value = ''; status.textContent = ''; }
+        function closeImportModal() { modal?.classList.add('hidden'); }
+
+        els.btnImportHistory.addEventListener('click', openImportModal);
+        backdrop?.addEventListener('click', closeImportModal);
+        closeBtn?.addEventListener('click', closeImportModal);
+        cancelBtn?.addEventListener('click', closeImportModal);
+
+        submitBtn?.addEventListener('click', async () => {
+            const raw = textarea.value.trim();
+            if (!raw) { status.textContent = 'Cole ao menos um task ID.'; return; }
+            const ids = raw.split(/[\n,\s]+/).map(s => s.trim()).filter(Boolean);
+            if (!ids.length) { status.textContent = 'Nenhum ID válido encontrado.'; return; }
+
+            submitBtn.disabled = true;
+            status.textContent = `Importando ${ids.length} task(s)...`;
+
+            try {
+                const fd = new FormData();
+                fd.append('task_ids_json', JSON.stringify(ids));
+                const resp = await fetch(`${API}/api/history/import`, { method: 'POST', body: fd });
+                const json = await resp.json();
+                if (json.success) {
+                    status.textContent = `✅ ${json.imported} importado(s)` + (json.errors?.length ? `, ${json.errors.length} erro(s)` : '');
+                    syncHistoryFromServer();
+                    if (json.imported > 0) toast(`✅ ${json.imported} task(s) importada(s)`, 'success');
+                } else {
+                    status.textContent = `❌ Erro: ${json.error || 'Falha na importação'}`;
+                }
+            } catch (err) {
+                status.textContent = `❌ Erro: ${err.message}`;
+            } finally {
+                submitBtn.disabled = false;
+            }
         });
     }
 }
