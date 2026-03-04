@@ -1715,6 +1715,18 @@ function formatSize(b) {
 
 // ==================== Submit ====================
 
+// Model display name mappings when files are attached vs text-only
+const V2_FILE_MODEL_MAP = {
+    'grok-imagine/text-to-video': 'grok-imagine/image-to-video',
+    'grok-imagine/text-to-image': 'grok-imagine/image-to-image',
+    'sora-2-pro-text-to-video':   'sora-2-pro-image-to-video',
+    'wan/2-6-text-to-video':      'wan/2-6-image-to-video',
+    'seedream/5-lite':            'seedream/5-lite-image-to-image',
+};
+const V2_TEXT_MODEL_MAP = {
+    'seedream/5-lite': 'seedream/5-lite-text-to-image',
+};
+
 function resolveVeoModelByInput(model, hasImage) {
     if (!model || !model.startsWith('veo3/')) return model;
 
@@ -4469,14 +4481,10 @@ const v2Registry = {};
             let displayModel = v2Model.model;
             const hasAnyFile = hasFiles || hasFrames;
             if (hasAnyFile) {
-                if (displayModel === 'grok-imagine/text-to-video')  displayModel = 'grok-imagine/image-to-video';
-                if (displayModel === 'grok-imagine/text-to-image')  displayModel = 'grok-imagine/image-to-image';
-                if (displayModel === 'sora-2-pro-text-to-video')    displayModel = 'sora-2-pro-image-to-video';
-                if (displayModel === 'wan/2-6-text-to-video')       displayModel = 'wan/2-6-image-to-video';
-                if (displayModel === 'seedream/5-lite')             displayModel = 'seedream/5-lite-image-to-image';
+                displayModel = V2_FILE_MODEL_MAP[displayModel] || displayModel;
                 if (displayModel.startsWith('veo3/')) displayModel = resolveVeoModelByInput(displayModel, true);
             } else {
-                if (displayModel === 'seedream/5-lite')             displayModel = 'seedream/5-lite-text-to-image';
+                displayModel = V2_TEXT_MODEL_MAP[displayModel] || displayModel;
                 if (displayModel.startsWith('veo3/')) displayModel = resolveVeoModelByInput(displayModel, false);
             }
             modelInfoValue.textContent = displayModel;
