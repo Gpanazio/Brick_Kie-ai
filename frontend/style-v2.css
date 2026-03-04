@@ -230,8 +230,8 @@ body {
 
 .lobby::before {
     content: '';
-    position: absolute;
-    inset: -50%;
+    position: fixed;
+    inset: 0;
     z-index: -1;
     background:
         radial-gradient(ellipse at 20% 50%, rgba(220, 38, 38, 0.06) 0%, transparent 50%),
