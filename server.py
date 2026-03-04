@@ -3,6 +3,7 @@ KIE AI — FastAPI Server
 Wraps kie_api.py functions into REST endpoints for the frontend.
 """
 
+import asyncio
 import fcntl
 import json
 import logging
@@ -162,7 +163,7 @@ async def socket_io_stub():
 
 
 @app.get("/api/credits")
-async def get_credits(request: Request):
+def get_credits(request: Request):
     rid = _request_id(request)
     try:
         return kie_api.credits()
@@ -188,7 +189,7 @@ async def upload_file(
     tmp_path = None
     try:
         tmp_path = await _save_upload_to_temp(file)
-        resp = kie_api.upload_stream(tmp_path, upload_path=uploadPath, file_name=file.filename)
+        resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path=uploadPath, file_name=file.filename)
         _validate_api_response(resp)
         url = kie_api._extract_uploaded_url(resp)
         logger.info("[%s] upload: success, url=%s", rid, url[:80])
@@ -207,7 +208,7 @@ async def upload_file(
 
 
 @app.post("/api/market/create")
-async def market_create(
+def market_create(
     request: Request,
     model: str = Form(...),
     input_json: str = Form(...),
@@ -230,7 +231,7 @@ async def market_create(
 
 
 @app.get("/api/market/task/{task_id}")
-async def market_task(request: Request, task_id: str):
+def market_task(request: Request, task_id: str):
     rid = _request_id(request)
     try:
         resp = kie_api.market_task_info(task_id)
@@ -247,7 +248,7 @@ async def market_task(request: Request, task_id: str):
 
 
 @app.post("/api/mj/generate")
-async def mj_create(
+def mj_create(
     request: Request,
     payload_json: str = Form(...),
 ):
@@ -269,7 +270,7 @@ async def mj_create(
 
 
 @app.get("/api/mj/task/{task_id}")
-async def mj_task(request: Request, task_id: str):
+def mj_task(request: Request, task_id: str):
     rid = _request_id(request)
     try:
         resp = kie_api.mj_task_info(task_id)
@@ -283,7 +284,7 @@ async def mj_task(request: Request, task_id: str):
 
 
 @app.post("/api/mj/upscale")
-async def mj_upscale(
+def mj_upscale(
     request: Request,
     payload_json: str = Form(...),
 ):
@@ -305,7 +306,7 @@ async def mj_upscale(
 
 
 @app.post("/api/mj/vary")
-async def mj_vary(
+def mj_vary(
     request: Request,
     payload_json: str = Form(...),
 ):
@@ -327,7 +328,7 @@ async def mj_vary(
 
 
 @app.post("/api/mj/video-extend")
-async def mj_video_extend(
+def mj_video_extend(
     request: Request,
     payload_json: str = Form(...),
 ):
@@ -362,7 +363,8 @@ async def shortcut_recraft_rmbg(
     tmp_path = None
     try:
         tmp_path = await _save_upload_to_temp(file, "img.png")
-        resp = kie_api.recraft_remove_background_from_local(
+        resp = await asyncio.to_thread(
+            kie_api.recraft_remove_background_from_local,
             tmp_path, upload_path=uploadPath, callback_url=callback or CALLBACK_URL, file_name=file.filename
         )
         _validate_api_response(resp)
@@ -390,7 +392,8 @@ async def shortcut_topaz_upscale(
     tmp_path = None
     try:
         tmp_path = await _save_upload_to_temp(file, "video.mp4")
-        resp = kie_api.topaz_video_upscale_from_local(
+        resp = await asyncio.to_thread(
+            kie_api.topaz_video_upscale_from_local,
             tmp_path, upscale_factor=factor, upload_path=uploadPath, callback_url=callback or CALLBACK_URL, file_name=file.filename
         )
         _validate_api_response(resp)
@@ -427,7 +430,7 @@ async def process_file(
         tmp_path = await _save_upload_to_temp(file)
 
         # Step 1: Upload
-        up_resp = kie_api.upload_stream(tmp_path, upload_path=uploadPath, file_name=file.filename)
+        up_resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path=uploadPath, file_name=file.filename)
         _validate_api_response(up_resp)
         file_url = kie_api._extract_uploaded_url(up_resp)
 
@@ -440,7 +443,7 @@ async def process_file(
             extra[file_field] = file_url
 
         # Step 3: Create task
-        task_resp = kie_api.market_create_task(model, extra, callback_url=CALLBACK_URL)
+        task_resp = await asyncio.to_thread(kie_api.market_create_task, model, extra, callback_url=CALLBACK_URL)
         _validate_api_response(task_resp)
 
         logger.info("[%s] process: model=%s, uploaded=%s", rid, model, file_url[:80])
@@ -465,7 +468,7 @@ async def process_file(
 
 
 @app.post("/api/market/create-json")
-async def market_create_json_body(
+def market_create_json_body(
     request: Request,
     model: str = Form(...),
     input_json: str = Form(...),
@@ -506,13 +509,13 @@ async def suno_create(
         # If a file was uploaded, stream it to KIE upload API first
         if file and file.filename:
             tmp_path = await _save_upload_to_temp(file, "audio.tmp")
-            up_resp = kie_api.upload_stream(tmp_path, upload_path="audio")
+            up_resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path="audio")
             _validate_api_response(up_resp)
             upload_url = kie_api._extract_uploaded_url(up_resp)
             input_data["uploadUrl"] = upload_url
 
         _ensure_callback_url(input_data)
-        resp = kie_api.suno_create_task(model, input_data)
+        resp = await asyncio.to_thread(kie_api.suno_create_task, model, input_data)
         _validate_api_response(resp)
         logger.info("[%s] suno/create: model=%s", rid, model)
         return resp
@@ -529,7 +532,7 @@ async def suno_create(
 
 
 @app.get("/api/suno/task/{task_id}")
-async def suno_task(request: Request, task_id: str):
+def suno_task(request: Request, task_id: str):
     """Get Suno task status."""
     rid = _request_id(request)
     try:
@@ -547,7 +550,7 @@ async def suno_task(request: Request, task_id: str):
 
 
 @app.post("/api/veo/create")
-async def veo_create(
+def veo_create(
     request: Request,
     model: str = Form(...),
     input_json: str = Form(...),
@@ -573,7 +576,7 @@ async def veo_create(
 
 
 @app.get("/api/veo/task/{task_id}")
-async def veo_task(request: Request, task_id: str):
+def veo_task(request: Request, task_id: str):
     """Get Veo 3.1 task status."""
     rid = _request_id(request)
     try:
@@ -588,7 +591,7 @@ async def veo_task(request: Request, task_id: str):
 
 
 @app.get("/api/veo/1080p/{task_id}")
-async def veo_1080p(request: Request, task_id: str):
+def veo_1080p(request: Request, task_id: str):
     """Get 1080P version of a Veo video."""
     rid = _request_id(request)
     try:
@@ -603,7 +606,7 @@ async def veo_1080p(request: Request, task_id: str):
 
 
 @app.post("/api/veo/4k")
-async def veo_4k(request: Request, task_id: str = Form(...)):
+def veo_4k(request: Request, task_id: str = Form(...)):
     """Get 4K version of a Veo video."""
     rid = _request_id(request)
     try:
@@ -637,7 +640,7 @@ async def gpt4o_image_create(
         upload_url = None
         if file and file.filename:
             tmp_path = await _save_upload_to_temp(file, "img.tmp")
-            up_resp = kie_api.upload_stream(tmp_path, upload_path="images")
+            up_resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path="images")
             _validate_api_response(up_resp)
             upload_url = kie_api._extract_uploaded_url(up_resp)
             existing = input_data.get("filesUrl", [])
@@ -647,7 +650,7 @@ async def gpt4o_image_create(
             input_data["filesUrl"] = existing
 
         _ensure_callback_url(input_data)
-        resp = kie_api.gpt4o_image_generate(input_data)
+        resp = await asyncio.to_thread(kie_api.gpt4o_image_generate, input_data)
         _validate_api_response(resp)
         if isinstance(resp, dict) and upload_url:
             resp["uploaded_url"] = upload_url
@@ -666,7 +669,7 @@ async def gpt4o_image_create(
 
 
 @app.get("/api/gpt4o-image/task/{task_id}")
-async def gpt4o_image_task(request: Request, task_id: str):
+def gpt4o_image_task(request: Request, task_id: str):
     """Get GPT 4o Image task status."""
     rid = _request_id(request)
     try:
@@ -681,7 +684,7 @@ async def gpt4o_image_task(request: Request, task_id: str):
 
 
 @app.post("/api/gpt4o-image/download-url")
-async def gpt4o_image_download(
+def gpt4o_image_download(
     request: Request,
     taskId: str = Form(...),
     url: str = Form(...),
@@ -719,7 +722,7 @@ async def flux_kontext_create(
         upload_url = None
         if file and file.filename:
             tmp_path = await _save_upload_to_temp(file, "img.tmp")
-            up_resp = kie_api.upload_stream(tmp_path, upload_path="images")
+            up_resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path="images")
             _validate_api_response(up_resp)
             upload_url = kie_api._extract_uploaded_url(up_resp)
             input_data["inputImage"] = upload_url
@@ -729,7 +732,7 @@ async def flux_kontext_create(
             input_data["model"] = model
 
         _ensure_callback_url(input_data)
-        resp = kie_api.flux_kontext_generate(input_data)
+        resp = await asyncio.to_thread(kie_api.flux_kontext_generate, input_data)
         _validate_api_response(resp)
         if isinstance(resp, dict) and upload_url:
             resp["uploaded_url"] = upload_url
@@ -748,7 +751,7 @@ async def flux_kontext_create(
 
 
 @app.get("/api/flux-kontext/task/{task_id}")
-async def flux_kontext_task(request: Request, task_id: str):
+def flux_kontext_task(request: Request, task_id: str):
     """Get Flux Kontext task status."""
     rid = _request_id(request)
     try:
@@ -816,7 +819,7 @@ def _validate_history_entry(entry: dict) -> dict:
     return entry
 
 @app.post("/api/history")
-async def save_history_entry(
+def save_history_entry(
     request: Request,
     entry_json: str = Form(...),
 ):
@@ -841,7 +844,7 @@ async def save_history_entry(
         raise HTTPException(status_code=500, detail=_sanitize_error(e))
 
 @app.get("/api/history")
-async def get_history(cat: Optional[str] = None, limit: int = 100):
+def get_history(cat: Optional[str] = None, limit: int = 100):
     """Get server-side history, optionally filtered by category."""
     history = _load_server_history()
     if cat:
@@ -849,7 +852,7 @@ async def get_history(cat: Optional[str] = None, limit: int = 100):
     return {"history": history[:limit], "total": len(history)}
 
 @app.delete("/api/history/{entry_id}")
-async def delete_history_entry(request: Request, entry_id: str):
+def delete_history_entry(request: Request, entry_id: str):
     """Delete a specific history entry by ID."""
     rid = _request_id(request)
     history = _load_server_history()
@@ -859,7 +862,7 @@ async def delete_history_entry(request: Request, entry_id: str):
     return {"success": True, "count": len(history)}
 
 @app.delete("/api/history")
-async def clear_history(request: Request, cat: Optional[str] = None):
+def clear_history(request: Request, cat: Optional[str] = None):
     """Clear server-side history, optionally filtered to a specific category."""
     rid = _request_id(request)
     history = _load_server_history()
@@ -921,7 +924,7 @@ def _infer_cat(model: str) -> str:
     return "image"
 
 @app.post("/api/history/import")
-async def import_history_tasks(
+def import_history_tasks(
     request: Request,
     task_ids_json: str = Form(...),
 ):
