@@ -601,18 +601,18 @@ let tasks = [];
 
 // ==================== Pending Tasks (localStorage) ====================
 const PENDING_KEY = 'kie-pending-tasks';
+const VALID_PENDING_TASK_STATES = new Set(['processing', 'success', 'fail']);
 
 function loadPendingTasks() {
     try {
         const raw = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
         if (!Array.isArray(raw)) { console.warn('[pending] Expected array, got:', typeof raw); return []; }
-        const VALID_STATES = new Set(['processing', 'success', 'fail']);
         return raw.filter(p => p
             && typeof p === 'object'
             && typeof p.id === 'string' && p.id.length > 0
             && typeof p.model === 'string' && p.model.length > 0
             && (p.cat === undefined || typeof p.cat === 'string')
-            && (p.state === undefined || VALID_STATES.has(p.state))
+            && (p.state === undefined || VALID_PENDING_TASK_STATES.has(p.state))
         );
     }
     catch (e) { console.error('Pending tasks load error:', e); return []; }
@@ -2266,16 +2266,21 @@ function startPolling(task) {
             return;
         }
         try {
-            const ep = task.mode === 'midjourney' ? `/api/mj/task/${task.id}` :
-                task.mode === 'suno' ? `/api/suno/task/${task.id}` :
-                    task.mode === 'veo' ? `/api/veo/task/${task.id}` :
-                        task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${task.id}` :
-                            task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${task.id}` :
-                                `/api/market/task/${task.id}`;
+            const safeId = encodeURIComponent(task.id);
+            const ep = task.mode === 'midjourney' ? `/api/mj/task/${safeId}` :
+                task.mode === 'suno' ? `/api/suno/task/${safeId}` :
+                    task.mode === 'veo' ? `/api/veo/task/${safeId}` :
+                        task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${safeId}` :
+                            task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${safeId}` :
+                                `/api/market/task/${safeId}`;
             const controller = new AbortController();
             const fetchTimer = setTimeout(() => controller.abort(), 30000);
-            const resp = await fetch(`${API}${ep}`, { signal: controller.signal });
-            clearTimeout(fetchTimer);
+            let resp;
+            try {
+                resp = await fetch(`${API}${ep}`, { signal: controller.signal });
+            } finally {
+                clearTimeout(fetchTimer);
+            }
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const json = await resp.json();
             pollErrors = 0; // reset on success
@@ -4728,14 +4733,17 @@ const v2Registry = {};
 
     // ── V2 Gallery Management ──
     function v2MediaHtml(url, mjTaskId, coverUrl, isSuno) {
+        const safeUrl = esc(url || '');
+        const safeCoverUrl = esc(coverUrl || '');
+        const safeMjId = esc(mjTaskId || '');
         let html = '';
         if (isVideoUrl(url)) {
-            html += `<video src="${url}" autoplay loop muted playsinline></video>
+            html += `<video src="${safeUrl}" autoplay loop muted playsinline></video>
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
         } else if (isSuno || isAudioUrl(url)) {
             // If Suno cover art is available, show it as the thumbnail background
             if (coverUrl) {
-                html += `<img src="${coverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;">
+                html += `<img src="${safeCoverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;">
                     <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);pointer-events:none;"></div>
                     <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="white" style="opacity:0.9;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));"><polygon points="5 3 19 12 5 21"/></svg>
@@ -4748,7 +4756,7 @@ const v2Registry = {};
                     </div>`;
             }
         } else {
-            html += `<img src="${url}" alt="Gerado">
+            html += `<img src="${safeUrl}" alt="Gerado">
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
         }
         // MJ action buttons
@@ -4758,14 +4766,14 @@ const v2Registry = {};
             html += '<div class="v2-mj-actions">';
             if (!isMjVideo) {
                 for (let i = 0; i < 4; i++) {
-                    html += `<button class="v2-mj-action-btn mj-action" data-mj-op="upscale" data-mj-index="${i}" data-task-id="${mjTaskId}">U${i + 1}</button>`;
+                    html += `<button class="v2-mj-action-btn mj-action" data-mj-op="upscale" data-mj-index="${i}" data-task-id="${safeMjId}">U${i + 1}</button>`;
                 }
                 for (let i = 1; i <= 4; i++) {
-                    html += `<button class="v2-mj-action-btn mj-action" data-mj-op="vary" data-mj-index="${i}" data-task-id="${mjTaskId}">V${i}</button>`;
+                    html += `<button class="v2-mj-action-btn mj-action" data-mj-op="vary" data-mj-index="${i}" data-task-id="${safeMjId}">V${i}</button>`;
                 }
             } else {
-                html += `<button class="v2-mj-action-btn mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_auto" data-mj-index="0" data-task-id="${mjTaskId}">Extend</button>`;
-                html += `<button class="v2-mj-action-btn mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_manual" data-mj-index="0" data-task-id="${mjTaskId}">Extend (Manual)</button>`;
+                html += `<button class="v2-mj-action-btn mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_auto" data-mj-index="0" data-task-id="${safeMjId}">Extend</button>`;
+                html += `<button class="v2-mj-action-btn mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_manual" data-mj-index="0" data-task-id="${safeMjId}">Extend (Manual)</button>`;
             }
             html += '</div>';
         }
