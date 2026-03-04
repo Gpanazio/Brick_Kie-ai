@@ -554,17 +554,7 @@ body.cat-veo3 #panel-settings {
     /* Override .hidden if present */
 }
 
-body.cat-veo3 #config-panel {
-    display: flex !important;
-    background: transparent;
-    border: none;
-    padding: 0;
-}
-
-body.cat-veo3 .inline-params-header {
-    display: none;
-    /* Hide the duplicated "Parâmetros" header in settings */
-}
+/* V1 cat-veo3 config-panel and inline-params-header rules removed */
 
 body.cat-veo3 #panel-settings .panel-scroll {
     padding: 24px;
@@ -774,22 +764,7 @@ body.cat-veo3 .btn-primary:hover {
     transform: translateY(2px);
 }
 
-/* ── Inline Params Section ── */
-.config-panel-inline {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 12px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-}
-
-.inline-params-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
+/* V1 .config-panel-inline and .inline-params-header removed */
 
 /* ── Model Picker Modal ── */
 .model-picker-modal {
@@ -942,9 +917,7 @@ body.cat-veo3 .btn-primary:hover {
     z-index: 10;
 }
 
-.mpm-card-accent {
-    border-radius: 6px 6px 0 0;
-}
+/* .mpm-card-accent removed — V1 card template no longer used */
 
 .task-card-accent {
     border-radius: 12px 12px 0 0;
@@ -1161,157 +1134,9 @@ body.cat-veo3 .btn-primary:hover {
     background: radial-gradient(circle at 100% 0%, rgba(200, 200, 200, 0.1), var(--surface-2) 70%);
 }
 
-.mpm-card-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.mpm-card-icon {
-    width: 36px;
-    height: 36px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0;
-    border-radius: 6px;
-    opacity: 0.9;
-    color: currentColor;
-    border: none;
-    position: relative;
-    z-index: 2;
-}
-
-.mpm-card-icon svg {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.mpm-card.active .mpm-card-icon {
-    opacity: 1;
-    filter: drop-shadow(0 0 10px currentColor);
-}
-
-.mpm-card-cost {
-    font-family: var(--mono);
-    font-size: 9px;
-    padding: 2px 7px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    white-space: nowrap;
-    align-self: flex-start;
-}
-
-.mpm-card-name {
-    font-family: var(--sans);
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--text);
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-}
-
-.mpm-card-provider {
-    font-family: var(--sans);
-    font-size: 11px;
-    color: var(--text-muted);
-    font-weight: 400;
-    margin-top: 3px;
-}
-
-.mpm-card-desc {
-    font-family: var(--sans);
-    font-size: 11px;
-    color: var(--text-dim);
-    line-height: 1.5;
-    flex: 1;
-    display: -webkit-box;
-    line-clamp: 3;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.mpm-card-footer {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.mpm-card-tag {
-    font-family: var(--mono);
-    font-size: 9px;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 4px;
-    color: currentColor;
-    background: rgba(255, 255, 255, 0.08);
-    /* Fallback */
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-/* Specific translucent tag backgrounds */
-.mpm-card[data-color="mc-ideogram"] .mpm-card-tag {
-    background: rgba(0, 122, 255, 0.15);
-    color: #007AFF;
-}
-
-.mpm-card[data-color="mc-qwen"] .mpm-card-tag {
-    background: rgba(123, 97, 255, 0.15);
-    color: #7B61FF;
-}
-
-.mpm-card[data-color="mc-flux"] .mpm-card-tag {
-    background: rgba(255, 255, 255, 0.15);
-    color: #FFFFFF;
-}
-
-.mpm-card[data-color="mc-kling"] .mpm-card-tag {
-    background: rgba(0, 196, 182, 0.15);
-    color: #00C4B6;
-}
-
-.mpm-card[data-color="mc-openai"] .mpm-card-tag {
-    background: rgba(16, 163, 127, 0.15);
-    color: #10A37F;
-}
-
-.mpm-card[data-color="mc-bytedance"] .mpm-card-tag {
-    background: rgba(0, 85, 255, 0.15);
-    color: #0055FF;
-}
-
-.mpm-card[data-color="mc-wan"] .mpm-card-tag {
-    background: rgba(2, 106, 240, 0.15);
-    color: #0088FF;
-}
-
-.mpm-card[data-color="mc-mj"] .mpm-card-tag {
-    background: rgba(200, 200, 200, 0.15);
-    color: #FFFFFF;
-}
-
-.mpm-card-glow {
-    position: absolute;
-    bottom: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100px;
-    height: 50px;
-    background: radial-gradient(ellipse, var(--accent-glow), transparent 70%);
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-}
-
-.mpm-card:hover .mpm-card-glow {
-    opacity: 0.6;
-}
+/* V1 card sub-elements removed (.mpm-card-top, .mpm-card-icon, .mpm-card-cost,
+   .mpm-card-name, .mpm-card-provider, .mpm-card-desc, .mpm-card-footer,
+   .mpm-card-tag, .mpm-card-glow) — all cards now use V2 glassmorphism design */
 
 /* ============================================================
    NANO BANANA V2 — Glassmorphism Experimental Card
@@ -4210,13 +4035,7 @@ body.cat-veo3 .btn-primary:hover {
         gap: 10px;
     }
 
-    .mpm-card-name {
-        font-size: 13px;
-    }
-
-    .mpm-card-desc {
-        font-size: 10px;
-    }
+    /* V1 .mpm-card-name, .mpm-card-desc responsive rules removed */
 }
 
 @media (max-width: 600px) {
@@ -4335,46 +4154,7 @@ body.cat-veo3 .btn-primary:hover {
         gap: 8px;
     }
 
-    .mpm-card-icon {
-        width: 28px;
-        height: 28px;
-    }
-
-    .mpm-card-name {
-        font-size: 12px;
-    }
-
-    .mpm-card-provider {
-        font-size: 9px;
-    }
-
-    .mpm-card-desc {
-        font-size: 10px;
-        line-height: 1.3;
-        display: -webkit-box;
-        line-clamp: 2;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    .mpm-card-cost {
-        font-size: 8px;
-        padding: 2px 5px;
-    }
-
-    .mpm-card-footer {
-        gap: 4px;
-    }
-
-    .mpm-card-tag {
-        font-size: 8px;
-        padding: 2px 6px;
-    }
-
-    .mpm-card-glow {
-        display: none;
-    }
+    /* V1 card responsive styles removed (.mpm-card-icon, -name, -provider, -desc, -cost, -footer, -tag, -glow) */
 
     /* ── Lobby ── */
     .lobby {
@@ -4439,10 +4219,7 @@ body.cat-veo3 .btn-primary:hover {
         gap: 8px;
     }
 
-    .mpm-card-desc {
-        line-clamp: 1;
-        -webkit-line-clamp: 1;
-    }
+    /* V1 .mpm-card-desc responsive rule removed */
 
     .lobby-title {
         font-size: 24px;

@@ -10,7 +10,7 @@ const API = '/kie-ai';
 // 'cost' is the estimated credits per generation (from KIE API docs)
 
 // Shared category constants
-const V2_CATS = ['image', 'video', 'mj', 'audio', 'music', 'tools'];
+// V2_CATS removed — all categories now use V2 workspace exclusively
 const VIDEO_CATS = ['video'];
 
 // Credit cost estimates (1 credit ≈ $0.005 USD)
@@ -593,8 +593,6 @@ function isBatchModel(model) {
 // ==================== State ====================
 
 let selectedModel = null;
-let selectedFile = null;
-let selectedFiles = []; // For batch upload
 let currentCatLabel = '';
 let currentCat = ''; // Store the current internal category ID
 let tasks = [];
@@ -896,30 +894,10 @@ const els = {
     mpmClose: $('#mpm-close'),
     mpmGrid: $('#mpm-grid'),
     mpmSubtitle: $('#mpm-subtitle'),
-    // Config / params (now inline in left panel)
-    configPanel: $('#config-panel'),
-    configParams: $('#config-model-params'),
-    btnResetParams: $('#btn-reset-params'),
-    configPrompt: $('#config-prompt'),
-    configPromptGrp: $('#config-prompt-group'),
-    btnClearPrompt: $('#btn-clear-prompt'),
-    configExtraJson: $('#config-extra-json'),
-    configExtraGrp: $('#config-extra-group'),
-    uploadWrapper: $('#upload-zone-wrapper'),
-    uploadZone: $('#upload-zone'),
-    fileInput: $('#file-input'),
-    filePreview: $('#file-preview'),
-    filePreviewThumb: $('#file-preview-thumb'),
-    filePreviewName: $('#file-preview-name'),
-    filePreviewSize: $('#file-preview-size'),
-    filePreviewRemove: $('#file-preview-remove'),
-    btnSubmit: $('#btn-submit'),
+    // V1 config/params elements removed — all categories use V2 workspace
     tasksList: $('#tasks-list'),
     tasksEmpty: $('#tasks-empty'),
     btnClearTasks: $('#btn-clear-tasks'),
-    mjAr: $('#config-mj-ar'),
-    mjSpeed: $('#config-mj-speed'),
-    mjVersion: $('#config-mj-version'),
     tabActive: $('#tab-active'),
     tabHistory: $('#tab-history'),
     historyGallery: $('#history-gallery'),
@@ -939,8 +917,6 @@ const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'A
 document.addEventListener('DOMContentLoaded', () => {
     initLobby();
     initModelPickerModal();
-    initUploadZone();
-    initSubmit();
     initClearTasks();
     initTabs();
     initHistory();
@@ -951,9 +927,6 @@ document.addEventListener('DOMContentLoaded', () => {
     catch (e) { console.warn('Could not read from sessionStorage:', e); }
     if (savedCat && CAT_LABELS[savedCat]) enterWorkspace(savedCat);
     fetchCredits();
-    initPromptCounter();
-    initResetButtons();
-    initKeyboardShortcuts();
     initSocketCallbacks();
 });
 
@@ -1170,17 +1143,12 @@ function enterWorkspace(cat) {
 
     // Reset state
     selectedModel = null;
-    clearFile();
-    els.configPrompt.value = '';
-    updateSubmitState();
     // Reset picker trigger
     els.mptName.textContent = 'Selecione um modelo';
     els.mptIcon.className = 'mpt-icon mc-purple';
     els.mptIcon.textContent = '—';
     if (els.mptCost) els.mptCost.classList.add('hidden');
     if (els.btnModelPicker) els.btnModelPicker.classList.remove('has-model');
-    // Hide inline params
-    if (els.configPanel) els.configPanel.classList.add('hidden');
     if (cat === 'music') {
         // Suno goes directly to workspace — no model picker step
         const tplItem = tpl?.content.querySelector('[data-model="suno/generate-music"]');
@@ -1195,13 +1163,8 @@ function enterWorkspace(cat) {
         setTimeout(() => openModelPickerModal(), 50);
     }
 
-    // Keep settings inline in left panel for all categories (including Veo3)
     document.body.classList.remove('cat-veo3');
     els.panelSettings.classList.add('hidden');
-    // Ensure config is in the left panel
-    const leftScroll = document.querySelector('#panel-prompt .panel-scroll');
-    leftScroll.appendChild(els.configPanel);
-    leftScroll.appendChild(els.configExtraGrp);
 }
 
 function exitWorkspace() {
@@ -1212,7 +1175,6 @@ function exitWorkspace() {
     currentCatLabel = '';
     currentCat = '';
     _currentCatItems = [];
-    clearFile();
     closeModelPickerModal();
     stopAllPolling();
     // Hide V2 workspace if open
@@ -1250,67 +1212,45 @@ function openModelPickerModal() {
         const cost = getModelCost(data.model);
         const isActive = selectedModel?.model === data.model;
         const card = document.createElement('button');
-        const isV2 = V2_CATS.includes(currentCat);
-        card.className = `mpm-card${isActive ? ' active' : ''}${isV2 ? ' mpm-card-v2' : ''}`;
+        card.className = `mpm-card${isActive ? ' active' : ''} mpm-card-v2`;
         card.dataset.model = data.model;
         if (data.color) card.dataset.color = data.color;
 
         const inputTypeTag = data.input === 'file' ? 'Image/File' : data.input === 'mj' ? 'Midjourney' : data.input === 'mix' ? 'Mix' : 'Text';
-        const costHtml = cost ? `<span class="mpm-card-cost ${costColorClass(cost)}">~${cost} cr</span>` : '';
 
-        if (isV2) {
-            // Build feature tags from input type
-            const features = [];
-            if (data.input === 'text' || data.input === 'mix' || data.prompt === 'true') features.push('Prompt');
-            if (data.input === 'file' || data.input === 'mix') features.push('Referência');
-            const featuresHtml = features.length ? `
-                    <div class="mpm-v2-features">
-                        ${features.map(f => `<div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>${f}</div>`).join('')}
-                    </div>` : '';
+        // Build feature tags from input type
+        const features = [];
+        if (data.input === 'text' || data.input === 'mix' || data.prompt === 'true') features.push('Prompt');
+        if (data.input === 'file' || data.input === 'mix') features.push('Referência');
+        const featuresHtml = features.length ? `
+                <div class="mpm-v2-features">
+                    ${features.map(f => `<div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>${f}</div>`).join('')}
+                </div>` : '';
 
-            card.innerHTML = `
-                <div class="mpm-v2-glow-border"></div>
-                <div class="mpm-v2-inner">
-                    <div class="mpm-v2-header">
-                        <div class="mpm-v2-icon">${sanitizeSvg(data.icon)}</div>
-                        <div class="mpm-v2-badge">${esc(data.provider)}</div>
-                    </div>
-                    <div class="mpm-v2-body">
-                        <div class="mpm-v2-name">${esc(data.name)}</div>
-                        <div class="mpm-v2-provider">${esc(data.provider)}</div>
-                        <div class="mpm-v2-desc">${esc(data.desc || '')}</div>
-                    </div>
-                    <div class="mpm-v2-footer">
-                        <span class="mpm-v2-tag">${esc(inputTypeTag)}</span>
-                        ${cost ? `<span class="mpm-v2-cost">~${cost} cr</span>` : ''}
-                    </div>
-                    ${featuresHtml}
+        card.innerHTML = `
+            <div class="mpm-v2-glow-border"></div>
+            <div class="mpm-v2-inner">
+                <div class="mpm-v2-header">
+                    <div class="mpm-v2-icon">${sanitizeSvg(data.icon)}</div>
+                    <div class="mpm-v2-badge">${esc(data.provider)}</div>
                 </div>
-                <div class="mpm-v2-ambient"></div>
-            `;
-        } else {
-            card.innerHTML = `
-                <div class="mpm-card-accent ${data.color || ''}"></div>
-                <div class="mpm-card-top">
-                    <div class="mpm-card-icon ${data.color}">${sanitizeSvg(data.icon)}</div>
-                    ${costHtml}
+                <div class="mpm-v2-body">
+                    <div class="mpm-v2-name">${esc(data.name)}</div>
+                    <div class="mpm-v2-provider">${esc(data.provider)}</div>
+                    <div class="mpm-v2-desc">${esc(data.desc || '')}</div>
                 </div>
-                <div>
-                    <div class="mpm-card-name">${esc(data.name)}</div>
-                    <div class="mpm-card-provider">${esc(data.provider)}</div>
+                <div class="mpm-v2-footer">
+                    <span class="mpm-v2-tag">${esc(inputTypeTag)}</span>
+                    ${cost ? `<span class="mpm-v2-cost">~${cost} cr</span>` : ''}
                 </div>
-                <div class="mpm-card-desc">${esc(data.desc || '')}</div>
-                <div class="mpm-card-footer">
-                    <span class="mpm-card-tag">${esc(inputTypeTag)}</span>
-                </div>
-                <div class="mpm-card-glow"></div>
-            `;
-        }
+                ${featuresHtml}
+            </div>
+            <div class="mpm-v2-ambient"></div>
+        `;
         card.addEventListener('click', () => {
             selectModelFromData(data);
             closeModelPickerModal();
-            // Open V2 workspace for V2 categories
-            if (V2_CATS.includes(currentCat) && typeof window._v2ShowWorkspace === 'function') {
+            if (typeof window._v2ShowWorkspace === 'function') {
                 window._v2ShowWorkspace(data);
             }
         });
@@ -1349,262 +1289,10 @@ function selectModelFromData(data) {
 
     // Update header breadcrumb
     els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${esc(currentCatLabel)} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${esc(data.name)}</span>`;
-
-    const isMj = selectedModel.input === 'mj';
-    const isMix = selectedModel.input === 'mix';
-    const needsFile = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img') || isMix;
-    const needsPrompt = selectedModel.input === 'text' || isMj || selectedModel.hasPrompt || isMix;
-
-    els.configPromptGrp.classList.toggle('hidden', !needsPrompt);
-    els.uploadWrapper.classList.toggle('hidden', !needsFile);
-
-    if (els.mjAr) els.mjAr.classList.toggle('hidden', !isMj);
-    if (els.mjSpeed) els.mjSpeed.classList.toggle('hidden', !isMj);
-    if (els.mjVersion) els.mjVersion.classList.toggle('hidden', !isMj);
-
-    if (selectedModel.field === 'video_url') els.fileInput.accept = 'video/*';
-    else if (selectedModel.field === 'audio_url') els.fileInput.accept = 'audio/*';
-    else if (['filesUrl', 'inputImage', 'image_url', 'image_urls', 'image'].includes(selectedModel.field)) els.fileInput.accept = 'image/*';
-    else els.fileInput.accept = 'image/*,video/*,audio/*';
-
-    // Enable multi-file selection for batch-capable models
-    els.fileInput.multiple = isBatchModel(data.model);
-
-    if (selectedModel.field === 'text') els.configPrompt.placeholder = 'Digite o texto para sintetizar...';
-    else els.configPrompt.placeholder = 'Descreva o que deseja gerar...';
-
-    // Render params inline
-    renderModelParams(selectedModel.model);
-    const cfg = MODEL_CONFIGS[selectedModel.model];
-    const hasParams = !!(cfg && cfg.params.length > 0);
-    if (els.configPanel) {
-        els.configPanel.classList.toggle('hidden', !hasParams);
-    }
-    if (els.btnResetParams) els.btnResetParams.classList.toggle('hidden', !hasParams);
-
-    // Extra JSON fallback
-    if (cfg && cfg.params.length > 0) els.configExtraGrp.classList.add('hidden');
-    else els.configExtraGrp.classList.remove('hidden');
-
-    clearFile();
-    updateSubmitState();
-    updateCharCounter();
-    if (needsPrompt) setTimeout(() => els.configPrompt.focus(), 150);
 }
 
-function initPromptCounter() {
-    const counter = document.getElementById('prompt-char-counter');
-    if (!counter || !els.configPrompt) return;
-    els.configPrompt.addEventListener('input', () => updateCharCounter());
-}
-
-function updateCharCounter() {
-    const counter = document.getElementById('prompt-char-counter');
-    if (!counter) return;
-    const model = selectedModel?.model;
-    const limit = model ? PROMPT_CHAR_LIMITS[model] : null;
-    if (!limit) { counter.classList.add('hidden'); return; }
-    const len = els.configPrompt.value.length;
-    counter.classList.remove('hidden');
-    counter.textContent = `${len.toLocaleString('pt-BR')} / ${limit.toLocaleString('pt-BR')}`;
-    const ratio = len / limit;
-    counter.classList.remove('char-ok', 'char-warn', 'char-over');
-    if (ratio > 1) counter.classList.add('char-over');
-    else if (ratio > 0.8) counter.classList.add('char-warn');
-    else counter.classList.add('char-ok');
-}
-
-function initResetButtons() {
-    if (els.btnClearPrompt) {
-        els.btnClearPrompt.addEventListener('click', () => {
-            els.configPrompt.value = '';
-            els.configPrompt.focus();
-
-            updateSubmitState();
-        });
-    }
-    if (els.btnResetParams) {
-        els.btnResetParams.addEventListener('click', () => {
-            if (selectedModel) renderModelParams(selectedModel.model);
-        });
-    }
-    if (els.btnResetSettings) {
-        els.btnResetSettings.addEventListener('click', () => {
-            if (els.btnResetParams) els.btnResetParams.click();
-            if (els.configExtraJson) els.configExtraJson.value = '{}';
-        });
-    }
-}
-
-function initKeyboardShortcuts() {
-    window.addEventListener('keydown', e => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-            if (!els.btnSubmit.disabled && !els.btnSubmit.classList.contains('loading')) {
-                handleSubmit();
-            }
-        }
-    });
-}
-
-// ==================== Dynamic Model Params ====================
-
-// Keys that should only be visible when Suno custom_mode is ON
-const SUNO_CUSTOM_MODE_KEYS = new Set(['style', 'title', 'instrumental']);
-
-function renderModelParams(modelKey) {
-    els.configParams.innerHTML = '';
-    const cfg = MODEL_CONFIGS[modelKey];
-    if (!cfg || cfg.params.length === 0) return;
-
-    const isSunoGenerate = modelKey === 'suno/generate-music';
-
-    cfg.params.forEach(p => {
-        const group = document.createElement('div');
-        group.className = 'form-group';
-        group.dataset.groupKey = p.key;
-
-        // For suno/generate-music, hide advanced-only fields by default
-        if (isSunoGenerate && SUNO_CUSTOM_MODE_KEYS.has(p.key)) {
-            group.classList.add('hidden');
-        }
-
-        const label = document.createElement('label');
-        label.className = 'form-label';
-        label.textContent = p.label;
-        group.appendChild(label);
-
-        if (p.type === 'select') {
-            const sel = document.createElement('select');
-            sel.className = 'form-select';
-            sel.dataset.paramKey = p.key;
-            p.options.forEach(opt => {
-                const o = document.createElement('option');
-                o.value = opt; o.textContent = opt || '(auto)';
-                if (opt === String(p.default)) o.selected = true;
-                sel.appendChild(o);
-            });
-            group.appendChild(sel);
-
-        } else if (p.type === 'radio') {
-            const rg = document.createElement('div');
-            rg.className = 'radio-group';
-            p.options.forEach(opt => {
-                const lbl = document.createElement('label');
-                lbl.className = 'radio-pill';
-                const inp = document.createElement('input');
-                inp.type = 'radio'; inp.name = `param-${p.key}`; inp.value = opt;
-                if (opt === String(p.default)) inp.checked = true;
-                lbl.appendChild(inp);
-                lbl.appendChild(document.createTextNode(' ' + opt));
-                rg.appendChild(lbl);
-            });
-            rg.dataset.paramKey = p.key;
-            group.appendChild(rg);
-
-        } else if (p.type === 'number') {
-            const wrapper = document.createElement('div');
-            wrapper.style.display = 'flex'; wrapper.style.alignItems = 'center'; wrapper.style.gap = '12px';
-            const inp = document.createElement('input');
-            inp.type = 'range'; inp.className = 'form-range';
-            inp.min = p.min; inp.max = p.max; inp.step = p.step; inp.value = p.default;
-            inp.dataset.paramKey = p.key;
-            inp.style.flex = '1';
-            const valSpan = document.createElement('span');
-            valSpan.className = 'range-value';
-            valSpan.textContent = p.default;
-            valSpan.style.fontFamily = 'var(--font-mono)'; valSpan.style.fontSize = '12px';
-            valSpan.style.color = 'var(--text-secondary)'; valSpan.style.minWidth = '40px';
-            inp.addEventListener('input', () => { valSpan.textContent = inp.value; });
-            wrapper.appendChild(inp); wrapper.appendChild(valSpan);
-            group.appendChild(wrapper);
-
-        } else if (p.type === 'bool') {
-            const lbl = document.createElement('label');
-            lbl.style.display = 'flex'; lbl.style.alignItems = 'center'; lbl.style.gap = '8px';
-            lbl.style.cursor = 'pointer';
-            const cb = document.createElement('input');
-            cb.type = 'checkbox'; cb.checked = p.default;
-            cb.dataset.paramKey = p.key;
-            cb.style.accentColor = 'var(--accent)';
-            lbl.appendChild(cb);
-            const t = document.createElement('span');
-            t.textContent = p.default ? 'Ativado' : 'Desativado';
-            t.style.fontSize = '13px'; t.style.color = 'var(--text-secondary)';
-            cb.addEventListener('change', () => { t.textContent = cb.checked ? 'Ativado' : 'Desativado'; });
-            lbl.appendChild(t);
-            group.appendChild(lbl);
-
-            // Suno custom_mode toggle: show/hide advanced-only fields
-            if (isSunoGenerate && p.key === 'custom_mode') {
-                cb.addEventListener('change', () => {
-                    console.log('[Suno] custom_mode toggled:', cb.checked);
-                    SUNO_CUSTOM_MODE_KEYS.forEach(k => {
-                        const g = els.configParams.querySelector(`[data-group-key="${k}"]`);
-                        console.log(`[Suno] Looking for group [data-group-key="${k}"]:`, g);
-                        if (g) g.classList.toggle('hidden', !cb.checked);
-                    });
-                    // Update prompt placeholder to reflect mode
-                    if (els.configPrompt) {
-                        els.configPrompt.placeholder = cb.checked
-                            ? 'Cole a letra da música aqui...'
-                            : 'Descreva o estilo de música que deseja gerar...';
-                    }
-                });
-            }
-
-        } else if (p.type === 'text') {
-            const inp = document.createElement('input');
-            inp.type = 'text'; inp.className = 'form-input';
-            inp.value = p.default || ''; inp.placeholder = p.label;
-            inp.dataset.paramKey = p.key;
-            group.appendChild(inp);
-        } else if (p.type === 'number_input') {
-            const inp = document.createElement('input');
-            inp.type = 'number'; inp.className = 'form-input';
-            inp.value = p.default || '0'; inp.placeholder = p.label;
-            inp.dataset.paramKey = p.key;
-            group.appendChild(inp);
-        }
-
-        els.configParams.appendChild(group);
-    });
-}
-
-function collectModelParams() {
-    const params = {};
-    const cfg = MODEL_CONFIGS[selectedModel?.model];
-    if (!cfg) return params;
-
-    cfg.params.forEach(p => {
-        // Skip params whose parent group is hidden (e.g. Suno advanced-only fields)
-        const groupEl = els.configParams.querySelector(`[data-group-key="${p.key}"]`);
-        if (groupEl && groupEl.classList.contains('hidden')) return;
-
-        if (p.type === 'select') {
-            const el = els.configParams.querySelector(`select[data-param-key="${p.key}"]`);
-            if (el) params[p.key] = el.value;
-        } else if (p.type === 'radio') {
-            const checked = els.configParams.querySelector(`input[name="param-${p.key}"]:checked`);
-            if (checked) params[p.key] = checked.value;
-        } else if (p.type === 'number') {
-            const el = els.configParams.querySelector(`input[type="range"][data-param-key="${p.key}"]`);
-            if (el) params[p.key] = parseFloat(el.value);
-        } else if (p.type === 'bool') {
-            const el = els.configParams.querySelector(`input[type="checkbox"][data-param-key="${p.key}"]`);
-            if (el) params[p.key] = el.checked;
-        } else if (p.type === 'text') {
-            const el = els.configParams.querySelector(`input[type="text"][data-param-key="${p.key}"]`);
-            if (el && el.value.trim()) params[p.key] = el.value.trim();
-        } else if (p.type === 'number_input') {
-            const el = els.configParams.querySelector(`input[type="number"][data-param-key="${p.key}"]`);
-            if (el && el.value.trim() !== '') params[p.key] = parseInt(el.value, 10);
-        }
-    });
-
-    return params;
-}
-
-// ==================== Upload Zone ====================
+// V1 prompt counter, reset buttons, keyboard shortcuts, model params,
+// upload zone, file handling and clearFile removed — all handled by V2 workspace
 
 function setupPasteImageHandler(promptElement, fileHandler, conditionCheck) {
     if (!promptElement) return;
@@ -1624,93 +1312,6 @@ function setupPasteImageHandler(promptElement, fileHandler, conditionCheck) {
             }
         }
     });
-}
-
-function initUploadZone() {
-    els.uploadZone.addEventListener('click', () => els.fileInput.click());
-    els.uploadZone.addEventListener('dragover', e => { e.preventDefault(); els.uploadZone.classList.add('dragover'); });
-    els.uploadZone.addEventListener('dragleave', () => els.uploadZone.classList.remove('dragover'));
-    els.uploadZone.addEventListener('drop', e => {
-        e.preventDefault(); els.uploadZone.classList.remove('dragover');
-        const files = e.dataTransfer.files;
-        if (files.length > 1 && isBatchModel(selectedModel?.model)) {
-            handleBatchFileSelect(files);
-        } else if (files.length) {
-            handleFileSelect(files[0]);
-        }
-    });
-    els.fileInput.addEventListener('change', () => {
-        const files = els.fileInput.files;
-        if (files.length > 1 && isBatchModel(selectedModel?.model)) {
-            handleBatchFileSelect(files);
-        } else if (files.length) {
-            handleFileSelect(files[0]);
-        }
-    });
-    els.filePreviewRemove.addEventListener('click', clearFile);
-
-    // Ctrl+V paste image directly into prompt → set as reference image
-    setupPasteImageHandler(
-        els.configPrompt,
-        (file) => handleFileSelect(file),
-        () => !!(els.uploadWrapper && !els.uploadWrapper.classList.contains('hidden'))
-    );
-}
-
-let _previewObjectURL = null;
-function handleFileSelect(file) {
-    selectedFile = file;
-    els.filePreviewName.textContent = file.name;
-    els.filePreviewSize.textContent = formatSize(file.size);
-    els.filePreviewThumb.innerHTML = '';
-    // Revoke previous object URL to prevent memory leak
-    if (_previewObjectURL) { URL.revokeObjectURL(_previewObjectURL); _previewObjectURL = null; }
-    let mediaEl;
-    if (file.type.startsWith('image/')) {
-        mediaEl = document.createElement('img');
-    } else if (file.type.startsWith('video/')) {
-        mediaEl = document.createElement('video');
-        mediaEl.muted = true;
-        mediaEl.preload = 'metadata';
-    }
-    if (mediaEl) {
-        _previewObjectURL = URL.createObjectURL(file);
-        mediaEl.src = _previewObjectURL;
-        els.filePreviewThumb.appendChild(mediaEl);
-    } else {
-        const fallbackIconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
-        els.filePreviewThumb.appendChild(new DOMParser().parseFromString(fallbackIconSvg, 'image/svg+xml').documentElement);
-    }
-    els.uploadZone.classList.add('hidden');
-    els.filePreview.classList.remove('hidden');
-    updateSubmitState();
-}
-
-function handleBatchFileSelect(fileList) {
-    selectedFiles = Array.from(fileList);
-    selectedFile = selectedFiles[0]; // Keep compat
-    const count = selectedFiles.length;
-    const totalSize = selectedFiles.reduce((s, f) => s + f.size, 0);
-    els.filePreviewName.textContent = `${count} arquivo${count > 1 ? 's' : ''} selecionado${count > 1 ? 's' : ''}`;
-    els.filePreviewSize.textContent = formatSize(totalSize);
-    els.filePreviewThumb.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:20px;font-weight:700;color:var(--accent)">${count}</div>`;
-    els.uploadZone.classList.add('hidden');
-    els.filePreview.classList.remove('hidden');
-    updateSubmitState();
-}
-
-function clearFile() {
-    selectedFile = null; selectedFiles = []; els.fileInput.value = '';
-    els.filePreviewThumb.innerHTML = '';
-    els.filePreview.classList.add('hidden');
-    els.uploadZone.classList.remove('hidden');
-    updateSubmitState();
-}
-
-function formatSize(b) {
-    if (b < 1024) return b + ' B';
-    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
-    return (b / 1048576).toFixed(1) + ' MB';
 }
 
 // ==================== Submit ====================
@@ -1738,350 +1339,11 @@ function resolveVeoModelByInput(model, hasImage) {
     return `veo3/${hasImage ? 'image' : 'text'}-to-video${qualitySuffix}`;
 }
 
-function _getCurrentModelCost() {
-    if (!selectedModel) return null;
-    let model = selectedModel.model;
+// V1 _getCurrentModelCost removed — V2 workspace handles cost display
 
-    // MJ: cost depends on speed setting
-    if (selectedModel.input === 'mj') {
-        const speed = document.querySelector('input[name="mj-speed"]:checked')?.value || 'relaxed';
-        if (speed === 'relaxed') return 3;
-        if (speed === 'turbo') return 16;
-        return 8; // fast
-    }
-
-    // Veo: auto-switch text/image based on input file and resolve quality suffix
-    if (model.startsWith('veo3/')) {
-        const hasImage = !!selectedFile || (Array.isArray(selectedFiles) && selectedFiles.length > 0);
-        model = resolveVeoModelByInput(model, hasImage);
-
-        if (model === 'veo3/text-to-video' || model === 'veo3/image-to-video') {
-            const q = document.querySelector('input[name="param-quality"]:checked')?.value || 'Fast';
-            const suffix = q === 'Quality' ? '-quality' : '-fast';
-            const base = model.replace('-video', `-video${suffix}`);
-            return getModelCost(base) || getModelCost(model);
-        }
-
-        return getModelCost(model);
-    }
-
-    return getModelCost(model);
-}
-
-function updateSubmitState() {
-    if (!selectedModel) { els.btnSubmit.disabled = true; return; }
-    const isMj = selectedModel.input === 'mj';
-    const isMix = selectedModel.input === 'mix';
-    const needsFileStrict = selectedModel.input === 'file' || (isMj && selectedModel.mjType !== 'mj_txt2img');
-    const needsPrompt = selectedModel.input === 'text' || isMj || isMix;
-    let ok = true;
-    if (isMix) {
-        // Mix models: need at least a file OR a prompt
-        const hasFile = !!selectedFile;
-        const hasPrompt = !!els.configPrompt.value.trim();
-        if (!hasFile && !hasPrompt) ok = false;
-    } else {
-        if (needsFileStrict && !selectedFile) ok = false;
-        // Prompt is required for text-only & MJ, but optional for file+prompt models
-        if (needsPrompt && !selectedModel.hasPrompt && !els.configPrompt.value.trim()) ok = false;
-    }
-    els.btnSubmit.disabled = !ok;
-
-    // Update button label with cost
-    const btnLabel = els.btnSubmit.querySelector('span');
-    if (btnLabel && selectedModel) {
-        const cost = _getCurrentModelCost();
-        btnLabel.textContent = cost ? `Gerar (~${cost} cr)` : 'Gerar';
-    }
-}
-
-function initSubmit() {
-    els.btnSubmit.addEventListener('click', handleSubmit);
-    els.configPrompt.addEventListener('input', updateSubmitState);
-
-    // Update cost in button when MJ speed or any param radio changes
-    document.querySelectorAll('input[name="mj-speed"]').forEach(r => r.addEventListener('change', updateSubmitState));
-    // Also listen to param changes (delegated) for dynamic cost models like Veo quality
-    document.addEventListener('change', e => {
-        if (e.target.matches('.config-model-params input[type="radio"]')) updateSubmitState();
-    });
-}
-
-async function handleSubmit() {
-    if (!selectedModel || els.btnSubmit.disabled) return;
-    // Visual feedback: spinner + text change
-    els.btnSubmit.classList.add('loading'); els.btnSubmit.disabled = true;
-    const btnSpan = els.btnSubmit.querySelector('span');
-    const origText = btnSpan?.textContent;
-    if (btnSpan) btnSpan.textContent = 'Enviando...';
-    try {
-        // Batch upload: loop through all selected files
-        if (selectedFiles.length > 1 && isBatchModel(selectedModel.model)) {
-            const total = selectedFiles.length;
-            let ok = 0, fail = 0;
-            for (let i = 0; i < total; i++) {
-                if (btnSpan) btnSpan.textContent = `Enviando ${i + 1}/${total}...`;
-                selectedFile = selectedFiles[i];
-                try {
-                    if (selectedModel.shortcut === 'topaz-upscale') {
-                        const params = collectModelParams();
-                        await submitShortcut('/api/shortcuts/topaz-upscale', 'videos', { factor: params.upscale_factor || '2' });
-                    } else {
-                        await submitFileModel();
-                    }
-                    ok++;
-                } catch (err) {
-                    fail++;
-                    toast(`❌ Erro (${selectedFiles[i].name}): ${err.message}`, 'error');
-                }
-            }
-            toast(`✅ Batch: ${ok} enviado${ok > 1 ? 's' : ''}${fail ? `, ${fail} erro${fail > 1 ? 's' : ''}` : ''}`, ok > 0 ? 'success' : 'error');
-            clearFile(); updateSubmitState(); updateCharCounter();
-        } else {
-            // Single file / normal submit
-            let response;
-            if (selectedModel.input === 'mj') response = await submitMJ();
-            else if (selectedModel.shortcut === 'recraft-rmbg') response = await submitShortcut('/api/shortcuts/recraft-rmbg', 'images');
-            else if (selectedModel.shortcut === 'topaz-upscale') {
-                const params = collectModelParams();
-                response = await submitShortcut('/api/shortcuts/topaz-upscale', 'videos', { factor: params.upscale_factor || '2' });
-            }
-            else if (selectedModel.model.startsWith('suno/')) response = await submitSunoModel();
-            else if (selectedModel.model.startsWith('veo3/')) response = await submitVeoModel();
-            else if (selectedModel.model === 'gpt4o-image') response = await submitGpt4oImage();
-            else if (selectedModel.model.startsWith('flux-kontext')) response = await submitFluxKontext();
-            else if (selectedModel.input === 'mix') response = await submitMixMarketModel();
-            else if (selectedModel.input === 'file') response = await submitFileModel();
-            else response = await submitTextModel();
-            if (response) {
-                toast('✅ Tarefa criada!', 'success');
-                clearFile(); els.configPrompt.value = ''; updateSubmitState();
-                updateCharCounter();
-            }
-        }
-    } catch (err) {
-        toast(`❌ Erro: ${err.message}`, 'error');
-    } finally {
-        els.btnSubmit.classList.remove('loading');
-        if (btnSpan) btnSpan.textContent = origText || 'Gerar';
-        updateSubmitState();
-    }
-}
-
-async function submitShortcut(endpoint, uploadPath, extraFields = {}) {
-    const fd = new FormData();
-    fd.append('file', selectedFile); fd.append('uploadPath', uploadPath);
-    // Append any extra form fields (e.g. factor for topaz)
-    for (const [k, v] of Object.entries(extraFields)) {
-        fd.append(k, v);
-    }
-    const resp = await fetch(`${API}${endpoint}`, { method: 'POST', body: fd });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-
-    // API might return standard structure (data.taskId) or wrapped structure (task.data.taskId)
-    const taskId = json?.data?.taskId || json?.task?.data?.taskId;
-
-    // Shortcuts might return the uploaded url if present, but we'll try to get it if they do.
-    const uploadedUrl = json?.uploaded_url || null;
-    if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
-    addTask(taskId, selectedModel.model, 'market', uploadedUrl);
-    return json;
-}
-
-
-async function submitSunoModel() {
-    const fd = new FormData();
-    if (selectedFile) fd.append('file', selectedFile);
-
-    let resolvedModel = selectedModel.model;
-    let extra = collectModelParams();
-    const prompt = els.configPrompt.value.trim();
-
-    // Resolve virtual consolidated models to real API models
-    const SUNO_ACTION_MAP = {
-        'suno/edit-audio': {
-            'Extend Music': 'suno/extend-music',
-            'Add Instrumental': 'suno/add-instrumental',
-            'Add Vocals': 'suno/add-vocals',
-            'Separate Vocals': 'suno/separate-vocals',
-        },
-        'suno/utilities': {
-            'Music Video': 'suno/music-video',
-            'Convert WAV': 'suno/convert-wav',
-            'Get Lyrics': 'suno/get-lyrics',
-            'Generate Persona': 'suno/generate-persona',
-            'Cover Image': 'suno/cover-suno',
-            'Generate MIDI': 'suno/generate-midi',
-        }
-    };
-
-    if (SUNO_ACTION_MAP[resolvedModel]) {
-        const action = extra.suno_action || Object.keys(SUNO_ACTION_MAP[resolvedModel])[0];
-        resolvedModel = SUNO_ACTION_MAP[resolvedModel][action] || resolvedModel;
-        delete extra.suno_action;
-    }
-
-    // Route suno_mode toggle: 'Letra' uses suno/generate-lyrics endpoint
-    if (resolvedModel === 'suno/generate-music' && extra.suno_mode === 'Letra') {
-        resolvedModel = 'suno/generate-lyrics';
-    }
-    delete extra.suno_mode; // don't send this meta-key to the API
-
-    // If "Generate Music" and there's a file, it means they want an audio Cover
-    if (resolvedModel === 'suno/generate-music' && selectedFile) {
-        resolvedModel = 'suno/upload-cover';
-    }
-
-    if (prompt) extra.prompt = prompt;
-
-    if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
-    }
-
-    fd.append('model', resolvedModel);
-    fd.append('input_json', JSON.stringify(extra));
-
-    const resp = await fetch(`${API}/api/suno/create`, { method: 'POST', body: fd });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-
-    let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
-    if (!tid) throw new Error(json.msg || 'Nenhum taskId retornado');
-    addTask(tid, resolvedModel, 'suno', json.uploaded_url, extra);
-    return json;
-}
-
-
-async function submitVeoModel() {
-    const fd = new FormData();
-    if (selectedFile) fd.append('file', selectedFile);
-
-    let resolvedModel = selectedModel.model;
-    let extra = collectModelParams();
-    const prompt = els.configPrompt.value.trim();
-
-    // Auto-adapt Veo mode by input type
-    resolvedModel = resolveVeoModelByInput(resolvedModel, !!selectedFile);
-
-    // Veo 3 quality parsing logic from submitTextModel & submitFileModel
-    if (resolvedModel === 'veo3/image-to-video' || resolvedModel === 'veo3/text-to-video') {
-        const quality = (extra.quality || 'Fast').toLowerCase();
-        resolvedModel = `${resolvedModel}-${quality}`;
-        delete extra.quality;
-    }
-
-    if (prompt) extra.prompt = prompt;
-
-    if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
-    }
-
-    // Strip enableFallback just in case it was passed by user JSON
-    delete extra.enableFallback;
-
-    fd.append('model', resolvedModel);
-    fd.append('input_json', JSON.stringify(extra));
-
-    const resp = await fetch(`${API}/api/veo/create`, { method: 'POST', body: fd });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-
-    let tid = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId
-        || json?.data?.task_id || json?.task_id;
-    if (!tid) {
-        console.error('[Veo] taskId not found in response:', JSON.stringify(json).slice(0, 500));
-        throw new Error(json.msg || 'Nenhum taskId retornado');
-    }
-    // Set task mode to veo so poll matches
-    addTask(tid, resolvedModel, 'veo', json.uploaded_url || null, extra);
-    return json;
-}
-
-async function submitFileModel() {
-    const fd = new FormData();
-    fd.append('file', selectedFile);
-    let resolvedModel = selectedModel.model;
-    let extra = collectModelParams();
-
-    fd.append('model', resolvedModel);
-    fd.append('file_field', selectedModel.field);
-    fd.append('uploadPath', 'uploads');
-    const prompt = els.configPrompt.value.trim();
-    if (prompt) extra.prompt = prompt;
-    // Merge manual JSON if visible
-    if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
-    }
-    fd.append('input_json', JSON.stringify(extra));
-    const resp = await fetch(`${API}/api/process`, { method: 'POST', body: fd });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-    const taskId = json?.task?.data?.taskId;
-    if (!taskId) throw new Error(json.msg || json?.task?.msg || 'Nenhum taskId retornado');
-    addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
-    return json;
-}
-
-async function submitGpt4oImage() {
-    const fd = new FormData();
-    if (selectedFile) fd.append('file', selectedFile);
-
-    let extra = collectModelParams();
-    const prompt = els.configPrompt.value.trim();
-    if (prompt) extra.prompt = prompt;
-
-    if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
-    }
-
-    fd.append('model', 'gpt4o-image');
-    fd.append('input_json', JSON.stringify(extra));
-
-    const resp = await fetch(`${API}/api/gpt4o-image/create`, { method: 'POST', body: fd });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-
-    let tid = json?.data?.taskId || json?.taskId;
-    if (!tid) throw new Error(json.msg || 'Nenhum taskId retornado — verifique o prompt e a imagem');
-    addTask(tid, 'gpt4o-image', 'gpt4o-image', json.uploaded_url || null, extra);
-    return json;
-}
-
-async function submitFluxKontext() {
-    const fd = new FormData();
-    if (selectedFile) fd.append('file', selectedFile);
-
-    const resolvedModel = selectedModel.model; // flux-kontext-pro or flux-kontext-max
-    let extra = collectModelParams();
-    const prompt = els.configPrompt.value.trim();
-    if (prompt) extra.prompt = prompt;
-
-    // Set the API model name (flux-kontext-pro or flux-kontext-max)
-    extra.model = resolvedModel;
-
-    if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
-    }
-
-    fd.append('model', resolvedModel);
-    fd.append('input_json', JSON.stringify(extra));
-
-    const resp = await fetch(`${API}/api/flux-kontext/create`, { method: 'POST', body: fd });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-
-    let tid = json?.data?.taskId || json?.taskId;
-    if (!tid) throw new Error(json.msg || 'Nenhum taskId retornado — verifique o prompt e a imagem');
-    addTask(tid, resolvedModel, 'flux-kontext', json.uploaded_url || null, extra);
-    return json;
-}
+// V1 submit functions removed (updateSubmitState, initSubmit, handleSubmit,
+// submitShortcut, submitSunoModel, submitVeoModel, submitFileModel,
+// submitGpt4oImage, submitFluxKontext) — all handled by V2 workspace
 
 function resolveSeedreamModel(model, extra, hasFile) {
     if (model === 'seedream/5-lite') {
@@ -2091,123 +1353,13 @@ function resolveSeedreamModel(model, extra, hasFile) {
     return model;
 }
 
-async function submitMixMarketModel() {
-    const fd = new FormData();
-    if (selectedFile) fd.append('file', selectedFile);
-
-    let resolvedModel = selectedModel.model;
-    let extra = collectModelParams();
-
-    // Remap Seedream model names to what KIE API actually expects
-    resolvedModel = resolveSeedreamModel(resolvedModel, extra, !!selectedFile);
-    const prompt = els.configPrompt.value.trim();
-    if (prompt) extra.prompt = prompt;
-
-    if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
-    }
-
-    // If there's a file, use /api/process which handles upload + task creation
-    if (selectedFile) {
-        fd.append('model', resolvedModel);
-        fd.append('file_field', selectedModel.field);
-        fd.append('uploadPath', 'images');
-        fd.append('input_json', JSON.stringify(extra));
-        const resp = await fetch(`${API}/api/process`, { method: 'POST', body: fd });
-        const json = await resp.json();
-        if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-        if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-        const taskId = json?.task?.data?.taskId;
-        if (!taskId) throw new Error(json.msg || json?.task?.msg || 'Nenhum taskId retornado');
-        addTask(taskId, resolvedModel, 'market', json.uploaded_url, extra);
-        return json;
-    } else {
-        // Text-only: use create-json
-        const fd2 = new FormData();
-        fd2.append('model', resolvedModel);
-        fd2.append('input_json', JSON.stringify(extra));
-        const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd2 });
-        const json = await resp.json();
-        if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-        if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-        const taskId = json?.data?.taskId;
-        if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
-        addTask(taskId, resolvedModel, 'market', null, extra);
-        return json;
-    }
-}
-
-async function submitTextModel() {
-    const prompt = els.configPrompt.value.trim();
-    let extra = collectModelParams();
-    let resolvedModel = selectedModel.model;
-
-    // Remap Seedream model names to what KIE API actually expects
-    resolvedModel = resolveSeedreamModel(resolvedModel, extra, false);
-
-    if (selectedModel.field === 'text') extra.text = prompt;
-    else extra.prompt = prompt;
-    // Merge manual JSON
-    if (!els.configExtraGrp.classList.contains('hidden')) {
-        try { Object.assign(extra, JSON.parse(els.configExtraJson.value.trim() || '{}')); } catch (e) { console.warn('[submit] Invalid extra JSON, ignoring:', e.message); }
-    }
-    const fd = new FormData();
-    fd.append('model', resolvedModel);
-    fd.append('input_json', JSON.stringify(extra));
-    const resp = await fetch(`${API}/api/market/create-json`, { method: 'POST', body: fd });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-    const taskId = json?.data?.taskId;
-    if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
-    addTask(taskId, resolvedModel, 'market', null, extra);
-    return json;
-}
-
-async function submitMJ() {
-    const prompt = els.configPrompt.value.trim();
-    const ar = document.querySelector('input[name="mj-ar"]:checked')?.value || '1:1';
-    const speed = document.querySelector('input[name="mj-speed"]:checked')?.value || 'relaxed';
-    const version = document.querySelector('input[name="mj-version"]:checked')?.value || '7';
-
-    // Handle image-to-image or video generation involving an image file
-    const isImageReq = selectedModel.mjType !== 'mj_txt2img';
-    let payload = { taskType: selectedModel.mjType, speed, prompt, aspectRatio: ar, version };
-
-    if (isImageReq && selectedFile) {
-        // Upload the image first before triggering Midjourney
-        const upFd = new FormData();
-        upFd.append('file', selectedFile);
-        upFd.append('uploadPath', 'images');
-        const upResp = await fetch(`${API}/api/upload`, { method: 'POST', body: upFd });
-        const upJson = await upResp.json();
-        if (!upResp.ok) throw new Error(upJson.detail || 'Falha ao fazer upload da imagem de referência');
-
-        const imageUrl = upJson.url;
-        if (selectedModel.mjType === 'mj_img2img' || selectedModel.mjType === 'mj_video') {
-            payload.prompt = `${imageUrl} ${prompt}`.trim();
-        } else if (selectedModel.mjType === 'mj_style_ref') {
-            payload.prompt = `${prompt} --sref ${imageUrl}`.trim();
-        }
-    }
-
-    const fd = new FormData();
-    fd.append('payload_json', JSON.stringify(payload));
-    const resp = await fetch(`${API}/api/mj/generate`, { method: 'POST', body: fd });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-    if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-    const taskId = json?.data?.taskId;
-    if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
-    addTask(taskId, selectedModel.model, 'midjourney', null, { ar, speed, version });
-    return json;
-}
+// V1 submitMixMarketModel, submitTextModel, submitMJ removed — handled by V2
 
 // ==================== Task Management ====================
 
 function addTask(taskId, model, mode, inputFileUrl = null, extraParams = null, overrideCat = null) {
     const v2PromptEl = document.getElementById('v2-prompt');
-    const promptText = els.configPrompt?.value?.trim() || v2PromptEl?.value?.trim() || '';
+    const promptText = v2PromptEl?.value?.trim() || '';
     const task = {
         id: taskId,
         model,
@@ -3079,54 +2231,40 @@ function openHistoryLightbox(entry) {
             }
             selectModelFromData(modelData);
 
-            // Populate V2 prompt if V2 workspace is visible, otherwise V1
+            // Populate V2 prompt
             const v2PromptEl = document.getElementById('v2-prompt');
-            const v2Ws = document.getElementById('v2-workspace');
-            const useV2 = v2Ws && !v2Ws.classList.contains('hidden');
-            if (entry.prompt) {
-                if (useV2 && v2PromptEl) {
-                    v2PromptEl.value = entry.prompt;
-                    v2PromptEl.dispatchEvent(new Event('input'));
-                } else if (els.configPrompt) {
-                    els.configPrompt.value = entry.prompt;
-                    updateSubmitState();
-                }
+            if (entry.prompt && v2PromptEl) {
+                v2PromptEl.value = entry.prompt;
+                v2PromptEl.dispatchEvent(new Event('input'));
             }
+
+            // Restore extra params into V2 workspace dynamic params
             if (entry.extraParams) {
                 setTimeout(() => {
                     const ep = entry.extraParams;
-                    // For Midjourney
-                    if (ep.ar) { const el = document.querySelector(`input[name="mj-ar"][value="${CSS.escape(ep.ar)}"]`); if (el) el.click(); }
-                    if (ep.speed) { const el = document.querySelector(`input[name="mj-speed"][value="${CSS.escape(ep.speed)}"]`); if (el) el.click(); }
-                    if (ep.version) { const el = document.querySelector(`input[name="mj-version"][value="${CSS.escape(ep.version)}"]`); if (el) el.click(); }
-
-                    // For other models
+                    const v2Params = document.getElementById('v2-dynamic-params');
+                    if (!v2Params) return;
                     for (const [k, v] of Object.entries(ep)) {
-                        // find input
-                        const selectEl = els.configParams.querySelector(`select[data-param-key="${CSS.escape(k)}"]`);
+                        const selectEl = v2Params.querySelector(`select[data-param-key="${CSS.escape(k)}"]`);
                         if (selectEl) { selectEl.value = v; continue; }
-                        // Use iteration instead of querySelector for radio values (values may contain special chars)
-                        const radios = els.configParams.querySelectorAll(`input[type="radio"][name="param-${CSS.escape(k)}"]`);
+                        const radios = v2Params.querySelectorAll(`input[type="radio"][name="param-${CSS.escape(k)}"]`);
                         const radioEl = Array.from(radios).find(r => r.value === v);
                         if (radioEl) { radioEl.click(); continue; }
-                        const numEl = els.configParams.querySelector(`input[type="range"][data-param-key="${CSS.escape(k)}"], input[type="number"][data-param-key="${CSS.escape(k)}"]`);
+                        const numEl = v2Params.querySelector(`input[type="range"][data-param-key="${CSS.escape(k)}"], input[type="number"][data-param-key="${CSS.escape(k)}"]`);
                         if (numEl) { numEl.value = v; numEl.dispatchEvent(new Event('input', { bubbles: true })); continue; }
-                        const chkEl = els.configParams.querySelector(`input[type="checkbox"][data-param-key="${CSS.escape(k)}"]`);
+                        const chkEl = v2Params.querySelector(`input[type="checkbox"][data-param-key="${CSS.escape(k)}"]`);
                         if (chkEl) { chkEl.checked = v; continue; }
-                        const txtEl = els.configParams.querySelector(`input[type="text"][data-param-key="${CSS.escape(k)}"]`);
+                        const txtEl = v2Params.querySelector(`input[type="text"][data-param-key="${CSS.escape(k)}"]`);
                         if (txtEl) { txtEl.value = v; continue; }
                     }
                 }, 100);
             }
 
             if (entry.inputFileUrl) {
-                // Support both single URL string and array of URLs
                 const inputUrls = Array.isArray(entry.inputFileUrl) ? entry.inputFileUrl : [entry.inputFileUrl];
-                // In v2 workspace, load all reference images; in v1, load only the first
-                const urlsToLoad = useV2 ? inputUrls : [inputUrls[0]];
                 const mimeToExt = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm', 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3' };
-                toast(`Baixando ${urlsToLoad.length > 1 ? urlsToLoad.length + ' imagens' : 'mídia'} original...`, 'info');
-                const results = await Promise.allSettled(urlsToLoad.map(async (url) => {
+                toast(`Baixando ${inputUrls.length > 1 ? inputUrls.length + ' imagens' : 'mídia'} original...`, 'info');
+                const results = await Promise.allSettled(inputUrls.map(async (url) => {
                     const resp = await fetch(url);
                     if (!resp.ok) throw new Error(`Download failed: ${url}`);
                     const blob = await resp.blob();
@@ -3139,12 +2277,8 @@ function openHistoryLightbox(entry) {
                     console.warn(`${failed} file(s) failed to download`);
                     toast(`⚠️ ${failed} arquivo(s) não puderam ser carregados`, 'error');
                 }
-                if (files.length > 0) {
-                    if (useV2 && typeof v2Registry.addFilesFromReuse === 'function') {
-                        v2Registry.addFilesFromReuse(files);
-                    } else {
-                        handleFileSelect(files[0]);
-                    }
+                if (files.length > 0 && typeof v2Registry.addFilesFromReuse === 'function') {
+                    v2Registry.addFilesFromReuse(files);
                 }
             }
 
