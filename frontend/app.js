@@ -4678,7 +4678,10 @@ const v2Registry = {};
                 await _handleStandardSubmission(prompt, btnSpan, modelParams);
             }
 
-            v2ClearAllFiles();
+            // Keep uploaded images so the next generation can reuse the same reference.
+            // Only clear if no files were attached (text-only generation).
+            const hadFiles = v2Files.length > 0 || v2FrameInitial || v2FrameFinal;
+            if (!hadFiles) v2ClearAllFiles();
             v2.prompt.value = '';
             v2.charCounter.textContent = '0 / 2.000';
             updateV2GenerateState();
