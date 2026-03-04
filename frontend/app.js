@@ -3773,12 +3773,10 @@ const v2Registry = {};
                 uploadLabel.innerHTML = `Imagens de referência <span class="v2-label-hint">— opcional, até ${v2MaxFiles}</span>`;
             }
         }
-        // Trim files if over new max
-        if (v2Files.length > v2MaxFiles) {
-            v2Files = v2Files.slice(0, v2MaxFiles);
-            v2RenderFilesGrid();
-            updateV2GenerateState();
-        }
+        // Trim files if over new max, always re-render counter
+        if (v2Files.length > v2MaxFiles) v2Files = v2Files.slice(0, v2MaxFiles);
+        v2RenderFilesGrid(); // updates file counter to N / v2MaxFiles
+        updateV2GenerateState();
 
         // ── Negative prompt show/hide ──
         const negPromptGroup = document.getElementById('v2-group-negative-prompt');
