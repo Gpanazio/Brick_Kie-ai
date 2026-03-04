@@ -851,10 +851,12 @@ function addToHistory(task) {
     renderHistoryGallery();
     updateHistoryCount();
 
-    // Save to server (permanent storage)
+    // Save to server (permanent storage in PostgreSQL)
     const fd = new FormData();
     fd.append('entry_json', JSON.stringify(entry));
-    fetch(`${API}/api/history`, { method: 'POST', body: fd }).catch(() => { });
+    fetch(`${API}/api/history`, { method: 'POST', body: fd })
+        .then(r => { if (!r.ok) console.error('[history] Server save failed:', r.status); })
+        .catch(err => console.error('[history] Server save error:', err));
 }
 
 // ==================== DOM ====================
@@ -1066,7 +1068,7 @@ function initSocketCallbacks() {
                 state === 'success' ? `✅ ${task.model} concluído!` : `❌ ${task.model} falhou${failInfo}`,
                 state === 'success' ? 'success' : 'error'
             );
-            if (state === 'success') addToHistory(task);
+            addToHistory(task);
             fetchCredits();
         }
 
@@ -2296,8 +2298,8 @@ function startPolling(task) {
                     state === 'success' ? `✅ ${task.model} concluído!` : `❌ ${task.model} falhou${failInfo}`,
                     state === 'success' ? 'success' : 'error'
                 );
-                // Save successful tasks to persistent history
-                if (state === 'success') addToHistory(task);
+                // Save completed tasks (success or fail) to persistent history
+                addToHistory(task);
                 fetchCredits();
                 updateActiveCount();
             } else {
