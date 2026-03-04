@@ -81,8 +81,8 @@ async def _save_upload_to_temp(file: UploadFile, default_name: str = "file") -> 
     """Save an UploadFile to a temporary file and return its path."""
     suffix = Path(file.filename or default_name).suffix
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await file.read()
-        tmp.write(content)
+        while content := await file.read(1024 * 1024):  # Read in 1MB chunks
+            tmp.write(content)
         return tmp.name
 
 

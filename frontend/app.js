@@ -3158,7 +3158,7 @@ document.body.addEventListener('click', async (e) => {
             // 1080p returns the video URL directly — show it as a toast with link
             const hdUrl = json?.data?.resultUrl || json?.data?.downloadUrl
                 || (Array.isArray(json?.data?.resultUrls) ? json.data.resultUrls[0] : null);
-            if (hdUrl) {
+            if (hdUrl && (hdUrl.startsWith('http://') || hdUrl.startsWith('https://'))) {
                 toast('✅ Vídeo 1080p disponível! URL copiada.', 'success');
                 try { await navigator.clipboard.writeText(hdUrl); } catch (e) { console.warn('[clipboard] Failed to copy 1080p URL:', e.message); }
                 // Open in new tab
@@ -3186,7 +3186,7 @@ document.body.addEventListener('click', async (e) => {
             // 4K is async — check if it returns a new taskId or direct URL
             const url4k = json?.data?.resultUrl || json?.data?.downloadUrl
                 || (Array.isArray(json?.data?.resultUrls) ? json.data.resultUrls[0] : null);
-            if (url4k) {
+            if (url4k && (url4k.startsWith('http://') || url4k.startsWith('https://'))) {
                 toast('✅ Vídeo 4K disponível! URL copiada.', 'success');
                 try { await navigator.clipboard.writeText(url4k); } catch (e) { console.warn('[clipboard] Failed to copy 4K URL:', e.message); }
                 window.open(url4k, '_blank');
