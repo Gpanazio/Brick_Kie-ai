@@ -10,7 +10,6 @@ const API = '/kie-ai';
 // 'cost' is the estimated credits per generation (from KIE API docs)
 
 // Shared category constants
-// V2_CATS removed — all categories now use V2 workspace exclusively
 const VIDEO_CATS = ['video'];
 
 // Credit cost estimates (1 credit ≈ $0.005 USD)
@@ -94,47 +93,6 @@ const BRAND_LOGOS = {
     'recraft': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M6 6h12v12H6z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
     'topaz': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2l-6 10h12zM5 14l7 8 7-8z" fill="currentColor"/></svg>`,
     'midjourney': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 19c3-2 6-3 9-3s6 1 9 3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`
-};
-
-// Per-model prompt character limits (from KIE API docs)
-const PROMPT_CHAR_LIMITS = {
-    'grok-imagine/text-to-video': 5000,
-    'grok-imagine/image-to-video': 5000,
-    'kling-3.0/video': 2500,
-    'sora-2-pro-text-to-video': 4000,
-    'wan/2-6-text-to-video': 2000,
-    'wan/2-6-image-to-video': 2000,
-    'hailuo/2-3-image-to-video-pro': 2000,
-    'nano-banana-pro': 2000,
-    'google/nano-banana-edit': 5000,
-    'grok-imagine/text-to-image': 5000,
-    'grok-imagine/image-to-image': 5000,
-    'gpt4o-image': 5000,
-    'flux-kontext-pro': 5000,
-    'flux-kontext-max': 5000,
-    'seedream/5-lite': 2995,
-    'seedream/5-lite-text-to-image': 2995,
-    'seedream/5-lite-image-to-image': 2996,
-    'flux-2/pro-text-to-image': 2000,
-    'google/imagen4': 2000,
-
-    'qwen/image-edit': 2000,
-    'elevenlabs/text-to-speech-turbo-2-5': 5000,
-    'elevenlabs/text-to-dialogue-v3': 5000,
-    'elevenlabs/sound-effect-v2': 5000,
-    'sora-2-pro-image-to-video': 4000,
-    'suno/generate-music': 3000,
-    'suno/generate-lyrics': 3000,
-    'suno/edit-audio': 3000,
-    'suno/utilities': 200,
-    'veo3/text-to-video': 5000,
-    'veo3/image-to-video': 5000,
-    'veo3/text-to-video-fast': 5000,
-    'veo3/text-to-video-quality': 5000,
-    'veo3/image-to-video-fast': 5000,
-    'veo3/image-to-video-quality': 5000,
-    'veo3/extend-fast': 5000,
-    'veo3/extend-quality': 5000,
 };
 
 // Midjourney cost per speed tier
@@ -579,17 +537,6 @@ const MODEL_CONFIGS = {
     },
 };
 
-// ==================== Batch Upload Support ====================
-const BATCH_MODELS = new Set([
-    'topaz/image-upscale',
-    'topaz/video-upscale',
-    'recraft/crisp-upscale',
-]);
-
-function isBatchModel(model) {
-    return model && BATCH_MODELS.has(model);
-}
-
 // ==================== State ====================
 
 let selectedModel = null;
@@ -894,7 +841,6 @@ const els = {
     mpmClose: $('#mpm-close'),
     mpmGrid: $('#mpm-grid'),
     mpmSubtitle: $('#mpm-subtitle'),
-    // V1 config/params elements removed — all categories use V2 workspace
     tasksList: $('#tasks-list'),
     tasksEmpty: $('#tasks-empty'),
     btnClearTasks: $('#btn-clear-tasks'),
@@ -1163,7 +1109,6 @@ function enterWorkspace(cat) {
         setTimeout(() => openModelPickerModal(), 50);
     }
 
-    document.body.classList.remove('cat-veo3');
     els.panelSettings.classList.add('hidden');
 }
 
@@ -1291,9 +1236,6 @@ function selectModelFromData(data) {
     els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${esc(currentCatLabel)} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${esc(data.name)}</span>`;
 }
 
-// V1 prompt counter, reset buttons, keyboard shortcuts, model params,
-// upload zone, file handling and clearFile removed — all handled by V2 workspace
-
 function setupPasteImageHandler(promptElement, fileHandler, conditionCheck) {
     if (!promptElement) return;
     promptElement.addEventListener('paste', (e) => {
@@ -1339,12 +1281,6 @@ function resolveVeoModelByInput(model, hasImage) {
     return `veo3/${hasImage ? 'image' : 'text'}-to-video${qualitySuffix}`;
 }
 
-// V1 _getCurrentModelCost removed — V2 workspace handles cost display
-
-// V1 submit functions removed (updateSubmitState, initSubmit, handleSubmit,
-// submitShortcut, submitSunoModel, submitVeoModel, submitFileModel,
-// submitGpt4oImage, submitFluxKontext) — all handled by V2 workspace
-
 function resolveSeedreamModel(model, extra, hasFile) {
     if (model === 'seedream/5-lite') {
         extra.quality = 'high';
@@ -1352,8 +1288,6 @@ function resolveSeedreamModel(model, extra, hasFile) {
     }
     return model;
 }
-
-// V1 submitMixMarketModel, submitTextModel, submitMJ removed — handled by V2
 
 // ==================== Task Management ====================
 
@@ -2861,8 +2795,6 @@ const v2Registry = {};
         const cost = isMj ? _getMjCostFromV2() : (typeof getModelCost === 'function' ? getModelCost(data.model) : null);
         if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
 
-        // Filter removed
-
         // ── Generate button label ──
         const btnSpan = v2.btnGenerate.querySelector('span');
         const isAudioCat = currentCat === 'audio' || currentCat === 'music';
@@ -2943,6 +2875,8 @@ const v2Registry = {};
     }
 
     // ── Dynamic V2 Model Params ──
+    const SUNO_CUSTOM_MODE_KEYS = new Set(['style', 'title', 'instrumental']);
+
     function v2RenderModelParams(modelKey) {
         const container = v2.dynamicParams;
         if (!container) return;

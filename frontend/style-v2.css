@@ -542,73 +542,6 @@ body {
     transition: grid-template-columns 0.3s ease;
 }
 
-/* 3-Column Layout for Veo3 */
-body.cat-veo3 #app-main {
-    grid-template-columns: 320px 1fr 340px;
-}
-
-body.cat-veo3 #panel-settings {
-    border-left: 1px solid var(--border);
-    background: var(--surface);
-    display: flex !important;
-    /* Override .hidden if present */
-}
-
-/* V1 cat-veo3 config-panel and inline-params-header rules removed */
-
-body.cat-veo3 #panel-settings .panel-scroll {
-    padding: 24px;
-    gap: 24px;
-}
-
-body.cat-veo3 #panel-settings .form-label {
-    font-family: var(--sans);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 12px;
-}
-
-body.cat-veo3 #panel-settings .radio-group {
-    display: flex;
-    background: var(--surface-2);
-    border-radius: var(--radius);
-    padding: 2px;
-}
-
-body.cat-veo3 #panel-settings .radio-pill {
-    flex: 1;
-    background: transparent;
-    border: none;
-    text-align: center;
-    border-radius: 4px;
-    padding: 8px;
-}
-
-body.cat-veo3 #panel-settings .radio-pill input:checked+span,
-body.cat-veo3 #panel-settings .radio-pill:has(input:checked) {
-    background: var(--surface-3);
-    /* Brick uses dark grey instead of blue */
-    border: 1px solid var(--border-hover);
-    color: var(--text);
-}
-
-body.cat-veo3 #panel-settings .radio-pill input {
-    display: none;
-}
-
-body.cat-veo3 .btn-primary {
-    background: var(--accent);
-    /* Ensure it stays red */
-    color: #fff;
-}
-
-body.cat-veo3 .btn-primary:hover {
-    background: #ef4444;
-    /* Brighter red */
-}
-
-
 .panel {
     display: flex;
     flex-direction: column;
@@ -904,7 +837,6 @@ body.cat-veo3 .btn-primary:hover {
 }
 
 /* ── Provider brand accent stripe ── */
-.mpm-card-accent,
 .task-card-accent,
 .history-card-accent {
     position: absolute;
@@ -917,8 +849,6 @@ body.cat-veo3 .btn-primary:hover {
     z-index: 10;
 }
 
-/* .mpm-card-accent removed — V1 card template no longer used */
-
 .task-card-accent {
     border-radius: 12px 12px 0 0;
     height: 4px;
@@ -930,121 +860,101 @@ body.cat-veo3 .btn-primary:hover {
     z-index: 20;
 }
 
-.mpm-card:hover .mpm-card-accent,
 .task-card:hover .task-card-accent,
 .history-card:hover .history-card-accent {
     opacity: 1;
 }
 
-.mpm-card-accent.mc-yellow,
 .task-card-accent.mc-yellow,
 .history-card-accent.mc-yellow {
     background: linear-gradient(90deg, #ffd600, #ffab00);
 }
 
-.mpm-card-accent.mc-purple,
 .task-card-accent.mc-purple,
 .history-card-accent.mc-purple {
     background: linear-gradient(90deg, #b44fff, #7c4dff);
 }
 
-.mpm-card-accent.mc-blue,
 .task-card-accent.mc-blue,
 .history-card-accent.mc-blue {
     background: linear-gradient(90deg, #2979ff, #448aff);
 }
 
-.mpm-card-accent.mc-white,
 .task-card-accent.mc-white,
 .history-card-accent.mc-white {
     background: linear-gradient(90deg, #d0d0d0, #9e9e9e);
 }
 
-.mpm-card-accent.mc-orange,
 .task-card-accent.mc-orange,
 .history-card-accent.mc-orange {
     background: linear-gradient(90deg, #ff8c00, #ff6d00);
 }
 
-.mpm-card-accent.mc-cyan,
 .task-card-accent.mc-cyan,
 .history-card-accent.mc-cyan {
     background: linear-gradient(90deg, #00d4ee, #00bcd4);
 }
 
-.mpm-card-accent.mc-green,
 .task-card-accent.mc-green,
 .history-card-accent.mc-green {
     background: linear-gradient(90deg, #00e760, #00c853);
 }
 
-.mpm-card-accent.mc-red,
 .task-card-accent.mc-red,
 .history-card-accent.mc-red {
     background: linear-gradient(90deg, #ef4444, #dc2626);
 }
 
-.mpm-card-accent.mc-pink,
 .task-card-accent.mc-pink,
 .history-card-accent.mc-pink {
     background: linear-gradient(90deg, #ff4081, #e91e63);
 }
 
-.mpm-card-accent.mc-teal,
 .task-card-accent.mc-teal,
 .history-card-accent.mc-teal {
     background: linear-gradient(90deg, #00bfa5, #009688);
 }
 
-.mpm-card-accent.mc-indigo,
 .task-card-accent.mc-indigo,
 .history-card-accent.mc-indigo {
     background: linear-gradient(90deg, #7986cb, #3f51b5);
 }
 
-.mpm-card-accent.mc-coral,
 .task-card-accent.mc-coral,
 .history-card-accent.mc-coral {
     background: linear-gradient(90deg, #ff7f50, #ff6347);
 }
 
-.mpm-card-accent.mc-ideogram,
 .task-card-accent.mc-ideogram,
 .history-card-accent.mc-ideogram {
     background: linear-gradient(90deg, #FF3B30, #007AFF);
 }
 
-.mpm-card-accent.mc-qwen,
 .task-card-accent.mc-qwen,
 .history-card-accent.mc-qwen {
     background: linear-gradient(90deg, #1C0123, #7B61FF);
 }
 
-.mpm-card-accent.mc-flux,
 .task-card-accent.mc-flux,
 .history-card-accent.mc-flux {
     background: linear-gradient(90deg, #FFFFFF, #999999);
 }
 
-.mpm-card-accent.mc-bytedance,
 .task-card-accent.mc-bytedance,
 .history-card-accent.mc-bytedance {
     background: linear-gradient(90deg, #00C8FF, #0055FF);
 }
 
-.mpm-card-accent.mc-openai,
 .task-card-accent.mc-openai,
 .history-card-accent.mc-openai {
     background: linear-gradient(90deg, #10A37F, #0E8F6F);
 }
 
-.mpm-card-accent.mc-kling,
 .task-card-accent.mc-kling,
 .history-card-accent.mc-kling {
     background: linear-gradient(90deg, #0099FF, #00C4B6);
 }
 
-.mpm-card-accent.mc-wan,
 .task-card-accent.mc-wan,
 .history-card-accent.mc-wan {
     background: linear-gradient(90deg, #026AF0, #14B8FF);
@@ -1539,7 +1449,6 @@ body.cat-veo3 .btn-primary:hover {
 }
 
 /* ── Accent stripe color for v2 ── */
-.mpm-card-accent.mc-nano-v2,
 .task-card-accent.mc-nano-v2,
 .history-card-accent.mc-nano-v2 {
     background: linear-gradient(90deg, #60a5fa, #a78bfa);
