@@ -4376,6 +4376,17 @@ const v2Registry = {};
     function v2RenderFilesGrid() {
         if (!v2.filesGrid) return;
         v2.filesGrid.innerHTML = '';
+        // Update counter
+        if (v2.fileCounter) {
+            if (v2MaxFiles <= 1) {
+                v2.fileCounter.style.display = 'none';
+            } else {
+                v2.fileCounter.style.display = '';
+                v2.fileCounter.textContent = `${v2Files.length} / ${v2MaxFiles}`;
+                v2.fileCounter.classList.toggle('has-files', v2Files.length > 0);
+                v2.fileCounter.classList.toggle('full', v2Files.length >= v2MaxFiles);
+            }
+        }
         if (v2Files.length === 0) {
             v2.uploadZone.classList.remove('v2-upload-full');
             return;
@@ -4447,6 +4458,23 @@ const v2Registry = {};
             }
         } else {
             v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames);
+        }
+
+        // Update model info label with resolved model (reflects image-to-video when file attached)
+        const modelInfoValue = document.querySelector('#v2-workspace .v2-model-info-value');
+        if (modelInfoValue && v2Model?.model) {
+            let displayModel = v2Model.model;
+            const hasAnyFile = hasFiles || hasFrames;
+            if (hasAnyFile) {
+                if (displayModel === 'grok-imagine/text-to-video') displayModel = 'grok-imagine/image-to-video';
+                if (displayModel === 'grok-imagine/text-to-image') displayModel = 'grok-imagine/image-to-image';
+                if (displayModel === 'sora-2-pro-text-to-video') displayModel = 'sora-2-pro-image-to-video';
+                if (displayModel === 'wan/2-6-text-to-video') displayModel = 'wan/2-6-image-to-video';
+                if (displayModel.startsWith('veo3/')) displayModel = resolveVeoModelByInput(displayModel, true);
+            } else {
+                if (displayModel.startsWith('veo3/')) displayModel = resolveVeoModelByInput(displayModel, false);
+            }
+            modelInfoValue.textContent = displayModel;
         }
     }
 
