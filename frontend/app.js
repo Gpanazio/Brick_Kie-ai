@@ -606,7 +606,14 @@ function loadPendingTasks() {
     try {
         const raw = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
         if (!Array.isArray(raw)) { console.warn('[pending] Expected array, got:', typeof raw); return []; }
-        return raw.filter(p => p && typeof p === 'object' && typeof p.id === 'string' && typeof p.model === 'string');
+        const VALID_STATES = new Set(['processing', 'success', 'fail']);
+        return raw.filter(p => p
+            && typeof p === 'object'
+            && typeof p.id === 'string' && p.id.length > 0
+            && typeof p.model === 'string' && p.model.length > 0
+            && (p.cat === undefined || typeof p.cat === 'string')
+            && (p.state === undefined || VALID_STATES.has(p.state))
+        );
     }
     catch (e) { console.error('Pending tasks load error:', e); return []; }
 }
@@ -2238,14 +2245,26 @@ function filterTasksByCategory() {
 function startPolling(task) {
     let pollErrors = 0;
     const MAX_POLL_ERRORS = 5;
+    const MAX_POLL_DURATION_MS = 15 * 60 * 1000; // 15 min absolute cap
     const BASE_INTERVAL = 5000;
     let currentInterval = BASE_INTERVAL;
+    const pollStart = Date.now();
 
     const schedulePoll = () => {
         task.pollTimer = setTimeout(poll, currentInterval);
     };
 
     const poll = async () => {
+        // Circuit breaker: give up after absolute max duration even if API never errors
+        if (Date.now() - pollStart > MAX_POLL_DURATION_MS) {
+            task.pollTimer = null;
+            removePendingTask(task.id);
+            task.state = 'fail';
+            task.data = { data: { failMsg: 'Timeout: task não concluída em 15 minutos', failCode: 'POLL_TIMEOUT' } };
+            updateTaskCard(task);
+            toast(`❌ ${task.model} — timeout após 15 min`, 'error');
+            return;
+        }
         try {
             const ep = task.mode === 'midjourney' ? `/api/mj/task/${task.id}` :
                 task.mode === 'suno' ? `/api/suno/task/${task.id}` :
@@ -2253,7 +2272,10 @@ function startPolling(task) {
                         task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${task.id}` :
                             task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${task.id}` :
                                 `/api/market/task/${task.id}`;
-            const resp = await fetch(`${API}${ep}`);
+            const controller = new AbortController();
+            const fetchTimer = setTimeout(() => controller.abort(), 30000);
+            const resp = await fetch(`${API}${ep}`, { signal: controller.signal });
+            clearTimeout(fetchTimer);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const json = await resp.json();
             pollErrors = 0; // reset on success
@@ -2647,7 +2669,7 @@ function initHistory() {
             renderHistoryGallery();
             updateHistoryCount();
             // Delete this category from server
-            fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE' }).catch(() => { });
+            fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE' }).catch(err => console.warn('[history] Server clear failed:', err.message));
             toast('🗑️ Histórico limpo', 'info');
         });
     }
@@ -3126,7 +3148,7 @@ function openHistoryLightbox(entry) {
         renderHistoryGallery();
         updateHistoryCount();
         // Delete from server
-        fetch(`${API}/api/history/${encodeURIComponent(entry.id)}`, { method: 'DELETE' }).catch(() => { });
+        fetch(`${API}/api/history/${encodeURIComponent(entry.id)}`, { method: 'DELETE' }).catch(err => console.warn('[history] Server delete failed:', err.message));
         closeLightbox(overlay);
         toast('🗑️ Geração removida do histórico', 'info');
     });
@@ -4757,7 +4779,7 @@ const v2Registry = {};
                 const history = loadHistory().filter(h => h.id !== bid);
                 saveHistory(history);
                 // Delete from server
-                fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE' }).catch(() => { });
+                fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE' }).catch(err => console.warn('[history] Server delete failed:', err.message));
                 item.style.transition = 'opacity 0.2s, transform 0.2s';
                 item.style.opacity = '0';
                 item.style.transform = 'scale(0.9)';
@@ -4941,7 +4963,7 @@ const v2Registry = {};
                 }
             });
             updateV2GalleryCount();
-        }).catch(() => { });
+        }).catch(err => console.warn('[history] Server history load failed:', err.message));
 
         // Categories that share a cat value across multiple model families
         // Use family-prefix matching so veo3/text-to-video-fast still shows in veo3 workspace
