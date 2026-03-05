@@ -237,7 +237,6 @@ body {
         radial-gradient(ellipse at 20% 50%, rgba(220, 38, 38, 0.06) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(220, 38, 38, 0.05) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 80%, rgba(220, 38, 38, 0.04) 0%, transparent 50%);
-    animation: v2-ambient-drift 20s ease-in-out infinite;
     pointer-events: none;
 }
 
@@ -3811,8 +3810,13 @@ body {
     border-color: rgba(220, 38, 38, 0.7);
 }
 
-.lightbox-nav-prev { left: 12px; }
-.lightbox-nav-next { right: 12px; }
+.lightbox-nav-prev {
+    left: 12px;
+}
+
+.lightbox-nav-next {
+    right: 12px;
+}
 
 @media (max-width: 768px) {
     .lightbox-nav {
@@ -3820,8 +3824,14 @@ body {
         height: 36px;
         font-size: 26px;
     }
-    .lightbox-nav-prev { left: 8px; }
-    .lightbox-nav-next { right: 8px; }
+
+    .lightbox-nav-prev {
+        left: 8px;
+    }
+
+    .lightbox-nav-next {
+        right: 8px;
+    }
 }
 
 .lightbox-prompt {
@@ -4397,23 +4407,6 @@ body {
         radial-gradient(ellipse at 20% 50%, rgba(220, 38, 38, 0.06) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(220, 38, 38, 0.05) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 80%, rgba(220, 38, 38, 0.04) 0%, transparent 50%);
-    animation: v2-ambient-drift 20s ease-in-out infinite;
-}
-
-@keyframes v2-ambient-drift {
-
-    0%,
-    100% {
-        transform: translate(0, 0);
-    }
-
-    33% {
-        transform: translate(2%, -1%);
-    }
-
-    66% {
-        transform: translate(-1%, 2%);
-    }
 }
 
 /* ── Left Column ── */
