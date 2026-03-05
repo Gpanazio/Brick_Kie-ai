@@ -643,6 +643,22 @@ const HISTORY_MAX = 500;
 // In-memory cache — populated from server on init, updated locally on each new entry
 let _historyCache = null; // null = not yet loaded from server
 
+// API key for authenticated history requests (fetched from server config on init)
+let _kieApiKey = null;
+
+async function initApiKey() {
+    if (_kieApiKey) return _kieApiKey;
+    try {
+        const r = await fetch('/api/config');
+        if (r.ok) { const j = await r.json(); _kieApiKey = j.apiKey || ''; }
+    } catch (e) { console.warn('[auth] Failed to fetch API key:', e); }
+    return _kieApiKey || '';
+}
+
+function _kieAuthHeaders() {
+    return _kieApiKey ? { 'x-api-key': _kieApiKey } : {};
+}
+
 function _migrateHistoryEntry(h) {
     if (h.cat || !h.model) return false;
     let migrated = false;
@@ -674,8 +690,9 @@ function saveHistory(history) {
 }
 
 // Load history from server into in-memory cache (server is the only source of truth)
-function syncHistoryFromServer() {
-    fetch(`${API}/api/history?limit=${HISTORY_MAX}`)
+async function syncHistoryFromServer() {
+    await initApiKey();
+    fetch(`${API}/api/history?limit=${HISTORY_MAX}`, { headers: _kieAuthHeaders() })
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(json => {
             const serverHistory = json.history || [];
@@ -806,7 +823,7 @@ function addToHistory(task) {
     // Save to server (permanent storage in PostgreSQL)
     const fd = new FormData();
     fd.append('entry_json', JSON.stringify(entry));
-    fetch(`${API}/api/history`, { method: 'POST', body: fd })
+    fetch(`${API}/api/history`, { method: 'POST', body: fd, headers: _kieAuthHeaders() })
         .then(r => { if (!r.ok) console.error('[history] Server save failed:', r.status); })
         .catch(err => console.error('[history] Server save error:', err));
 }
@@ -861,6 +878,7 @@ const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'A
 // ==================== Init ====================
 
 document.addEventListener('DOMContentLoaded', () => {
+    initApiKey(); // fetch API key early so history requests are authenticated
     initLobby();
     initModelPickerModal();
     initClearTasks();
@@ -1772,7 +1790,7 @@ function initHistory() {
             renderHistoryGallery();
             updateHistoryCount();
             // Delete this category from server
-            fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE' }).catch(err => console.warn('[history] Server clear failed:', err.message));
+            fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(err => console.warn('[history] Server clear failed:', err.message));
             toast('🗑️ Histórico limpo', 'info');
         });
     }
@@ -1807,7 +1825,7 @@ function initHistory() {
             try {
                 const fd = new FormData();
                 fd.append('task_ids_json', JSON.stringify(ids));
-                const resp = await fetch(`${API}/api/history/import`, { method: 'POST', body: fd });
+                const resp = await fetch(`${API}/api/history/import`, { method: 'POST', body: fd, headers: _kieAuthHeaders() });
                 const json = await resp.json();
                 if (json.success) {
                     status.textContent = `✅ ${json.imported} importado(s)` + (json.errors?.length ? `, ${json.errors.length} erro(s)` : '');
@@ -2233,7 +2251,7 @@ function openHistoryLightbox(entry) {
         renderHistoryGallery();
         updateHistoryCount();
         // Delete from server
-        fetch(`${API}/api/history/${encodeURIComponent(entry.id)}`, { method: 'DELETE' }).catch(err => console.warn('[history] Server delete failed:', err.message));
+        fetch(`${API}/api/history/${encodeURIComponent(entry.id)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(err => console.warn('[history] Server delete failed:', err.message));
         closeLightbox(overlay);
         toast('🗑️ Geração removida do histórico', 'info');
     });
@@ -3894,7 +3912,7 @@ const v2Registry = {};
                 const history = loadHistory().filter(h => h.id !== bid);
                 saveHistory(history);
                 // Delete from server
-                fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE' }).catch(err => console.warn('[history] Server delete failed:', err.message));
+                fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(err => console.warn('[history] Server delete failed:', err.message));
                 item.style.transition = 'opacity 0.2s, transform 0.2s';
                 item.style.opacity = '0';
                 item.style.transform = 'scale(0.9)';
@@ -4036,7 +4054,7 @@ const v2Registry = {};
 
     async function _fetchServerHistory(cat) {
         try {
-            const resp = await fetch(`${API}/api/history?cat=${encodeURIComponent(cat)}&limit=100`);
+            const resp = await fetch(`${API}/api/history?cat=${encodeURIComponent(cat)}&limit=100`, { headers: _kieAuthHeaders() });
             if (!resp.ok) return [];
             const json = await resp.json();
             return json.history || [];
