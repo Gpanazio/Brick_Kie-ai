@@ -4528,7 +4528,8 @@ const v2Registry = {};
                     });
                 }
             } else if (task.state === 'fail') {
-                const fm = task.data?.data?.failMsg || task.data?.data?.failReason || task.data?.data?.errorMessage || '';
+                const errorData = task.data?.data || {};
+                const fm = errorData.failMsg || errorData.failReason || errorData.errorMessage || '';
                 addV2GalleryItem(task.id, 'failed', null, null, null, null, null, fm);
             } else {
                 addV2GalleryItem(task.id, 'processing');
