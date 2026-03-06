@@ -1129,6 +1129,20 @@ function enterWorkspace(cat) {
         return;
     }
 
+    // Restore previously selected model (F5 / Ctrl+R)
+    let savedModel;
+    try { savedModel = sessionStorage.getItem('kie-workspace-model'); } catch (e) { /* ignore */ }
+    if (savedModel) {
+        const tplItem = tpl?.content.querySelector(`[data-model="${CSS.escape(savedModel)}"][data-cat="${cat}"]`);
+        if (tplItem && typeof window._v2ShowWorkspace === 'function') {
+            setTimeout(() => {
+                selectModelFromData(tplItem.dataset);
+                window._v2ShowWorkspace({ ...tplItem.dataset });
+            }, 60);
+            return;
+        }
+    }
+
     // Open model picker modal so user chooses a model first
     if (_currentCatItems.length > 0) {
         setTimeout(() => openModelPickerModal(), 50);
@@ -1150,7 +1164,10 @@ function exitWorkspace() {
     // Hide V2 workspace if open
     if (typeof window._v2HideWorkspace === 'function') window._v2HideWorkspace();
     // Clear persisted workspace so reload goes to lobby
-    try { sessionStorage.removeItem('kie-workspace-cat'); } catch (e) { console.warn('Could not clear workspace from sessionStorage:', e); }
+    try {
+        sessionStorage.removeItem('kie-workspace-cat');
+        sessionStorage.removeItem('kie-workspace-model');
+    } catch (e) { console.warn('Could not clear workspace from sessionStorage:', e); }
 }
 
 // ==================== Model Picker Modal ====================
@@ -1246,6 +1263,8 @@ function selectModelFromData(data) {
         mjType: data.mjType || null,
         hasPrompt: data.prompt === 'true',
     };
+    // Persist selected model so F5 restores to same model
+    try { sessionStorage.setItem('kie-workspace-model', data.model); } catch (e) { /* ignore */ }
 
     // Update trigger button
     els.mptIcon.innerHTML = sanitizeSvg(data.icon);
