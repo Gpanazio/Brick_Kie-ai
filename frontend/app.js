@@ -143,7 +143,7 @@ const MODEL_CONFIGS = {
     },
     'nano-banana-2': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:8', '1:4', '9:16', '2:3', '3:4', '4:5', '1:1', '5:4', '4:3', '3:2', '16:9', '21:9', '4:1', '8:1', 'auto'], default: '1:1' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
         ]
     },
