@@ -3554,10 +3554,12 @@ const v2Registry = {};
         grid.innerHTML = '';
         if (!file) {
             zone.classList.remove('v2-upload-full');
+            zone.style.display = '';
             return;
         }
 
         zone.classList.add('v2-upload-full');
+        zone.style.display = 'none';
 
         const card = document.createElement('div');
         card.className = 'v2-file-card';
