@@ -2869,6 +2869,7 @@ const v2Registry = {};
         // Per-model max reference files (from API docs)
         const MODEL_MAX_FILES = {
             'nano-banana-pro': 8,              // up to 8 images
+            'nano-banana-2': 8,                // up to 8 images
             'google/nano-banana-edit': 10,      // up to 10 images
             'seedream/5-lite': 14,              // up to 14 images
             'gpt4o-image': 5,                   // up to 5 image URLs
@@ -3861,7 +3862,7 @@ const v2Registry = {};
         const extra = { ...modelParams };
         if (prompt) extra.prompt = prompt;
 
-        let resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
+        let resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-2';
 
         // Suno mode toggle: 'Letra' → suno/generate-lyrics
         if (resolvedModel === 'suno/generate-music' && extra.suno_mode === 'Letra') {
