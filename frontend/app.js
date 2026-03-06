@@ -160,8 +160,7 @@ const MODEL_CONFIGS = {
 
     'gpt4o-image': {
         params: [
-            { key: 'size', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '1:1' },
-            { key: 'nVariants', label: 'Variantes', type: 'select', options: ['1', '2', '3', '4'], default: '1' },
+            { key: 'size', label: 'Aspect Ratio', type: 'select', options: ['1:1', '3:2', '2:3'], default: '1:1' },
             { key: 'isEnhance', label: 'Enhance Prompt', type: 'bool', default: false },
         ]
     },
