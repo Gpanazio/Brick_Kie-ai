@@ -422,8 +422,88 @@ const MODEL_CONFIGS = {
     // ──── ELEVENLABS / AUDIO ────
     'elevenlabs/text-to-dialogue-v3': {
         params: [
-            { key: 'stability', label: 'Estabilidade da Voz', type: 'radio', options: ['0', '0.5', '1'], default: '0.5' },
-            { key: 'language_code', label: 'Idioma', type: 'select', options: ['pt', 'en', 'es', 'fr', 'de'], default: 'pt' },
+            { key: 'stability', label: 'Estabilidade da Voz', type: 'number', default: 0.5, min: 0, max: 1, step: 0.05 },
+            {
+                key: 'language_code', label: 'Idioma', type: 'select',
+                options: [
+                    { id: 'auto', label: 'Auto (Detectar)' },
+                    { id: 'pt', label: 'Português' },
+                    { id: 'en', label: 'Inglês' },
+                    { id: 'es', label: 'Espanhol' },
+                    { id: 'fr', label: 'Francês' },
+                    { id: 'de', label: 'Alemão' },
+                    { id: 'it', label: 'Italiano' },
+                    { id: 'ja', label: 'Japonês' },
+                    { id: 'ko', label: 'Coreano' },
+                    { id: 'zh', label: 'Chinês (Mandarim)' },
+                    { id: 'af', label: 'Africâner' },
+                    { id: 'ar', label: 'Árabe' },
+                    { id: 'hy', label: 'Armênio' },
+                    { id: 'as', label: 'Assamês' },
+                    { id: 'az', label: 'Azerbaijano' },
+                    { id: 'be', label: 'Bielorrusso' },
+                    { id: 'bn', label: 'Bengali' },
+                    { id: 'bs', label: 'Bósnio' },
+                    { id: 'bg', label: 'Búlgaro' },
+                    { id: 'ca', label: 'Catalão' },
+                    { id: 'ceb', label: 'Cebuano' },
+                    { id: 'ny', label: 'Chichewa' },
+                    { id: 'hr', label: 'Croata' },
+                    { id: 'cs', label: 'Tcheco' },
+                    { id: 'da', label: 'Dinamarquês' },
+                    { id: 'nl', label: 'Holandês' },
+                    { id: 'et', label: 'Estoniano' },
+                    { id: 'fil', label: 'Filipino' },
+                    { id: 'fi', label: 'Finlandês' },
+                    { id: 'gl', label: 'Galego' },
+                    { id: 'ka', label: 'Georgiano' },
+                    { id: 'el', label: 'Grego' },
+                    { id: 'gu', label: 'Gujarati' },
+                    { id: 'ha', label: 'Hausa' },
+                    { id: 'he', label: 'Hebraico' },
+                    { id: 'hi', label: 'Hindi' },
+                    { id: 'hu', label: 'Húngaro' },
+                    { id: 'is', label: 'Islandês' },
+                    { id: 'id', label: 'Indonésio' },
+                    { id: 'ga', label: 'Irlandês' },
+                    { id: 'jv', label: 'Javanês' },
+                    { id: 'kn', label: 'Kannada' },
+                    { id: 'kk', label: 'Cazaque' },
+                    { id: 'ky', label: 'Quirguiz' },
+                    { id: 'lv', label: 'Letão' },
+                    { id: 'ln', label: 'Lingala' },
+                    { id: 'lt', label: 'Lituano' },
+                    { id: 'lb', label: 'Luxemburguês' },
+                    { id: 'mk', label: 'Macedônio' },
+                    { id: 'ms', label: 'Malaio' },
+                    { id: 'ml', label: 'Malaiala' },
+                    { id: 'mr', label: 'Marata' },
+                    { id: 'ne', label: 'Nepalês' },
+                    { id: 'no', label: 'Norueguês' },
+                    { id: 'ps', label: 'Pashto' },
+                    { id: 'fa', label: 'Persa' },
+                    { id: 'pl', label: 'Polonês' },
+                    { id: 'pa', label: 'Punjabi' },
+                    { id: 'ro', label: 'Romeno' },
+                    { id: 'ru', label: 'Russo' },
+                    { id: 'sr', label: 'Sérvio' },
+                    { id: 'sd', label: 'Sindi' },
+                    { id: 'sk', label: 'Eslovaco' },
+                    { id: 'sl', label: 'Esloveno' },
+                    { id: 'so', label: 'Somali' },
+                    { id: 'sw', label: 'Suaíli' },
+                    { id: 'sv', label: 'Sueco' },
+                    { id: 'ta', label: 'Tâmil' },
+                    { id: 'te', label: 'Telugu' },
+                    { id: 'th', label: 'Tailandês' },
+                    { id: 'tr', label: 'Turco' },
+                    { id: 'uk', label: 'Ucraniano' },
+                    { id: 'ur', label: 'Urdu' },
+                    { id: 'vi', label: 'Vietnamita' },
+                    { id: 'cy', label: 'Galês' }
+                ],
+                default: 'auto'
+            },
         ]
     },
     'elevenlabs/sound-effect-v2': {
@@ -1095,8 +1175,8 @@ function enterWorkspace(cat) {
     // Update History & Active tabs to only show tasks and history for this cat
     filterTasksByCategory();
     updateActiveCount();
-    updateHistoryCount();
     renderHistoryGallery();
+    updateHistoryCount(); // Call after renderHistoryGallery to ensure filter is applied
 
     // Store model data for current category
     _currentCatItems = [];
@@ -1711,7 +1791,7 @@ function renderTaskResult(task) {
                 // Video extend options
                 html += '<div class="mj-action-row">';
                 html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_auto" data-mj-index="0" data-task-id="${esc(task.id)}">Extend (Auto)</button>`;
-                html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_manual" data-mj-index="0" data-task-id="${esc(task.id)}">Extend (Manual)</button>`;
+                html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend="mj_video_extend_manual" data-mj-index="0" data-task-id="${esc(task.id)}">Extend (Manual)</button>`;
                 html += '</div>';
             }
             html += '</div>';
@@ -2857,6 +2937,7 @@ const v2Registry = {};
                     _addDialogueLine(diagList);
                     _addDialogueLine(diagList);
                 }
+                _updateDialogueCounter();
             }
         }
 
@@ -2982,9 +3063,12 @@ const v2Registry = {};
                 sel.dataset.paramKey = p.key;
                 p.options.forEach(opt => {
                     const o = document.createElement('option');
-                    o.value = opt;
-                    o.textContent = opt || '(auto)';
-                    if (opt === String(p.default)) o.selected = true;
+                    // Handle objects {id, label} or strings
+                    const val = typeof opt === 'string' ? opt : opt.id;
+                    const lab = typeof opt === 'string' ? (opt || '(auto)') : opt.label;
+                    o.value = val;
+                    o.textContent = lab;
+                    if (val === String(p.default)) o.selected = true;
                     sel.appendChild(o);
                 });
                 sel.addEventListener('change', () => {
@@ -3149,7 +3233,14 @@ const v2Registry = {};
 
             if (p.type === 'radio') {
                 const active = group.querySelector('.v2-param-pill.active');
-                if (active) params[p.key] = active.dataset.value;
+                if (active) {
+                    let val = active.dataset.value;
+                    // Auto-convert numbers if possible
+                    if (!isNaN(val) && val.trim() !== '') {
+                        val = parseFloat(val);
+                    }
+                    params[p.key] = val;
+                }
             } else if (p.type === 'select') {
                 const sel = group.querySelector('.v2-param-select');
                 if (sel) params[p.key] = sel.value;
@@ -3164,7 +3255,9 @@ const v2Registry = {};
                 if (inp && inp.value.trim()) params[p.key] = inp.value.trim();
             } else if (p.type === 'number_input') {
                 const inp = group.querySelector('input[type="number"]');
-                if (inp && inp.value.trim() !== '') params[p.key] = parseInt(inp.value, 10);
+                if (inp && inp.value.trim() !== '') {
+                    params[p.key] = parseInt(inp.value, 10);
+                }
             }
         });
 
@@ -3312,15 +3405,28 @@ const v2Registry = {};
         card.querySelector('.v2-dialogue-remove').addEventListener('click', () => {
             card.remove();
             _renumberDialogueLines();
+            _updateDialogueCounter();
             updateV2GenerateState();
         });
 
         card.querySelector('textarea').addEventListener('input', () => {
+            _updateDialogueCounter();
             updateV2GenerateState();
         });
 
         container.appendChild(card);
         _renumberDialogueLines();
+        _updateDialogueCounter();
+    }
+
+    function _updateDialogueCounter() {
+        const totalHint = document.getElementById('v2-dialogue-total');
+        if (!totalHint) return;
+        const textareas = document.querySelectorAll('#v2-dialogue-list textarea');
+        let totalChars = 0;
+        textareas.forEach(tx => totalChars += tx.value.length);
+        totalHint.textContent = `${totalChars} / 5000 chars`;
+        totalHint.style.color = totalChars > 5000 ? '#ef4444' : '';
     }
 
     function _renumberDialogueLines() {
@@ -3340,28 +3446,29 @@ const v2Registry = {};
         grid.innerHTML = '';
 
         const voices = [
-            { id: 'Adam', name: 'Adam', desc: 'Deep & Commanding' },
-            { id: 'Rachel', name: 'Rachel', desc: 'Professional & Natural' },
-            { id: 'Aria', name: 'Aria', desc: 'Sweet & Expressive' },
-            { id: 'Roger', name: 'Roger', desc: 'Gentle & Warm' },
-            { id: 'Sarah', name: 'Sarah', desc: 'Soft & Calm' },
-            { id: 'Laura', name: 'Laura', desc: 'Upbeat & Energetic' },
-            { id: 'Charlie', name: 'Charlie', desc: 'Casual & Friendly' },
-            { id: 'George', name: 'George', desc: 'Deep & Resonant' },
-            { id: 'Callum', name: 'Callum', desc: 'Husky & Interesting' },
-            { id: 'River', name: 'River', desc: 'Youthful & Fresh' },
-            { id: 'Liam', name: 'Liam', desc: 'Professional' },
-            { id: 'Charlotte', name: 'Charlotte', desc: 'Sweet' },
-            { id: 'Alice', name: 'Alice', desc: 'Natural' },
-            { id: 'Matilda', name: 'Matilda', desc: 'Expressive' },
-            { id: 'Will', name: 'Will', desc: 'Friendly' },
-            { id: 'Jessica', name: 'Jessica', desc: 'Playful' },
-            { id: 'Eric', name: 'Eric', desc: 'Calm' },
-            { id: 'Chris', name: 'Chris', desc: 'Casual' },
-            { id: 'Brian', name: 'Brian', desc: 'Deep' },
-            { id: 'Daniel', name: 'Daniel', desc: 'Professional' },
-            { id: 'Lily', name: 'Lily', desc: 'Soft' },
-            { id: 'Bill', name: 'Bill', desc: 'Strong' }
+            { id: 'Adam', name: 'Adam', desc: 'Narrador Profundo' },
+            { id: 'Rachel', name: 'Rachel', desc: 'Conversacional Suave' },
+            { id: 'Aria', name: 'Aria', desc: 'Expressiva & Doce' },
+            { id: 'Brian', name: 'Brian', desc: 'Profundo & Calmo' },
+            { id: 'Sarah', name: 'Sarah', desc: 'Suave & Clara' },
+            { id: 'Laura', name: 'Laura', desc: 'Energética & Animada' },
+            { id: 'Charlie', name: 'Charlie', desc: 'Amigável & Casual' },
+            { id: 'George', name: 'George', desc: 'Ressonante & Firme' },
+            { id: 'Callum', name: 'Callum', desc: 'Interessante & Rouco' },
+            { id: 'River', name: 'River', desc: 'Jovem & Fresco' },
+            { id: 'Liam', name: 'Liam', desc: 'Articulado' },
+            { id: 'Charlotte', name: 'Charlotte', desc: 'Personagem Jovem' },
+            { id: 'Alice', name: 'Alice', desc: 'Natural & Calma' },
+            { id: 'Matilda', name: 'Matilda', desc: 'Expressiva' },
+            { id: 'Will', name: 'Will', desc: 'Confiável' },
+            { id: 'Jessica', name: 'Jessica', desc: 'Brincalhona' },
+            { id: 'Eric', name: 'Eric', desc: 'Maduro' },
+            { id: 'Chris', name: 'Chris', desc: 'Amigável' },
+            { id: 'Daniel', name: 'Daniel', desc: 'Autoritário' },
+            { id: 'Lily', name: 'Lily', desc: 'Doce' },
+            { id: 'Bill', name: 'Bill', desc: 'Sério' },
+            { id: 'Harry', name: 'Harry', desc: 'Guerreiro' },
+            { id: 'Roger', name: 'Roger', desc: 'Pai Amigável' }
         ];
 
         voices.forEach(v => {
