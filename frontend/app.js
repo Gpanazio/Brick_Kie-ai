@@ -2893,7 +2893,10 @@ const v2Registry = {};
 
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
-            if (v2MaxFiles <= 1) {
+            const isImageEdit = modelKey === 'qwen/image-edit' || modelKey === 'google/nano-banana-edit';
+            if (isImageEdit) {
+                uploadLabel.innerHTML = 'Imagem para editar <span class="v2-label-hint">— obrigatória</span>';
+            } else if (v2MaxFiles <= 1) {
                 uploadLabel.innerHTML = 'Imagem de referência <span class="v2-label-hint">— opcional</span>';
             } else {
                 uploadLabel.innerHTML = `Imagens de referência <span class="v2-label-hint">— opcional, até ${v2MaxFiles}</span>`;
@@ -3732,6 +3735,9 @@ const v2Registry = {};
                 });
             }
             v2.btnGenerate.disabled = !hasAnyDialogue;
+        } else if (v2Model?.model === 'qwen/image-edit') {
+            // qwen image-edit requires both a prompt and an image
+            v2.btnGenerate.disabled = !(hasPrompt && hasFiles);
         } else {
             v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames);
         }

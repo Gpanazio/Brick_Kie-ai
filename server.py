@@ -148,7 +148,11 @@ async def serve_static(filename: str):
         raise HTTPException(status_code=403, detail="Invalid static file path")
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail=f"Static file not found: {filename}")
-    return FileResponse(str(file_path))
+    response = FileResponse(str(file_path))
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 # Stub for socket.io (not used in local dev mode)
