@@ -15,7 +15,6 @@ const VIDEO_CATS = ['video'];
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
-    'nano-banana-pro': 18,                // 1/2K = 18, 4K = 24
     'nano-banana-2': 8,                   // 1K = 8, 2K = 12, 4K = 18
     'google/nano-banana-edit': 4,          // image editing
     'seedream/5-lite': 5.5,               // base UI key
@@ -135,12 +134,6 @@ function updateCostBadge(el, cost, baseClass, suffix) {
 
 const MODEL_CONFIGS = {
     // ──── IMAGE MODELS ────
-    'nano-banana-pro': {
-        params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
-        ]
-    },
     'nano-banana-2': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:8', '1:4', '9:16', '2:3', '3:4', '4:5', '1:1', '5:4', '4:3', '3:2', '16:9', '21:9', '4:1', '8:1', 'auto'], default: '1:1' },
@@ -736,7 +729,7 @@ let _kieApiKey = null;
 async function initApiKey() {
     if (_kieApiKey) return _kieApiKey;
     try {
-        const r = await fetch('/api/config');
+        const r = await fetch(`${API}/api/config`);
         if (r.ok) { const j = await r.json(); _kieApiKey = j.apiKey || ''; }
     } catch (e) { console.warn('[auth] Failed to fetch API key:', e); }
     return _kieApiKey || '';
@@ -2967,7 +2960,6 @@ const v2Registry = {};
 
         // Per-model max reference files (from API docs)
         const MODEL_MAX_FILES = {
-            'nano-banana-pro': 8,              // up to 8 images
             'nano-banana-2': 14,               // up to 14 images
             'google/nano-banana-edit': 10,      // up to 10 images
             'seedream/5-lite': 14,              // up to 14 images
@@ -3679,13 +3671,11 @@ const v2Registry = {};
 
         grid.innerHTML = '';
         if (!file) {
-            zone.classList.remove('v2-upload-full');
-            zone.style.display = '';
+            zone.classList.remove('v2-upload-full', 'v2-frame-has-file');
             return;
         }
 
-        zone.classList.add('v2-upload-full');
-        zone.style.display = 'none';
+        zone.classList.add('v2-upload-full', 'v2-frame-has-file');
 
         const card = document.createElement('div');
         card.className = 'v2-file-card';
@@ -4184,8 +4174,10 @@ const v2Registry = {};
         return html;
     }
 
+    const ITEM_FADE_MS = 200; // gallery item fade-out duration
+
     function _renderFailedItemUI(item, failMsg) {
-        item.className = 'v2-gallery-item failed';
+        item.className = 'v2-gallery-item failed'; // normalize class (works for both new & existing items)
         const msgHtml = failMsg ? `<span class="v2-fail-detail">${esc(failMsg)}</span>` : '';
         item.innerHTML = `<div class="v2-fail-body"><span class="v2-fail-title">❌ Falhou</span>${msgHtml}</div>`;
         const dismissBtn = document.createElement('button');
@@ -4194,9 +4186,9 @@ const v2Registry = {};
         dismissBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>';
         dismissBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            item.style.transition = 'opacity 0.2s';
+            item.style.transition = `opacity ${ITEM_FADE_MS / 1000}s`;
             item.style.opacity = '0';
-            setTimeout(() => { item.remove(); updateV2GalleryCount(); }, 220);
+            setTimeout(() => { item.remove(); updateV2GalleryCount(); }, ITEM_FADE_MS + 20);
         });
         item.appendChild(dismissBtn);
     }
@@ -4240,10 +4232,10 @@ const v2Registry = {};
                 saveHistory(history);
                 // Delete from server
                 fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(err => console.warn('[history] Server delete failed:', err.message));
-                item.style.transition = 'opacity 0.2s, transform 0.2s';
+                item.style.transition = `opacity ${ITEM_FADE_MS / 1000}s, transform ${ITEM_FADE_MS / 1000}s`;
                 item.style.opacity = '0';
                 item.style.transform = 'scale(0.9)';
-                setTimeout(() => { item.remove(); updateV2GalleryCount(); renderHistoryGallery(); updateHistoryCount(); }, 220);
+                setTimeout(() => { item.remove(); updateV2GalleryCount(); renderHistoryGallery(); updateHistoryCount(); }, ITEM_FADE_MS + 20);
             });
         }
 
@@ -4431,7 +4423,7 @@ const v2Registry = {};
         const activeModel = v2Model?.model || null;
 
         // Extract the model 'family' prefix for loose matching:
-        // veo3/text-to-video-fast → veo3, grok-imagine/image-to-video → grok-imagine, nano-banana-pro → nano-banana
+        // veo3/text-to-video-fast → veo3, grok-imagine/image-to-video → grok-imagine, nano-banana-2 → nano-banana
         function modelFamily(m) {
             if (!m) return '';
             const s = m.toLowerCase();
@@ -4536,7 +4528,8 @@ const v2Registry = {};
                     });
                 }
             } else if (task.state === 'fail') {
-                addV2GalleryItem(task.id, 'failed');
+                const fm = task.data?.data?.failMsg || task.data?.data?.failReason || task.data?.data?.errorMessage || '';
+                addV2GalleryItem(task.id, 'failed', null, null, null, null, null, fm);
             } else {
                 addV2GalleryItem(task.id, 'processing');
             }
