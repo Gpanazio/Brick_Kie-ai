@@ -4688,6 +4688,11 @@ body {
     pointer-events: none;
 }
 
+/* ── Frame dropzone: hide upload area when a file is set ── */
+.v2-frame-dropzone.v2-frame-has-file {
+    display: none;
+}
+
 /* ── Frame dropzone: thumbnail grid replaces zone ── */
 .v2-frame-dropzone .v2-files-grid:not(:empty) {
     min-height: 120px;

@@ -15,7 +15,6 @@ const VIDEO_CATS = ['video'];
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
-    'nano-banana-pro': 18,                // 1/2K = 18, 4K = 24
     'nano-banana-2': 8,                   // 1K = 8, 2K = 12, 4K = 18
     'google/nano-banana-edit': 4,          // image editing
     'seedream/5-lite': 5.5,               // base UI key
@@ -135,12 +134,6 @@ function updateCostBadge(el, cost, baseClass, suffix) {
 
 const MODEL_CONFIGS = {
     // ──── IMAGE MODELS ────
-    'nano-banana-pro': {
-        params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
-        ]
-    },
     'nano-banana-2': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:8', '1:4', '9:16', '2:3', '3:4', '4:5', '1:1', '5:4', '4:3', '3:2', '16:9', '21:9', '4:1', '8:1', 'auto'], default: '1:1' },
@@ -2886,7 +2879,6 @@ const v2Registry = {};
 
         // Per-model max reference files (from API docs)
         const MODEL_MAX_FILES = {
-            'nano-banana-pro': 8,              // up to 8 images
             'nano-banana-2': 14,               // up to 14 images
             'google/nano-banana-edit': 10,      // up to 10 images
             'seedream/5-lite': 14,              // up to 14 images
@@ -3572,13 +3564,11 @@ const v2Registry = {};
 
         grid.innerHTML = '';
         if (!file) {
-            zone.classList.remove('v2-upload-full');
-            zone.style.display = '';
+            zone.classList.remove('v2-upload-full', 'v2-frame-has-file');
             return;
         }
 
-        zone.classList.add('v2-upload-full');
-        zone.style.display = 'none';
+        zone.classList.add('v2-upload-full', 'v2-frame-has-file');
 
         const card = document.createElement('div');
         card.className = 'v2-file-card';
@@ -4078,7 +4068,7 @@ const v2Registry = {};
     }
 
     function _renderFailedItemUI(item, failMsg) {
-        item.className = 'v2-gallery-item failed';
+        item.className = 'v2-gallery-item failed'; // normalize class (works for both new & existing items)
         const msgHtml = failMsg ? `<span class="v2-fail-detail">${esc(failMsg)}</span>` : '';
         item.innerHTML = `<div class="v2-fail-body"><span class="v2-fail-title">❌ Falhou</span>${msgHtml}</div>`;
         const dismissBtn = document.createElement('button');
@@ -4324,7 +4314,7 @@ const v2Registry = {};
         const activeModel = v2Model?.model || null;
 
         // Extract the model 'family' prefix for loose matching:
-        // veo3/text-to-video-fast → veo3, grok-imagine/image-to-video → grok-imagine, nano-banana-pro → nano-banana
+        // veo3/text-to-video-fast → veo3, grok-imagine/image-to-video → grok-imagine, nano-banana-2 → nano-banana
         function modelFamily(m) {
             if (!m) return '';
             const s = m.toLowerCase();
@@ -4429,7 +4419,8 @@ const v2Registry = {};
                     });
                 }
             } else if (task.state === 'fail') {
-                addV2GalleryItem(task.id, 'failed');
+                const fm = task.data?.data?.failMsg || task.data?.data?.failReason || task.data?.data?.errorMessage || '';
+                addV2GalleryItem(task.id, 'failed', null, null, null, null, null, fm);
             } else {
                 addV2GalleryItem(task.id, 'processing');
             }
