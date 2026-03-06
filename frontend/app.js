@@ -3910,7 +3910,8 @@ const v2Registry = {};
                 const imageUrls = await Promise.all(
                     v2Files.map((file, i) => v2UploadSingleFile(file, i, v2Files.length))
                 );
-                extra[imgField] = imageUrls;
+                // Some fields expect a single URL string (not an array); image_url is singular per API spec
+                extra[imgField] = (imgField === 'image_url' && imageUrls.length === 1) ? imageUrls[0] : imageUrls;
             }
             btnSpan.textContent = 'Creating task...';
         }
