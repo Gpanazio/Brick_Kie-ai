@@ -2940,6 +2940,13 @@ const v2Registry = {};
         if (uploadFramesGroup) uploadFramesGroup.classList.toggle('hidden', !(needsFile && isFramesModel));
         if (uploadGroup) uploadGroup.classList.toggle('hidden', !(needsFile && !isFramesModel));
 
+        // ── Update file input accept for video models ──
+        if (v2.fileInput) {
+            v2.fileInput.accept = (data.model === 'topaz/video-upscale')
+                ? 'video/mp4,video/quicktime,video/x-matroska'
+                : 'image/*';
+        }
+
         // ── Dialogue group show/hide (ElevenLabs Dialogue V3) ──
         const isDialogue = data.model === 'elevenlabs/text-to-dialogue-v3';
         const dialogueGroup = document.getElementById('v2-group-dialogue');
@@ -2986,7 +2993,10 @@ const v2Registry = {};
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
             const isImageEdit = ['qwen/image-edit', 'google/nano-banana-edit'].includes(modelKey);
-            if (isImageEdit) {
+            const isVideoUpscale = modelKey === 'topaz/video-upscale';
+            if (isVideoUpscale) {
+                uploadLabel.innerHTML = 'Vídeo para upscale <span class="v2-label-hint">— MP4, MOV ou MKV, máx. 50MB</span>';
+            } else if (isImageEdit) {
                 uploadLabel.innerHTML = 'Imagem para editar <span class="v2-label-hint">— obrigatória</span>';
             } else if (v2MaxFiles <= 1) {
                 uploadLabel.innerHTML = 'Imagem de referência <span class="v2-label-hint">— opcional</span>';
@@ -3725,18 +3735,24 @@ const v2Registry = {};
     );
 
     function v2AddFiles(newFiles) {
-        // Filter to images only
-        const images = newFiles.filter(f => f.type.startsWith('image/'));
-        if (!images.length) return;
+        const isVideoUpscale = v2Model?.model === 'topaz/video-upscale';
+        const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/x-matroska'];
+        const accepted = newFiles.filter(f =>
+            f.type.startsWith('image/') || (isVideoUpscale && ACCEPTED_VIDEO_TYPES.includes(f.type))
+        );
+        if (!accepted.length) {
+            if (isVideoUpscale) toast('Formato inválido. Use MP4, MOV ou MKV (máx. 50MB)', 'error');
+            return;
+        }
 
         const remaining = v2MaxFiles - v2Files.length;
         if (remaining <= 0) {
-            toast('Limite de imagens atingido', 'error');
+            toast('Limite de arquivos atingido', 'error');
             return;
         }
-        const toAdd = images.slice(0, remaining);
-        if (images.length > remaining) {
-            toast(`Apenas ${remaining} imagem(ns) adicionada(s) — limite: ${v2MaxFiles}`, 'error');
+        const toAdd = accepted.slice(0, remaining);
+        if (accepted.length > remaining) {
+            toast(`Apenas ${remaining} arquivo(s) adicionado(s) — limite: ${v2MaxFiles}`, 'error');
         }
         v2Files.push(...toAdd);
         v2RenderFilesGrid();
@@ -3786,10 +3802,21 @@ const v2Registry = {};
             const card = document.createElement('div');
             card.className = 'v2-file-card';
 
-            const img = document.createElement('img');
             const objUrl = URL.createObjectURL(file);
-            img.src = objUrl;
-            img.alt = file.name;
+            let mediaEl;
+            if (file.type.startsWith('video/')) {
+                mediaEl = document.createElement('video');
+                mediaEl.src = objUrl;
+                mediaEl.muted = true;
+                mediaEl.preload = 'metadata';
+                mediaEl.style.width = '100%';
+                mediaEl.style.height = '100%';
+                mediaEl.style.objectFit = 'cover';
+            } else {
+                mediaEl = document.createElement('img');
+                mediaEl.src = objUrl;
+                mediaEl.alt = file.name;
+            }
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'v2-file-card-remove';
@@ -3801,7 +3828,7 @@ const v2Registry = {};
                 v2RemoveFile(index);
             });
 
-            card.appendChild(img);
+            card.appendChild(mediaEl);
             card.appendChild(removeBtn);
             v2.filesGrid.appendChild(card);
         });
@@ -3880,7 +3907,7 @@ const v2Registry = {};
     async function v2UploadSingleFile(file, index, total) {
         const fd = new FormData();
         fd.append('file', file);
-        fd.append('uploadPath', 'images');
+        fd.append('uploadPath', file.type.startsWith('video/') ? 'videos' : 'images');
         const resp = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
         const json = await resp.json();
         if (!resp.ok || !json.success) throw new Error(json.detail || json.msg || `Upload failed (${file.name})`);
@@ -4030,7 +4057,10 @@ const v2Registry = {};
                 }
                 if (urls.length > 0) extra[imgField] = urls;
             } else {
-                btnSpan.textContent = `Uploading ${v2Files.length} image${v2Files.length > 1 ? 's' : ''}...`;
+                const isVideo = v2Files.some(f => f.type.startsWith('video/'));
+                btnSpan.textContent = isVideo
+                    ? 'Uploading video...'
+                    : `Uploading ${v2Files.length} image${v2Files.length > 1 ? 's' : ''}...`;
                 const imageUrls = await Promise.all(
                     v2Files.map((file, i) => v2UploadSingleFile(file, i, v2Files.length))
                 );
