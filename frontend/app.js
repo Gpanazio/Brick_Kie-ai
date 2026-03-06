@@ -16,6 +16,7 @@ const VIDEO_CATS = ['video'];
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
     'nano-banana-pro': 18,                // 1/2K = 18, 4K = 24
+    'nano-banana-2': 8,                   // 1K = 8, 2K = 12, 4K = 18
     'google/nano-banana-edit': 4,          // image editing
     'seedream/5-lite': 5.5,               // base UI key
     'seedream/5-lite-text-to-image': 5.5, // per image
@@ -3443,6 +3444,12 @@ const v2Registry = {};
                 grokCost = dur <= 6 ? 10 : 20;
             }
             if (v2.creditsAmount) v2.creditsAmount.textContent = `~${grokCost} créditos`;
+        } else if (v2Model?.model === 'nano-banana-2') {
+            const params = v2CollectModelParams();
+            const res = params.resolution || '1K';
+            // Nano Banana 2: 1K=8, 2K=12, 4K=18
+            const nb2Cost = res === '4K' ? 18 : res === '2K' ? 12 : 8;
+            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${nb2Cost} créditos`;
         } else if (v2Model?.model === 'topaz/image-upscale') {
             const params = v2CollectModelParams();
             const factor = parseInt(params.upscale_factor) || 2;
