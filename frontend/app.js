@@ -2912,7 +2912,7 @@ const v2Registry = {};
 
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
-            const isImageEdit = modelKey === 'qwen/image-edit' || modelKey === 'google/nano-banana-edit';
+            const isImageEdit = ['qwen/image-edit', 'google/nano-banana-edit'].includes(modelKey);
             if (isImageEdit) {
                 uploadLabel.innerHTML = 'Imagem para editar <span class="v2-label-hint">— obrigatória</span>';
             } else if (v2MaxFiles <= 1) {
@@ -3756,8 +3756,8 @@ const v2Registry = {};
                 });
             }
             v2.btnGenerate.disabled = !hasAnyDialogue;
-        } else if (v2Model?.model === 'qwen/image-edit') {
-            // qwen image-edit requires both a prompt and an image
+        } else if (['qwen/image-edit', 'google/nano-banana-edit'].includes(v2Model?.model)) {
+            // image-edit models require both a prompt and an image
             v2.btnGenerate.disabled = !(hasPrompt && hasFiles);
         } else {
             v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames);
