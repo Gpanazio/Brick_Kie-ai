@@ -166,7 +166,9 @@ async def socket_io_stub():
 def get_credits(request: Request):
     rid = _request_id(request)
     try:
-        return kie_api.credits()
+        resp = kie_api.credits()
+        _validate_api_response(resp)
+        return resp
     except ValueError as e:
         logger.warning("[%s] credits: API key not configured: %s", rid, e)
         raise HTTPException(status_code=503, detail="KIE_API_KEY não configurada")
@@ -948,6 +950,7 @@ def import_history_tasks(
                 continue
             try:
                 resp = kie_api.market_task_info(tid)
+                _validate_api_response(resp)
                 data = resp.get("data", {}) if isinstance(resp, dict) else {}
                 state = data.get("state", "unknown")
                 model = data.get("model", "")
