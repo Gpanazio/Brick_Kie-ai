@@ -1209,6 +1209,20 @@ function enterWorkspace(cat) {
         return;
     }
 
+    // Restore previously selected model (F5 / Ctrl+R)
+    let savedModel;
+    try { savedModel = sessionStorage.getItem('kie-workspace-model'); } catch (e) { /* ignore */ }
+    if (savedModel) {
+        const tplItem = tpl?.content.querySelector(`[data-model="${CSS.escape(savedModel)}"][data-cat="${cat}"]`);
+        if (tplItem && typeof window._v2ShowWorkspace === 'function') {
+            setTimeout(() => {
+                selectModelFromData(tplItem.dataset);
+                window._v2ShowWorkspace({ ...tplItem.dataset });
+            }, 60);
+            return;
+        }
+    }
+
     // Open model picker modal so user chooses a model first
     if (_currentCatItems.length > 0) {
         setTimeout(() => openModelPickerModal(), 50);
@@ -1230,7 +1244,10 @@ function exitWorkspace() {
     // Hide V2 workspace if open
     if (typeof window._v2HideWorkspace === 'function') window._v2HideWorkspace();
     // Clear persisted workspace so reload goes to lobby
-    try { sessionStorage.removeItem('kie-workspace-cat'); } catch (e) { console.warn('Could not clear workspace from sessionStorage:', e); }
+    try {
+        sessionStorage.removeItem('kie-workspace-cat');
+        sessionStorage.removeItem('kie-workspace-model');
+    } catch (e) { console.warn('Could not clear workspace from sessionStorage:', e); }
 }
 
 // ==================== Model Picker Modal ====================
@@ -1326,6 +1343,8 @@ function selectModelFromData(data) {
         mjType: data.mjType || null,
         hasPrompt: data.prompt === 'true',
     };
+    // Persist selected model so F5 restores to same model
+    try { sessionStorage.setItem('kie-workspace-model', data.model); } catch (e) { /* ignore */ }
 
     // Update trigger button
     els.mptIcon.innerHTML = sanitizeSvg(data.icon);
@@ -3661,10 +3680,12 @@ const v2Registry = {};
         grid.innerHTML = '';
         if (!file) {
             zone.classList.remove('v2-upload-full');
+            zone.style.display = '';
             return;
         }
 
         zone.classList.add('v2-upload-full');
+        zone.style.display = 'none';
 
         const card = document.createElement('div');
         card.className = 'v2-file-card';
@@ -4163,7 +4184,7 @@ const v2Registry = {};
         return html;
     }
 
-    function addV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl, taskModel) {
+    function addV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl, taskModel, failMsg) {
         v2.galleryEmpty.style.display = 'none';
 
         const item = document.createElement('div');
@@ -4177,7 +4198,20 @@ const v2Registry = {};
         if (state === 'success' && mediaUrl) {
             item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl, isSunoItem);
         } else if (state === 'failed' || state === 'fail') {
-            item.innerHTML = '<span>Falhou</span>';
+            const msgHtml = failMsg ? `<span class="v2-fail-detail">${esc(failMsg)}</span>` : '';
+            item.innerHTML = `<div class="v2-fail-body"><span class="v2-fail-title">❌ Falhou</span>${msgHtml}</div>`;
+            // Dismiss button
+            const dismissBtn = document.createElement('button');
+            dismissBtn.className = 'v2-item-btn v2-item-del v2-fail-dismiss';
+            dismissBtn.title = 'Remover';
+            dismissBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>';
+            dismissBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                item.style.transition = 'opacity 0.2s';
+                item.style.opacity = '0';
+                setTimeout(() => { item.remove(); updateV2GalleryCount(); }, 220);
+            });
+            item.appendChild(dismissBtn);
         }
         // processing state uses CSS ::after spinner
 
@@ -4265,7 +4299,7 @@ const v2Registry = {};
         updateV2GalleryCount();
     }
 
-    function updateV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl, taskModel) {
+    function updateV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl, taskModel, failMsg) {
         const item = document.getElementById(`v2-item-${CSS.escape(elementId)}`);
         if (!item) return;
 
@@ -4279,7 +4313,20 @@ const v2Registry = {};
             item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl, isSunoItem);
         } else if (state === 'fail' || state === 'failed') {
             item.className = 'v2-gallery-item failed';
-            item.innerHTML = '<span>Falhou</span>';
+            const msgHtml = failMsg ? `<span class="v2-fail-detail">${esc(failMsg)}</span>` : '';
+            item.innerHTML = `<div class="v2-fail-body"><span class="v2-fail-title">❌ Falhou</span>${msgHtml}</div>`;
+            // Dismiss button
+            const dismissBtn = document.createElement('button');
+            dismissBtn.className = 'v2-item-btn v2-item-del v2-fail-dismiss';
+            dismissBtn.title = 'Remover';
+            dismissBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>';
+            dismissBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                item.style.transition = 'opacity 0.2s';
+                item.style.opacity = '0';
+                setTimeout(() => { item.remove(); updateV2GalleryCount(); }, 220);
+            });
+            item.appendChild(dismissBtn);
         }
         updateV2GalleryCount();
     }
@@ -4318,7 +4365,8 @@ const v2Registry = {};
             }
         } else if (task.state === 'fail') {
             _v2CompletedTasks.add(task.id);
-            updateV2GalleryItem(task.id, 'failed');
+            const failMsg = task.data?.data?.failMsg || task.data?.data?.failReason || task.data?.data?.errorMessage || '';
+            updateV2GalleryItem(task.id, 'failed', null, null, null, null, null, failMsg);
         }
     };
 
