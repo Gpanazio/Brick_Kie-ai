@@ -143,7 +143,7 @@ const MODEL_CONFIGS = {
     },
     'nano-banana-2': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:8', '1:4', '9:16', '2:3', '3:4', '4:5', '1:1', '5:4', '4:3', '3:2', '16:9', '21:9', '4:1', '8:1', 'auto'], default: '1:1' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
         ]
     },
@@ -2974,7 +2974,10 @@ const v2Registry = {};
 
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
-            if (v2MaxFiles <= 1) {
+            const isImageEdit = modelKey === 'qwen/image-edit' || modelKey === 'google/nano-banana-edit';
+            if (isImageEdit) {
+                uploadLabel.innerHTML = 'Imagem para editar <span class="v2-label-hint">— obrigatória</span>';
+            } else if (v2MaxFiles <= 1) {
                 uploadLabel.innerHTML = 'Imagem de referência <span class="v2-label-hint">— opcional</span>';
             } else {
                 uploadLabel.innerHTML = `Imagens de referência <span class="v2-label-hint">— opcional, até ${v2MaxFiles}</span>`;
@@ -3839,6 +3842,9 @@ const v2Registry = {};
                 });
             }
             v2.btnGenerate.disabled = !hasAnyDialogue;
+        } else if (v2Model?.model === 'qwen/image-edit') {
+            // qwen image-edit requires both a prompt and an image
+            v2.btnGenerate.disabled = !(hasPrompt && hasFiles);
         } else {
             v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames);
         }
@@ -4017,7 +4023,8 @@ const v2Registry = {};
                 const imageUrls = await Promise.all(
                     v2Files.map((file, i) => v2UploadSingleFile(file, i, v2Files.length))
                 );
-                extra[imgField] = imageUrls;
+                // Some fields expect a single URL string (not an array); image_url is singular per API spec
+                extra[imgField] = (imgField === 'image_url' && imageUrls.length === 1) ? imageUrls[0] : imageUrls;
             }
             btnSpan.textContent = 'Creating task...';
         }
