@@ -4067,6 +4067,8 @@ const v2Registry = {};
         return html;
     }
 
+    const ITEM_FADE_MS = 200; // gallery item fade-out duration
+
     function _renderFailedItemUI(item, failMsg) {
         item.className = 'v2-gallery-item failed'; // normalize class (works for both new & existing items)
         const msgHtml = failMsg ? `<span class="v2-fail-detail">${esc(failMsg)}</span>` : '';
@@ -4077,9 +4079,9 @@ const v2Registry = {};
         dismissBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>';
         dismissBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            item.style.transition = 'opacity 0.2s';
+            item.style.transition = `opacity ${ITEM_FADE_MS / 1000}s`;
             item.style.opacity = '0';
-            setTimeout(() => { item.remove(); updateV2GalleryCount(); }, 220);
+            setTimeout(() => { item.remove(); updateV2GalleryCount(); }, ITEM_FADE_MS + 20);
         });
         item.appendChild(dismissBtn);
     }
@@ -4123,10 +4125,10 @@ const v2Registry = {};
                 saveHistory(history);
                 // Delete from server
                 fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(err => console.warn('[history] Server delete failed:', err.message));
-                item.style.transition = 'opacity 0.2s, transform 0.2s';
+                item.style.transition = `opacity ${ITEM_FADE_MS / 1000}s, transform ${ITEM_FADE_MS / 1000}s`;
                 item.style.opacity = '0';
                 item.style.transform = 'scale(0.9)';
-                setTimeout(() => { item.remove(); updateV2GalleryCount(); renderHistoryGallery(); updateHistoryCount(); }, 220);
+                setTimeout(() => { item.remove(); updateV2GalleryCount(); renderHistoryGallery(); updateHistoryCount(); }, ITEM_FADE_MS + 20);
             });
         }
 
