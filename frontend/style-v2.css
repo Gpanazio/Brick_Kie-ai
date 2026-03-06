@@ -4976,9 +4976,46 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    padding: 12px;
+    position: relative;
+}
+
+.v2-fail-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+}
+
+.v2-fail-title {
     color: #ef4444;
     font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.v2-fail-detail {
+    color: rgba(239, 68, 68, 0.75);
     font-size: 10px;
+    font-family: var(--mono);
+    line-height: 1.4;
+    word-break: break-word;
+    max-width: 100%;
+}
+
+.v2-fail-dismiss {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.v2-gallery-item.failed:hover .v2-fail-dismiss {
+    opacity: 1;
 }
 
 /* ── Right Column: Settings ── */
