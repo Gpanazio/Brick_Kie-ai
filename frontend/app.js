@@ -422,6 +422,7 @@ const MODEL_CONFIGS = {
     'elevenlabs/text-to-dialogue-v3': {
         params: [
             { key: 'stability', label: 'Estabilidade da Voz', type: 'radio', options: ['0', '0.5', '1'], default: '0.5' },
+            { key: 'language_code', label: 'Idioma', type: 'select', options: ['pt', 'en', 'es', 'fr', 'de'], default: 'pt' },
         ]
     },
     'elevenlabs/sound-effect-v2': {
@@ -1280,9 +1281,9 @@ function setupPasteImageHandler(promptElement, fileHandler, conditionCheck) {
 const V2_FILE_MODEL_MAP = {
     'grok-imagine/text-to-video': 'grok-imagine/image-to-video',
     'grok-imagine/text-to-image': 'grok-imagine/image-to-image',
-    'sora-2-pro-text-to-video':   'sora-2-pro-image-to-video',
-    'wan/2-6-text-to-video':      'wan/2-6-image-to-video',
-    'seedream/5-lite':            'seedream/5-lite-image-to-image',
+    'sora-2-pro-text-to-video': 'sora-2-pro-image-to-video',
+    'wan/2-6-text-to-video': 'wan/2-6-image-to-video',
+    'seedream/5-lite': 'seedream/5-lite-image-to-image',
 };
 const V2_TEXT_MODEL_MAP = {
     'seedream/5-lite': 'seedream/5-lite-text-to-image',
@@ -2841,6 +2842,23 @@ const v2Registry = {};
         if (uploadFramesGroup) uploadFramesGroup.classList.toggle('hidden', !(needsFile && isFramesModel));
         if (uploadGroup) uploadGroup.classList.toggle('hidden', !(needsFile && !isFramesModel));
 
+        // ── Dialogue group show/hide (ElevenLabs Dialogue V3) ──
+        const isDialogue = data.model === 'elevenlabs/text-to-dialogue-v3';
+        const dialogueGroup = document.getElementById('v2-group-dialogue');
+        if (dialogueGroup) {
+            dialogueGroup.classList.toggle('hidden', !isDialogue);
+            if (isDialogue) {
+                // Also hide main prompt for dialogue mode
+                if (promptGroup) promptGroup.style.display = 'none';
+                // Initialize with 2 lines if empty
+                const diagList = document.getElementById('v2-dialogue-list');
+                if (diagList && diagList.children.length === 0) {
+                    _addDialogueLine(diagList);
+                    _addDialogueLine(diagList);
+                }
+            }
+        }
+
         // Per-model max reference files (from API docs)
         const MODEL_MAX_FILES = {
             'nano-banana-pro': 8,              // up to 8 images
@@ -3149,6 +3167,20 @@ const v2Registry = {};
             }
         });
 
+        // Collect dialogue for ElevenLabs Dialogue V3
+        if (modelKey === 'elevenlabs/text-to-dialogue-v3') {
+            const diagList = document.getElementById('v2-dialogue-list');
+            if (diagList) {
+                const dialogue = [];
+                diagList.querySelectorAll('.v2-dialogue-card').forEach(card => {
+                    const text = card.querySelector('textarea').value.trim();
+                    const voice = card.dataset.voice;
+                    if (text) dialogue.push({ text, voice });
+                });
+                params.dialogue = dialogue;
+            }
+        }
+
         // Collect negative_prompt from dedicated form field
         const negPromptEl = document.getElementById('v2-negative-prompt');
         if (negPromptEl && negPromptEl.value.trim()) {
@@ -3247,6 +3279,127 @@ const v2Registry = {};
             if (msList) _addMultiShot(msList);
         });
     }
+
+    // ── Dialogue helpers (ElevenLabs V3) ──
+    function _addDialogueLine(container) {
+        const idx = container.children.length + 1;
+        const card = document.createElement('div');
+        card.className = 'v2-dialogue-card';
+        card.dataset.voice = 'Adam'; // Default voice
+
+        card.innerHTML = `
+            <div class="v2-dialogue-header">
+                <span class="v2-dialogue-label">Fala ${idx}</span>
+                <button type="button" class="v2-dialogue-remove" title="Remover">🗑️</button>
+            </div>
+            <div class="v2-voice-selector">
+                <div class="v2-voice-icon">A</div>
+                <span class="v2-voice-name">Adam</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9" />
+                </svg>
+            </div>
+            <textarea class="v2-textarea" placeholder="O que este personagem vai falar..." rows="2" style="min-height: 50px; font-size: 13px;"></textarea>
+        `;
+
+        // Voice selector click
+        card.querySelector('.v2-voice-selector').addEventListener('click', () => {
+            _openVoicePicker(card);
+        });
+
+        // Remove button
+        card.querySelector('.v2-dialogue-remove').addEventListener('click', () => {
+            card.remove();
+            _renumberDialogueLines();
+            updateV2GenerateState();
+        });
+
+        card.querySelector('textarea').addEventListener('input', () => {
+            updateV2GenerateState();
+        });
+
+        container.appendChild(card);
+        _renumberDialogueLines();
+    }
+
+    function _renumberDialogueLines() {
+        const cards = document.querySelectorAll('#v2-dialogue-list .v2-dialogue-card');
+        cards.forEach((card, i) => {
+            const title = card.querySelector('.v2-dialogue-label');
+            if (title) title.textContent = `Fala ${i + 1}`;
+        });
+    }
+
+    function _openVoicePicker(targetCard) {
+        const modal = document.getElementById('modal-voice-picker');
+        const grid = document.getElementById('voice-picker-grid');
+        if (!modal || !grid) return;
+
+        const currentVoice = targetCard.dataset.voice;
+        grid.innerHTML = '';
+
+        const voices = [
+            { id: 'Adam', name: 'Adam', desc: 'Deep & Commanding' },
+            { id: 'Rachel', name: 'Rachel', desc: 'Professional & Natural' },
+            { id: 'Aria', name: 'Aria', desc: 'Sweet & Expressive' },
+            { id: 'Roger', name: 'Roger', desc: 'Gentle & Warm' },
+            { id: 'Sarah', name: 'Sarah', desc: 'Soft & Calm' },
+            { id: 'Laura', name: 'Laura', desc: 'Upbeat & Energetic' },
+            { id: 'Charlie', name: 'Charlie', desc: 'Casual & Friendly' },
+            { id: 'George', name: 'George', desc: 'Deep & Resonant' },
+            { id: 'Callum', name: 'Callum', desc: 'Husky & Interesting' },
+            { id: 'River', name: 'River', desc: 'Youthful & Fresh' },
+            { id: 'Liam', name: 'Liam', desc: 'Professional' },
+            { id: 'Charlotte', name: 'Charlotte', desc: 'Sweet' },
+            { id: 'Alice', name: 'Alice', desc: 'Natural' },
+            { id: 'Matilda', name: 'Matilda', desc: 'Expressive' },
+            { id: 'Will', name: 'Will', desc: 'Friendly' },
+            { id: 'Jessica', name: 'Jessica', desc: 'Playful' },
+            { id: 'Eric', name: 'Eric', desc: 'Calm' },
+            { id: 'Chris', name: 'Chris', desc: 'Casual' },
+            { id: 'Brian', name: 'Brian', desc: 'Deep' },
+            { id: 'Daniel', name: 'Daniel', desc: 'Professional' },
+            { id: 'Lily', name: 'Lily', desc: 'Soft' },
+            { id: 'Bill', name: 'Bill', desc: 'Strong' }
+        ];
+
+        voices.forEach(v => {
+            const card = document.createElement('div');
+            card.className = 'voice-card' + (v.id === currentVoice ? ' active' : '');
+            card.innerHTML = `
+                <div class="voice-card-icon">${v.name.charAt(0)}</div>
+                <div class="voice-card-info">
+                    <span class="voice-card-name">${v.name}</span>
+                    <span class="voice-card-desc">${v.desc}</span>
+                </div>
+            `;
+            card.addEventListener('click', () => {
+                targetCard.dataset.voice = v.id;
+                targetCard.querySelector('.v2-voice-name').textContent = v.name;
+                targetCard.querySelector('.v2-voice-icon').textContent = v.name.charAt(0);
+                modal.classList.add('hidden');
+                updateV2GenerateState();
+            });
+            grid.appendChild(card);
+        });
+
+        modal.classList.remove('hidden');
+    }
+
+    // Dialogue Add button
+    const addDiagBtn = document.getElementById('v2-dialogue-add');
+    if (addDiagBtn) {
+        addDiagBtn.addEventListener('click', () => {
+            const diagList = document.getElementById('v2-dialogue-list');
+            if (diagList) _addDialogueLine(diagList);
+        });
+    }
+
+    // Modal close events
+    const vpClose = document.getElementById('voice-picker-close');
+    const vpBackdrop = document.getElementById('voice-picker-backdrop');
+    if (vpClose) vpClose.addEventListener('click', () => document.getElementById('modal-voice-picker').classList.add('hidden'));
+    if (vpBackdrop) vpBackdrop.addEventListener('click', () => document.getElementById('modal-voice-picker').classList.add('hidden'));
 
     function v2UpdateCost() {
         const isMj = currentCat === 'mj';
@@ -3557,6 +3710,15 @@ const v2Registry = {};
             } else {
                 v2.btnGenerate.disabled = !hasPrompt;
             }
+        } else if (v2Model?.model === 'elevenlabs/text-to-dialogue-v3') {
+            const diagList = document.getElementById('v2-dialogue-list');
+            let hasAnyDialogue = false;
+            if (diagList) {
+                diagList.querySelectorAll('textarea').forEach(tx => {
+                    if (tx.value.trim()) hasAnyDialogue = true;
+                });
+            }
+            v2.btnGenerate.disabled = !hasAnyDialogue;
         } else {
             v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames);
         }

@@ -337,7 +337,8 @@
             <div class="mpm-header">
                 <div>
                     <div class="mpm-title">Importar Tasks do KIE</div>
-                    <div class="mpm-subtitle">Cole os IDs das tasks (um por linha) — encontre-os em <a href="https://kie.ai/logs" target="_blank" style="color:var(--accent)">kie.ai/logs</a></div>
+                    <div class="mpm-subtitle">Cole os IDs das tasks (um por linha) — encontre-os em <a
+                            href="https://kie.ai/logs" target="_blank" style="color:var(--accent)">kie.ai/logs</a></div>
                 </div>
                 <button class="mpm-close" id="import-close">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -347,8 +348,11 @@
                 </button>
             </div>
             <div style="padding: 16px;">
-                <textarea id="import-task-ids" rows="8" class="form-textarea" placeholder="Cole os task IDs aqui, um por linha. Ex:&#10;2d5cfd4c59e4ec765eecd8035774190b&#10;40f7a8e98069837f25f1c8ae63a26ebc" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"></textarea>
-                <div id="import-status" style="margin-top:8px;font-size:12px;color:var(--text-muted);min-height:18px;"></div>
+                <textarea id="import-task-ids" rows="8" class="form-textarea"
+                    placeholder="Cole os task IDs aqui, um por linha. Ex:&#10;2d5cfd4c59e4ec765eecd8035774190b&#10;40f7a8e98069837f25f1c8ae63a26ebc"
+                    style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"></textarea>
+                <div id="import-status" style="margin-top:8px;font-size:12px;color:var(--text-muted);min-height:18px;">
+                </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
                     <button id="btn-import-cancel" class="btn-ghost">Cancelar</button>
                     <button id="btn-import-submit" class="btn-primary" style="min-width:120px;">Importar</button>
@@ -572,6 +576,18 @@
                         Adicionar Shot</button>
                 </div>
 
+                <!-- Dialogue Editor (ElevenLabs Dialogue V3) -->
+                <div class="v2-form-group hidden" id="v2-group-dialogue">
+                    <div class="v2-param-header">
+                        <label class="v2-label">Diálogo</label>
+                        <span class="v2-label-hint" id="v2-dialogue-total">Múltiplas vozes</span>
+                    </div>
+                    <div id="v2-dialogue-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                    <button type="button" id="v2-dialogue-add" class="v2-btn-secondary"
+                        style="margin-top: 10px; width: 100%; padding: 10px; border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 13px;">+
+                        Adicionar Fala</button>
+                </div>
+
                 <!-- Upload -->
                 <div class="v2-form-group hidden" id="v2-group-upload">
                     <div class="v2-label-row">
@@ -696,6 +712,29 @@
         </div>
 
         <!-- (Right column removed, settings moved to left) -->
+    </div>
+
+    <!-- ====== VOICE PICKER MODAL ====== -->
+    <div id="modal-voice-picker" class="model-picker-modal hidden">
+        <div class="mpm-backdrop" id="voice-picker-backdrop"></div>
+        <div class="mpm-panel" style="max-width: 600px;">
+            <div class="mpm-header">
+                <div>
+                    <div class="mpm-title">Escolher Voz</div>
+                    <div class="mpm-subtitle">Selecione uma voz para este personagem</div>
+                </div>
+                <button class="mpm-close" id="voice-picker-close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="voice-picker-grid" id="voice-picker-grid"
+                style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 16px; overflow-y: auto; max-height: 400px;">
+                <!-- Voices injected by JS -->
+            </div>
+        </div>
     </div>
 
     <!-- ====== TOAST ====== -->
