@@ -143,7 +143,7 @@ const MODEL_CONFIGS = {
     },
     'nano-banana-2': {
         params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
         ]
     },
@@ -2868,7 +2868,7 @@ const v2Registry = {};
         // Per-model max reference files (from API docs)
         const MODEL_MAX_FILES = {
             'nano-banana-pro': 8,              // up to 8 images
-            'nano-banana-2': 8,                // up to 8 images
+            'nano-banana-2': 14,               // up to 14 images
             'google/nano-banana-edit': 10,      // up to 10 images
             'seedream/5-lite': 14,              // up to 14 images
             'gpt4o-image': 5,                   // up to 5 image URLs
