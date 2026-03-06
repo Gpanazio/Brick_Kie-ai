@@ -141,6 +141,12 @@ const MODEL_CONFIGS = {
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
         ]
     },
+    'nano-banana-2': {
+        params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', 'auto'], default: '1:1' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
+        ]
+    },
     'google/nano-banana-edit': {
         params: [
             { key: 'image_size', label: 'Aspect Ratio', type: 'select', options: ['1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '5:4', '4:5', '21:9', 'auto'], default: '1:1' },
@@ -154,8 +160,7 @@ const MODEL_CONFIGS = {
 
     'gpt4o-image': {
         params: [
-            { key: 'size', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '1:1' },
-            { key: 'nVariants', label: 'Variantes', type: 'select', options: ['1', '2', '3', '4'], default: '1' },
+            { key: 'size', label: 'Aspect Ratio', type: 'select', options: ['1:1', '3:2', '2:3'], default: '1:1' },
             { key: 'isEnhance', label: 'Enhance Prompt', type: 'bool', default: false },
         ]
     },
@@ -2944,6 +2949,7 @@ const v2Registry = {};
         // Per-model max reference files (from API docs)
         const MODEL_MAX_FILES = {
             'nano-banana-pro': 8,              // up to 8 images
+            'nano-banana-2': 8,                // up to 8 images
             'google/nano-banana-edit': 10,      // up to 10 images
             'seedream/5-lite': 14,              // up to 14 images
             'gpt4o-image': 5,                   // up to 5 image URLs
@@ -3962,7 +3968,7 @@ const v2Registry = {};
         const extra = { ...modelParams };
         if (prompt) extra.prompt = prompt;
 
-        let resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-pro';
+        let resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-2';
 
         // Suno mode toggle: 'Letra' → suno/generate-lyrics
         if (resolvedModel === 'suno/generate-music' && extra.suno_mode === 'Letra') {
