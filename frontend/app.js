@@ -2993,7 +2993,7 @@ const v2Registry = {};
 
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
-            const isImageEdit = modelKey === 'qwen/image-edit' || modelKey === 'google/nano-banana-edit';
+            const isImageEdit = ['qwen/image-edit', 'google/nano-banana-edit'].includes(modelKey);
             if (isImageEdit) {
                 uploadLabel.innerHTML = 'Imagem para editar <span class="v2-label-hint">— obrigatória</span>';
             } else if (v2MaxFiles <= 1) {
@@ -3863,8 +3863,8 @@ const v2Registry = {};
                 });
             }
             v2.btnGenerate.disabled = !hasAnyDialogue;
-        } else if (v2Model?.model === 'qwen/image-edit') {
-            // qwen image-edit requires both a prompt and an image
+        } else if (['qwen/image-edit', 'google/nano-banana-edit'].includes(v2Model?.model)) {
+            // image-edit models require both a prompt and an image
             v2.btnGenerate.disabled = !(hasPrompt && hasFiles);
         } else {
             v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames);
@@ -4184,6 +4184,23 @@ const v2Registry = {};
         return html;
     }
 
+    function _renderFailedItemUI(item, failMsg) {
+        item.className = 'v2-gallery-item failed';
+        const msgHtml = failMsg ? `<span class="v2-fail-detail">${esc(failMsg)}</span>` : '';
+        item.innerHTML = `<div class="v2-fail-body"><span class="v2-fail-title">❌ Falhou</span>${msgHtml}</div>`;
+        const dismissBtn = document.createElement('button');
+        dismissBtn.className = 'v2-item-btn v2-item-del v2-fail-dismiss';
+        dismissBtn.title = 'Remover';
+        dismissBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>';
+        dismissBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            item.style.transition = 'opacity 0.2s';
+            item.style.opacity = '0';
+            setTimeout(() => { item.remove(); updateV2GalleryCount(); }, 220);
+        });
+        item.appendChild(dismissBtn);
+    }
+
     function addV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl, taskModel, failMsg) {
         v2.galleryEmpty.style.display = 'none';
 
@@ -4198,20 +4215,7 @@ const v2Registry = {};
         if (state === 'success' && mediaUrl) {
             item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl, isSunoItem);
         } else if (state === 'failed' || state === 'fail') {
-            const msgHtml = failMsg ? `<span class="v2-fail-detail">${esc(failMsg)}</span>` : '';
-            item.innerHTML = `<div class="v2-fail-body"><span class="v2-fail-title">❌ Falhou</span>${msgHtml}</div>`;
-            // Dismiss button
-            const dismissBtn = document.createElement('button');
-            dismissBtn.className = 'v2-item-btn v2-item-del v2-fail-dismiss';
-            dismissBtn.title = 'Remover';
-            dismissBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>';
-            dismissBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                item.style.transition = 'opacity 0.2s';
-                item.style.opacity = '0';
-                setTimeout(() => { item.remove(); updateV2GalleryCount(); }, 220);
-            });
-            item.appendChild(dismissBtn);
+            _renderFailedItemUI(item, failMsg);
         }
         // processing state uses CSS ::after spinner
 
@@ -4312,21 +4316,7 @@ const v2Registry = {};
         if (state === 'success' && mediaUrl) {
             item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl, isSunoItem);
         } else if (state === 'fail' || state === 'failed') {
-            item.className = 'v2-gallery-item failed';
-            const msgHtml = failMsg ? `<span class="v2-fail-detail">${esc(failMsg)}</span>` : '';
-            item.innerHTML = `<div class="v2-fail-body"><span class="v2-fail-title">❌ Falhou</span>${msgHtml}</div>`;
-            // Dismiss button
-            const dismissBtn = document.createElement('button');
-            dismissBtn.className = 'v2-item-btn v2-item-del v2-fail-dismiss';
-            dismissBtn.title = 'Remover';
-            dismissBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>';
-            dismissBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                item.style.transition = 'opacity 0.2s';
-                item.style.opacity = '0';
-                setTimeout(() => { item.remove(); updateV2GalleryCount(); }, 220);
-            });
-            item.appendChild(dismissBtn);
+            _renderFailedItemUI(item, failMsg);
         }
         updateV2GalleryCount();
     }
