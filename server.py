@@ -163,6 +163,16 @@ async def socket_io_stub():
     return Response(content=stub, media_type="application/javascript")
 
 
+# ==================== Config ====================
+
+
+@app.get("/api/config")
+def get_config():
+    """Return the API key so the frontend can authenticate requests through the Node.js proxy."""
+    key = kie_api.API_KEY or ""
+    return {"apiKey": key}
+
+
 # ==================== Credits ====================
 
 
