@@ -4631,7 +4631,8 @@ body {
     border-color: rgba(220, 38, 38, 0.3);
 }
 
-.v2-file-card img {
+.v2-file-card img,
+.v2-file-card video {
     width: 100%;
     height: 100%;
     object-fit: cover;
