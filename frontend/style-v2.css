@@ -4689,7 +4689,7 @@ body {
 }
 
 /* ── Frame dropzone: hide upload area when a file is set ── */
-.v2-frame-dropzone.v2-frame-has-file {
+.v2-frame-dropzone .v2-upload-zone.v2-frame-has-file {
     display: none;
 }
 
@@ -4702,17 +4702,20 @@ body {
 }
 
 .v2-frame-dropzone .v2-files-grid .v2-file-card {
-    height: 100%;
+    height: auto;
     min-height: 120px;
     border-radius: 8px;
+    aspect-ratio: auto;
 }
 
 .v2-frame-dropzone .v2-files-grid .v2-file-card img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    max-height: 200px;
+    object-fit: contain;
     border-radius: 8px;
     display: block;
+    background: rgba(0, 0, 0, 0.3);
 }
 
 /* ── Upload zone: uploading state ── */
