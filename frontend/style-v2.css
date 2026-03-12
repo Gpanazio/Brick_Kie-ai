@@ -4699,10 +4699,11 @@ body {
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.15);
+    grid-template-columns: 1fr;
 }
 
 .v2-frame-dropzone .v2-files-grid .v2-file-card {
-    height: auto;
+    height: 120px;
     min-height: 120px;
     border-radius: 8px;
     aspect-ratio: auto;
@@ -4710,9 +4711,9 @@ body {
 
 .v2-frame-dropzone .v2-files-grid .v2-file-card img {
     width: 100%;
-    height: auto;
+    height: 100%;
     max-height: 200px;
-    object-fit: contain;
+    object-fit: cover;
     border-radius: 8px;
     display: block;
     background: rgba(0, 0, 0, 0.3);
