@@ -2061,6 +2061,38 @@ function renderHistoryGallery() {
         // Click to open lightbox
         card.addEventListener('click', () => openHistoryLightbox(entry));
         els.historyGallery.appendChild(card);
+
+        // Graceful fallback for expired video/image URLs (prevents 404 console spam)
+        const vid = card.querySelector('video');
+        if (vid) {
+            vid.addEventListener('error', () => {
+                const parent = vid.parentElement;
+                if (parent) {
+                    vid.remove();
+                    parent.innerHTML = `<div class="history-thumb-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;opacity:0.5;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="3" x2="21" y2="21"/>
+                        </svg>
+                        <span style="font-size:9px;color:var(--text-muted);">Expirado</span>
+                    </div>`;
+                }
+            }, { once: true });
+        }
+        const img = card.querySelector('img.history-thumb-media');
+        if (img) {
+            img.addEventListener('error', () => {
+                const parent = img.parentElement;
+                if (parent) {
+                    img.remove();
+                    parent.innerHTML = `<div class="history-thumb-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;opacity:0.5;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="3" x2="21" y2="21"/>
+                        </svg>
+                        <span style="font-size:9px;color:var(--text-muted);">Expirado</span>
+                    </div>`;
+                }
+            }, { once: true });
+        }
     });
 }
 
@@ -4237,7 +4269,7 @@ const v2Registry = {};
 
         const item = document.createElement('div');
         const isSunoItem = (taskModel || '').startsWith('suno/');
-        const isVid = mediaUrl && isVideoUrl(mediaUrl);
+        const isVid = mediaUrl ? isVideoUrl(mediaUrl) : (currentCat === 'video');
         item.className = `v2-gallery-item ${state}${isVid ? ' video-item' : ''}`;
         item.id = `v2-item-${CSS.escape(elementId)}`;
         item.dataset.taskId = elementId;
