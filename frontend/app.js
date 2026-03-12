@@ -4386,9 +4386,9 @@ const v2Registry = {};
                 // Remove the processing placeholder
                 const existing = document.getElementById(`v2-item-${CSS.escape(task.id)}`);
                 if (existing) existing.remove();
-                // Add items for each result URL
                 const coverU = data.response?.sunoData?.[0]?.image_large_url || data.response?.sunoData?.[0]?.imageLargeUrl || data.response?.sunoData?.[0]?.imageUrl || data.response?.sunoData?.[0]?.image_url || null;
-                urls.forEach((url, i) => {
+                const maxUrls = task.model.startsWith('suno/') ? 1 : urls.length;
+                urls.slice(0, maxUrls).forEach((url, i) => {
                     addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
                 });
             } else {
@@ -4458,7 +4458,8 @@ const v2Registry = {};
                 if (task.state === 'success' && Array.isArray(task.urls) && task.urls.length > 0) {
                     const isMjTask = task.cat === 'mj';
                     const coverU = task.coverUrl || null;
-                    task.urls.forEach((url, i) => {
+                    const maxUrls = (task.model || '').startsWith('suno/') ? 1 : task.urls.length;
+                    task.urls.slice(0, maxUrls).forEach((url, i) => {
                         addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
                     });
                 }
@@ -4572,7 +4573,8 @@ const v2Registry = {};
                 if (urls.length > 0) {
                     const data2 = task.data?.data || {};
                     const coverU = data2.response?.sunoData?.[0]?.image_large_url || data2.response?.sunoData?.[0]?.imageLargeUrl || data2.response?.sunoData?.[0]?.imageUrl || data2.response?.sunoData?.[0]?.image_url || task.coverUrl || null;
-                    urls.forEach((url, i) => {
+                    const maxUrls = (task.model || '').startsWith('suno/') ? 1 : urls.length;
+                    urls.slice(0, maxUrls).forEach((url, i) => {
                         addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
                     });
                 }
