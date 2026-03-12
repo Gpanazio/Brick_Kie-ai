@@ -729,7 +729,7 @@ let _kieApiKey = null;
 async function initApiKey() {
     if (_kieApiKey) return _kieApiKey;
     try {
-        const r = await fetch(`${API}/api/config`);
+        const r = await fetch(`${API}/api/config?_t=${Date.now()}`);
         if (r.ok) { const j = await r.json(); _kieApiKey = j.apiKey || ''; }
     } catch (e) { console.warn('[auth] Failed to fetch API key:', e); }
     return _kieApiKey || '';
