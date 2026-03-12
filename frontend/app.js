@@ -4055,7 +4055,7 @@ const v2Registry = {};
                     finalUrl = await v2UploadSingleFile(v2FrameFinal, 0, 1);
                 }
                 const urls = [];
-                if (initialUrl || finalUrl) {
+                if (initialUrl) {
                     urls.push(initialUrl);
                 }
                 if (finalUrl) {
