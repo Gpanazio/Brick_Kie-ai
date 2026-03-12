@@ -5,6 +5,17 @@
 
 const API = '/kie-ai';
 
+// Global error handler for expired tempfile media URLs
+window.handleExpiredMedia = function(el) {
+    if (!el || !el.parentElement) return;
+    el.outerHTML = `<div class="history-thumb-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;min-height:100px;gap:6px;opacity:0.5;background:rgba(0,0,0,0.3);border-radius:8px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+        <span style="font-size:10px;color:var(--text-muted);font-family:var(--mono);">Mídia Expirada</span>
+    </div>`;
+};
+
 // ==================== MODEL PARAMETER REGISTRY ====================
 // Each model defines its 'params' — array of { key, label, type, options, default, min, max, step }
 // 'cost' is the estimated credits per generation (from KIE API docs)
@@ -1756,7 +1767,7 @@ function renderTaskResult(task) {
                 </div>`;
             });
         } else if (isVid) {
-            html += `<video src="${esc(unique[0])}" controls preload="metadata" style="width:100%"></video>`;
+            html += `<video src="${esc(unique[0])}" controls preload="metadata" style="width:100%" onerror="window.handleExpiredMedia(this)"></video>`;
         } else if (isAud) {
             html += `<audio src="${esc(unique[0])}" controls style="width:100%"></audio>`;
         } else {
@@ -2000,12 +2011,12 @@ function renderHistoryGallery() {
             });
             thumbHtml += '</div>';
         } else if (isVid) {
-            thumbHtml = `<video src="${esc(url)}#t=0.001" muted preload="metadata" class="history-thumb-media"></video>
+            thumbHtml = `<video src="${esc(url)}#t=0.001" muted preload="metadata" class="history-thumb-media" onerror="window.handleExpiredMedia(this)"></video>
                          <div class="history-play-icon">
                              <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21"/></svg>
                          </div>`;
         } else if (url) {
-            thumbHtml = `<img src="${esc(url)}" alt="" loading="lazy" class="history-thumb-media">`;
+            thumbHtml = `<img src="${esc(url)}" alt="" loading="lazy" class="history-thumb-media" onerror="window.handleExpiredMedia(this)">`;
         } else {
             thumbHtml = `<div class="history-thumb-empty">
                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
@@ -2058,41 +2069,8 @@ function renderHistoryGallery() {
             });
         }
 
-        // Click to open lightbox
         card.addEventListener('click', () => openHistoryLightbox(entry));
         els.historyGallery.appendChild(card);
-
-        // Graceful fallback for expired video/image URLs (prevents 404 console spam)
-        const vid = card.querySelector('video');
-        if (vid) {
-            vid.addEventListener('error', () => {
-                const parent = vid.parentElement;
-                if (parent) {
-                    vid.remove();
-                    parent.innerHTML = `<div class="history-thumb-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;opacity:0.5;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="3" x2="21" y2="21"/>
-                        </svg>
-                        <span style="font-size:9px;color:var(--text-muted);">Expirado</span>
-                    </div>`;
-                }
-            }, { once: true });
-        }
-        const img = card.querySelector('img.history-thumb-media');
-        if (img) {
-            img.addEventListener('error', () => {
-                const parent = img.parentElement;
-                if (parent) {
-                    img.remove();
-                    parent.innerHTML = `<div class="history-thumb-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;opacity:0.5;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="3" x2="21" y2="21"/>
-                        </svg>
-                        <span style="font-size:9px;color:var(--text-muted);">Expirado</span>
-                    </div>`;
-                }
-            }, { once: true });
-        }
     });
 }
 
@@ -2200,11 +2178,11 @@ function openHistoryLightbox(entry) {
         });
         mediaHtml += '</div>';
     } else if (isVid) {
-        mediaHtml = `<video src="${esc(url)}" controls autoplay preload="auto" class="lightbox-media" playsinline></video>`;
+        mediaHtml = `<video src="${esc(url)}" controls autoplay preload="auto" class="lightbox-media" playsinline onerror="window.handleExpiredMedia(this)"></video>`;
     } else if (isAud) {
         mediaHtml = `<audio src="${esc(url)}" controls autoplay class="lightbox-audio"></audio>`;
     } else if (url) {
-        mediaHtml = `<img src="${esc(url)}" alt="Result" class="lightbox-media">`;
+        mediaHtml = `<img src="${esc(url)}" alt="Result" class="lightbox-media" onerror="window.handleExpiredMedia(this)">`;
     } else if (entry.state === 'fail' || entry.state === 'failed') {
         mediaHtml = `<div class="lightbox-error">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="1.5" style="margin-bottom:12px;">
@@ -4203,12 +4181,12 @@ const v2Registry = {};
         const safeMjId = esc(mjTaskId || '');
         let html = '';
         if (isVideoUrl(url)) {
-            html += `<video src="${safeUrl}" autoplay loop muted playsinline></video>
+            html += `<video src="${safeUrl}" autoplay loop muted playsinline onerror="window.handleExpiredMedia(this)"></video>
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
         } else if (isSuno || isAudioUrl(url)) {
             // If Suno cover art is available, show it as the thumbnail background
             if (coverUrl) {
-                html += `<img src="${safeCoverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;">
+                html += `<img src="${safeCoverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;" onerror="window.handleExpiredMedia(this)">
                     <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);pointer-events:none;"></div>
                     <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="white" style="opacity:0.9;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));"><polygon points="5 3 19 12 5 21"/></svg>
@@ -4221,7 +4199,7 @@ const v2Registry = {};
                     </div>`;
             }
         } else {
-            html += `<img src="${safeUrl}" alt="Gerado">
+            html += `<img src="${safeUrl}" alt="Gerado" onerror="window.handleExpiredMedia(this)">
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
         }
         // MJ action buttons
