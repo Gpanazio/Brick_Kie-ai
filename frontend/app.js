@@ -737,13 +737,24 @@ let _historyCache = null; // null = not yet loaded from server
 // API key for authenticated history requests (fetched from server config on init)
 let _kieApiKey = null;
 
+let _kieApiKeyPromise = null;
+
 async function initApiKey() {
     if (_kieApiKey) return _kieApiKey;
-    try {
-        const r = await fetch(`${API}/api/config?_t=${Date.now()}`);
-        if (r.ok) { const j = await r.json(); _kieApiKey = j.apiKey || ''; }
-    } catch (e) { console.warn('[auth] Failed to fetch API key:', e); }
-    return _kieApiKey || '';
+    if (_kieApiKeyPromise) return _kieApiKeyPromise;
+    _kieApiKeyPromise = fetch(`${API}/api/config?_t=${Date.now()}`)
+        .then(r => r.ok ? r.json() : {})
+        .then(j => {
+            _kieApiKey = j.apiKey || '';
+            _kieApiKeyPromise = null;
+            return _kieApiKey;
+        })
+        .catch(e => {
+            console.warn('[auth] Failed to fetch API key:', e);
+            _kieApiKeyPromise = null;
+            return '';
+        });
+    return _kieApiKeyPromise;
 }
 
 function _kieAuthHeaders() {
@@ -4422,6 +4433,7 @@ const v2Registry = {};
 
     async function _fetchServerHistory(cat) {
         try {
+            await initApiKey();
             const resp = await fetch(`${API}/api/history?cat=${encodeURIComponent(cat)}&limit=100`, { headers: _kieAuthHeaders() });
             if (!resp.ok) return [];
             const json = await resp.json();
