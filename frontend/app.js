@@ -3926,7 +3926,7 @@ const v2Registry = {};
         const isImageReq = mjType !== 'mj_txt2img';
         if (isImageReq && v2Files.length > 0) {
             btnSpan.textContent = 'Uploading...';
-            const imageUrl = await v2UploadSingleFile(v2Files[0], 0, 1);
+            const imageUrl = encodeURI(await v2UploadSingleFile(v2Files[0], 0, 1));
             if (mjType === 'mj_img2img' || mjType === 'mj_video') {
                 payload.prompt = `${imageUrl} ${prompt}`.trim();
             } else if (mjType === 'mj_style_ref') {
@@ -3979,10 +3979,10 @@ const v2Registry = {};
             }
             const urls = [];
             if (initialUrl || finalUrl) {
-                urls.push(initialUrl);
+                urls.push(encodeURI(initialUrl));
             }
             if (finalUrl) {
-                urls.push(finalUrl);
+                urls.push(encodeURI(finalUrl));
             }
             if (urls.length > 0) extra.imageUrls = urls;
 
@@ -4056,10 +4056,10 @@ const v2Registry = {};
                 }
                 const urls = [];
                 if (initialUrl) {
-                    urls.push(initialUrl);
+                    urls.push(encodeURI(initialUrl));
                 }
                 if (finalUrl) {
-                    urls.push(finalUrl);
+                    urls.push(encodeURI(finalUrl));
                 }
                 if (urls.length > 0) extra[imgField] = urls;
             } else {
@@ -4068,7 +4068,10 @@ const v2Registry = {};
                     ? 'Uploading video...'
                     : `Uploading ${v2Files.length} image${v2Files.length > 1 ? 's' : ''}...`;
                 const imageUrls = await Promise.all(
-                    v2Files.map((file, i) => v2UploadSingleFile(file, i, v2Files.length))
+                    v2Files.map(async (file, i) => {
+                        const url = await v2UploadSingleFile(file, i, v2Files.length);
+                        return encodeURI(url);
+                    })
                 );
                 // Some fields expect a single URL string (not an array); image_url is singular per API spec
                 extra[imgField] = (imgField === 'image_url' && imageUrls.length === 1) ? imageUrls[0] : imageUrls;
