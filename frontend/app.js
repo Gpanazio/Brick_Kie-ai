@@ -4010,6 +4010,12 @@ const v2Registry = {};
 
     async function _handleStandardSubmission(prompt, btnSpan, modelParams) {
         const extra = { ...modelParams };
+        
+        // KIE API (e.g. Kling, Grok) strictly requires a prompt for text-to-video endpoints
+        // even when an image is supplied. Provide a safe default if user left it blank.
+        if (!prompt && (v2Files.length > 0 || v2FrameInitial || v2FrameFinal)) {
+            prompt = 'Mantenha os detalhes originais, proporções e faça uma animação suave.';
+        }
         if (prompt) extra.prompt = prompt;
 
         let resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-2';
