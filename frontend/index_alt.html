@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KIE AI — War Room</title>
+    <meta name="description"
+        content="Interface visual para as APIs da KIE.ai — Upload, processamento AI e resultados em tempo real.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/kie-ai/static/style-v2.css?v=19">
+
+    <style>
+        /* -- HUD OVERRIDES -- */
+        body:has(#lobby:not(.hidden)) {
+            background-color: #151618;
+        }
+        body:has(#lobby:not(.hidden)) #app-header {
+            display: none;
+        }
+        
+        #lobby.lobby {
+            padding: 0; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .hud-wrapper {
+            position: relative;
+            padding: 24px;
+            width: 100%;
+            max-width: 1200px;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            margin: 40px;
+        }
+
+        /* GRID: 3 columns for regular blocks, exactly equal sized squares */
+        .hud-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px; 
+            width: 100%;
+        }
+
+        /* We force the aspect ratio of the buttons so they are perfect squares like the original site */
+        .hud-panel {
+            aspect-ratio: 1 / 1; 
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #3b3d40;
+            background: #151618;
+            position: relative;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            text-align: left;
+            padding: 0;
+            font-family: inherit;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        
+        .hud-panel:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .hud-red { background: #c94c3d; color: #e9e4d3; border-color: #c94c3d; }
+        .hud-beige { background: #e9e4d3; color: #111111; border-color: #e9e4d3; }
+        .hud-orange { background: #dd7147; color: #111111; border-color: #dd7147; }
+
+        .p-header {
+            padding: 14px 16px;
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #3b3d40;
+            letter-spacing: 1px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .hud-red .p-header { border-bottom-color: rgba(255,255,255,0.2); }
+        .hud-beige .p-header { border-bottom-color: rgba(0,0,0,0.2); }
+        .hud-orange .p-header { border-bottom-color: rgba(0,0,0,0.2); }
+
+        .p-content {
+            padding: 16px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            line-height: 1.4;
+            color: currentColor;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 11px;
+        }
+        
+        .mock-text { color: rgba(255,255,255,0.5); font-weight: 500;}
+        .hud-red .mock-text { color: rgba(255,255,255,0.8); }
+        .hud-beige .mock-text { color: rgba(0,0,0,0.6); }
+        .hud-orange .mock-text { color: rgba(0,0,0,0.6); }
+
+        .stat-line {
+            display: flex; justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 6px;
+            width: 100%;
+        }
+        .hud-beige .stat-line { border-bottom-color: rgba(0,0,0,0.1); }
+        .hud-red .stat-line { border-bottom-color: rgba(255,255,255,0.2); }
+        .hud-orange .stat-line { border-bottom-color: rgba(0,0,0,0.1); }
+
+        /* The arrows mimicking the design */
+        .arrow-up { display: inline-block; width: 8px; height: 8px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(-45deg); }
+        .arrow-down { display: inline-block; width: 8px; height: 8px; border-bottom: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); }
+        .arrow-right { display: inline-block; width: 8px; height: 8px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); margin-right: 4px; }
+        
+        .huge-icon { margin-top: auto; font-size: 32px; opacity: 0.1; align-self: flex-end; }
+        .hud-red .huge-icon { opacity: 0.2; }
+        .hud-beige .huge-icon { opacity: 0.1; }
+        .hud-orange .huge-icon { opacity: 0.1; }
+        
+        /* Layout overrides for header block */
+        .hud-header-panel {
+            grid-column: 1 / span 3;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            border: 1px solid #e9e4d3;
+            color: #e9e4d3;
+            margin-bottom: 16px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <!-- ====== HEADER ====== -->
+    <header id="app-header">
+        <div class="header-left">
+            <div class="logo-mark"></div>
+            <div class="header-divider"></div>
+            <span class="logo-text">War Room</span>
+            <span class="logo-sub">KIE.AI</span>
+        </div>
+        <div class="header-center" id="header-breadcrumb">
+            <!-- Filled dynamically when entering workspace -->
+        </div>
+        <div class="header-right">
+            <div class="credits-badge" id="btn-credits" title="Saldo de créditos">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                </svg>
+                <span class="credits-label">Créditos</span>
+                <span class="credits-value" id="credits-display">—</span>
+            </div>
+            <span class="version-tag">v3.0</span>
+        </div>
+    </header>
+
+    <!-- ====== PRE-MENU / LOBBY ====== -->
+    
+    <section id="lobby" class="lobby">
+        <div class="hud-wrapper">
+            
+            <div class="hud-header-panel">
+                <div style="font-size: 16px; font-weight: bold; letter-spacing: 2px;">KIE.AI // WAR ROOM <span style="opacity:0.5; font-weight:normal;">v3.0</span></div>
+                <div style="display:flex; gap: 24px;">
+                    <div>SYSTEM: <span style="color:#dd7147;">ONLINE</span></div>
+                    <div>CREDITS: <span id="hud-credits" style="color:#e9e4d3; font-weight:bold;">—</span></div>
+                </div>
+            </div>
+
+            <div class="hud-grid">
+                
+                <!-- IMAGE -->
+                <button class="hud-panel hud-red" data-lobby-cat="image" id="lobby-image">
+                    <div class="p-header">IMAGE GEN <div class="arrow-up"></div></div>
+                    <div class="p-content mock-text">
+                        <p style="color:#fff; font-size:12px; font-weight:bold;">Nano Banana 2, Flux, Grok</p>
+                        <div class="stat-line" style="margin-top:auto"><span>MODELS</span> <span>8</span></div>
+                        <div class="stat-line"><span>ACTIVE</span> <span>YES</span></div>
+                    </div>
+                </button>
+
+                <!-- VIDEO -->
+                <button class="hud-panel hud-beige" data-lobby-cat="video" id="lobby-video">
+                    <div class="p-header">VIDEO GEN <div class="arrow-right"></div></div>
+                    <div class="p-content mock-text">
+                        <p style="color:#111; font-size:12px; font-weight:bold;">Sora 2, Kling 3.0, Veo 3</p>
+                        <div class="stat-line" style="margin-top:auto"><span>MODELS</span> <span>5</span></div>
+                        <div class="stat-line"><span>ACTIVE</span> <span>YES</span></div>
+                    </div>
+                </button>
+
+                <!-- AUDIO -->
+                <button class="hud-panel hud-orange" data-lobby-cat="audio" id="lobby-audio">
+                    <div class="p-header">AUDIO LOG <div class="arrow-down"></div></div>
+                    <div class="p-content mock-text">
+                        <p style="color:#111; font-size:12px; font-weight:bold;">ElevenLabs TTS / SFX</p>
+                        <div class="stat-line" style="margin-top:auto"><span>MODULES</span> <span>5</span></div>
+                        <div class="stat-line"><span>ACTIVE</span> <span>YES</span></div>
+                    </div>
+                </button>
+
+                <!-- MUSIC -->
+                <button class="hud-panel hud-red" data-lobby-cat="music" id="lobby-music">
+                    <div class="p-header">MUSIC LOG <div class="arrow-right"></div></div>
+                    <div class="p-content mock-text">
+                        <p style="color:#e9e4d3; font-size:12px; font-weight:bold;">Suno AI ↗</p>
+                        <div class="stat-line" style="margin-top:auto"><span>ROUTING</span> <span>EXT</span></div>
+                        <div class="stat-line"><span>ACTIVE</span> <span>YES</span></div>
+                    </div>
+                </button>
+
+                <!-- TOOLS -->
+                <button class="hud-panel hud-beige" data-lobby-cat="tools" id="lobby-tools">
+                    <div class="p-header">TOOLS & UPS <div class="arrow-up"></div></div>
+                    <div class="p-content mock-text">
+                        <p style="color:#111; font-size:12px; font-weight:bold;">Recraft BG, Topaz</p>
+                        <div class="stat-line" style="margin-top:auto"><span>MODELS</span> <span>3</span></div>
+                        <div class="stat-line"><span>ACTIVE</span> <span>YES</span></div>
+                    </div>
+                </button>
+
+                <!-- MIDJOURNEY -->
+                <button class="hud-panel hud-orange" data-lobby-cat="mj" id="lobby-mj">
+                    <div class="p-header">MIDJOURNEY <div class="arrow-right"></div></div>
+                    <div class="p-content mock-text">
+                        <p style="color:#111; font-size:12px; font-weight:bold;">TXT / IMG / REF / VID</p>
+                        <div class="stat-line" style="margin-top:auto"><span>MODELS</span> <span>4</span></div>
+                        <div class="stat-line"><span>ACTIVE</span> <span>YES</span></div>
+                    </div>
+                </button>
+
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ====== WORKSPACE (hidden initially) ====== -->
+    <main id="app-main" class="hidden">
+
+        <!-- ====== LEFT: PROMPT + MODEL SELECT ====== -->
+        <section id="panel-prompt" class="panel">
+            <div class="panel-topbar">
+                <div>
+                    <div class="panel-topbar-title" id="workspace-cat-label">Prompt</div>
+                    <div class="panel-topbar-sub">Descreva o que deseja gerar</div>
+                </div>
+                <button class="btn-ghost" id="btn-back-lobby" title="Voltar ao menu">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    Voltar
+                </button>
+            </div>
+
+            <!-- ── Model Picker Button ── -->
+            <div class="model-picker-trigger-wrap">
+                <button class="model-picker-trigger" id="btn-model-picker">
+                    <div class="mpt-left">
+                        <div class="mpt-icon mc-purple" id="mpt-icon">—</div>
+                        <div class="mpt-info">
+                            <span class="mpt-label">Modelo ativo</span>
+                            <span class="mpt-name" id="mpt-name">Selecione um modelo</span>
+                        </div>
+                    </div>
+                    <div class="mpt-right">
+                        <span class="mpt-cost hidden" id="mpt-cost"></span>
+                        <svg class="mpt-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                    </div>
+                </button>
+            </div>
+
+            <div class="panel-scroll">
+                <!-- V1 form elements removed — all categories now use V2 workspace -->
+            </div>
+        </section>
+
+        <!-- ====== CENTER: RESULTS GALLERY ====== -->
+        <section id="panel-results" class="panel">
+
+            <div class="panel-tabs"
+                style="display:flex; align-items:center; gap:0; flex-shrink:0; border-bottom:1px solid var(--border);">
+                <button class="panel-tab active" data-tab="active">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    Ativas
+                    <span class="panel-tab-count" id="active-count">0</span>
+                </button>
+                <button class="panel-tab" data-tab="history">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                    </svg>
+                    Histórico
+                    <span class="panel-tab-count" id="history-count">0</span>
+                </button>
+                <div style="margin-left:auto; padding-right:16px; display:flex; gap:6px;">
+                    <button id="btn-clear-tasks" class="btn-ghost" title="Limpar tarefas ativas">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-2 14H7L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                        </svg>
+                        Limpar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Tasks Tab -->
+            <div id="tab-active" class="tab-content">
+                <div id="tasks-list" class="tasks-list">
+                    <div class="tasks-empty" id="tasks-empty">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="0.8">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <path d="M21 15l-5-5L5 21" />
+                        </svg>
+                        <p>Nenhuma geração ativa.</p>
+                        <p class="tasks-empty-hint">Selecione um modelo e clique em Gerar.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="tab-history" class="tab-content hidden">
+                <div class="history-toolbar">
+                    <select id="history-filter-model" class="form-select history-filter-select">
+                        <option value="">Todos os modelos</option>
+                    </select>
+                    <button id="btn-import-history" class="btn-ghost" title="Importar tasks do KIE">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        Importar
+                    </button>
+                    <button id="btn-clear-history" class="btn-ghost btn-danger" title="Limpar histórico">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-2 14H7L5 6" />
+                        </svg>
+                        Limpar Tudo
+                    </button>
+                </div>
+                <div id="history-gallery" class="history-gallery"></div>
+                <div class="tasks-empty" id="history-empty">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M8 12h8M12 8v8" />
+                    </svg>
+                    <p>Nenhuma geração salva.</p>
+                    <p class="tasks-empty-hint">As gerações concluídas aparecerão aqui.</p>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ====== RIGHT: SETTINGS (VEO3 ONLY) ====== -->
+        <section id="panel-settings" class="panel hidden">
+            <div class="panel-topbar">
+                <div>
+                    <div class="panel-topbar-title">Settings</div>
+                </div>
+                <button class="btn-ghost" id="btn-reset-settings" style="font-size: 10px;">Reset</button>
+            </div>
+            <div class="panel-scroll" id="panel-settings-scroll">
+                <!-- Config panel will be moved here dynamically for Veo3 -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ====== MODEL PICKER MODAL ====== -->
+    <div id="modal-model-picker" class="model-picker-modal hidden">
+        <div class="mpm-backdrop" id="mpm-backdrop"></div>
+        <div class="mpm-panel">
+            <div class="mpm-header">
+                <div>
+                    <div class="mpm-title">Escolher Modelo</div>
+                    <div class="mpm-subtitle" id="mpm-subtitle">Selecione o modelo para sua geração</div>
+                </div>
+                <button class="mpm-close" id="mpm-close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="mpm-grid" id="mpm-grid">
+                <!-- Cards injected via app.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== IMPORT HISTORY MODAL ====== -->
+    <div id="modal-import-history" class="model-picker-modal hidden">
+        <div class="mpm-backdrop" id="import-backdrop"></div>
+        <div class="mpm-panel" style="max-width: 520px;">
+            <div class="mpm-header">
+                <div>
+                    <div class="mpm-title">Importar Tasks do KIE</div>
+                    <div class="mpm-subtitle">Cole os IDs das tasks (um por linha) — encontre-os em <a
+                            href="https://kie.ai/logs" target="_blank" style="color:var(--accent)">kie.ai/logs</a></div>
+                </div>
+                <button class="mpm-close" id="import-close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div style="padding: 16px;">
+                <textarea id="import-task-ids" rows="8" class="form-textarea"
+                    placeholder="Cole os task IDs aqui, um por linha. Ex:&#10;2d5cfd4c59e4ec765eecd8035774190b&#10;40f7a8e98069837f25f1c8ae63a26ebc"
+                    style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"></textarea>
+                <div id="import-status" style="margin-top:8px;font-size:12px;color:var(--text-muted);min-height:18px;">
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                    <button id="btn-import-cancel" class="btn-ghost">Cancelar</button>
+                    <button id="btn-import-submit" class="btn-primary" style="min-width:120px;">Importar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== HIDDEN MODEL DATA (used by JS to populate workspace) ====== -->
+    <template id="tpl-models">
+        <!-- IMAGE -->
+        <div data-cat="image" data-model="nano-banana-2" data-name="Nano Banana 2" data-provider="Google"
+            data-input="mix" data-field="image_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-yellow" data-prompt="true"
+            data-desc="Modelo próprio da Kie.ai: geração com prompt, imagens de referência e controle de aspect ratio, resolução e formato.">
+        </div>
+
+        <div data-cat="image" data-model="seedream/5-lite" data-name="Seedream 5 Lite" data-provider="ByteDance"
+            data-input="mix" data-field="image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M19 12h-3c-1.1 0-2-.9-2-2V7c0-1.1-.9-2-2-2S10 5.9 10 7v3c0 1.1-.9 2-2 2H5c-1.1 0-2 .9-2 2s.9 2 2 2h3c1.1 0 2 .9 2 2v3c0 1.1.9 2 2 2s2-.9 2-2v-3c0-1.1.9-2 2-2h3c1.1 0 2-.9 2-2s-.9-2-2-2z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-bytedance" data-prompt="true"
+            data-desc="O poderoso modelo da ByteDance para text-to-image e edição de referência (Seedream 5)."></div>
+
+
+        <div data-cat="image" data-model="qwen/image-edit" data-name="Qwen Image Edit" data-provider="Qwen"
+            data-input="mix" data-field="image_url"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='2'/><path d='M12 6v6l4 4' stroke='currentColor' stroke-width='2' stroke-linecap='round'/></svg>"
+            data-color="mc-qwen" data-prompt="true"
+            data-desc="Edição flexível e robusta de imagens com Qwen. Envie sua referência e altere o que precisar.">
+        </div>
+        <div data-cat="image" data-model="google/nano-banana-edit" data-name="Nano Banana Edit" data-provider="Google"
+            data-input="file" data-field="image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-green" data-prompt="true"
+            data-desc="Edição inteligente: envie uma imagem e descreva as mudanças que deseja."></div>
+        <div data-cat="image" data-model="grok-imagine/text-to-image" data-name="Grok Imagine" data-provider="Grok"
+            data-input="mix" data-field="image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M13.5 2L3 14h9l-1 8L22 10h-9l.5-8z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-purple" data-prompt="true"
+            data-desc="Geração e edição de imagens usando o modelo nativo Grok (suporta prompt com ou sem imagem).">
+        </div>
+        <div data-cat="image" data-model="gpt4o-image" data-name="GPT 4o-image" data-provider="OpenAI" data-input="mix"
+            data-field="filesUrl"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10 10-4.48 10-10zM12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8z&quot; fill=&quot;currentColor&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;4&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-openai" data-prompt="true"
+            data-desc="Geração e edição de imagens com GPT-4o: envie até 5 imagens de referência e descreva o que deseja.">
+        </div>
+
+
+        <!-- VID -->
+        <div data-cat="video" data-model="veo3/text-to-video" data-name="Veo 3.1" data-provider="Google"
+            data-input="mix" data-field="image_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 7l10 5 10-5-10-5z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 17l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><path d=&quot;M2 12l10 5 10-5&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/></svg>"
+            data-color="mc-blue" data-prompt="true"
+            data-desc="O novo modelo de ponta do Google DeepMind. Ouro em consistência espacial (suporta imagem inicial).">
+        </div>
+        <div data-cat="video" data-model="sora-2-pro-text-to-video" data-name="Sora 2 Pro" data-provider="OpenAI"
+            data-input="mix" data-field="image_urls"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z' fill='currentColor'/><circle cx='12' cy='12' r='4' fill='currentColor'/></svg>"
+            data-color="mc-openai" data-prompt="true"
+            data-desc="O padrão ouro da indústria: vídeos ultra-realistas com física avançada e consistência visual premium (suporta imagem inicial).">
+        </div>
+        <div data-cat="video" data-model="kling-3.0/video" data-name="Kling 3.0" data-provider="Kling" data-input="mix"
+            data-field="image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-kling" data-prompt="true"
+            data-desc="Excelente para movimentos de câmera dramáticos e personagens expressivos em alta resolução (suporta imagem inicial).">
+        </div>
+        <div data-cat="video" data-model="wan/2-6-text-to-video" data-name="Wan 2.6" data-provider="Wan"
+            data-input="mix" data-field="image_url"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M4 4v16h16V4H4zm14 14H6V6h12v12z' fill='currentColor'/><polygon points='10 8 16 12 10 16' fill='currentColor'/></svg>"
+            data-color="mc-wan" data-prompt="true" data-desc="O poderoso Wan 2.6 Text/Image to Video e Video to Video.">
+        </div>
+        <div data-cat="video" data-model="grok-imagine/text-to-video" data-name="Grok Video" data-provider="xAI"
+            data-input="mix" data-field="image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M4 4l6 8-6 8h3l4.5-6L16 20h3l-6-8 6-8h-3l-4.5 6L7 4z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-white" data-prompt="true"
+            data-desc="Geração fluida com compreensão semântica profunda, ideal para cenas conceituais e animação de imagens estáticas.">
+        </div>
+        <div data-cat="video" data-model="hailuo/2-3-image-to-video-pro" data-name="Hailuo 2.3 Pro"
+            data-provider="Hailuo" data-input="file" data-field="image_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-11.5v7l6-3.5z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-indigo" data-prompt="true"
+            data-desc="Especialista em animações complexas a partir de fotos."></div>
+
+
+        <!-- AUDIO (ElevenLabs) -->
+        <div data-cat="audio" data-model="elevenlabs/text-to-speech-turbo-2-5" data-name="TTS Turbo 2.5"
+            data-provider="ElevenLabs" data-input="text" data-field="text"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="true"
+            data-desc="A tecnologia de voz mais humana e expressiva do mercado."></div>
+        <div data-cat="audio" data-model="elevenlabs/text-to-dialogue-v3" data-name="Dialogue V3"
+            data-provider="ElevenLabs" data-input="text" data-field="dialogue"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="true"
+            data-desc="Diálogo multi-voz com personagens distintos e vozes naturais."></div>
+        <div data-cat="audio" data-model="elevenlabs/sound-effect-v2" data-name="Sound Effect V2"
+            data-provider="ElevenLabs" data-input="text" data-field="text"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="true"
+            data-desc="Efeitos sonoros ultra-realistas gerados por IA a partir de texto."></div>
+        <div data-cat="audio" data-model="elevenlabs/speech-to-text" data-name="Speech to Text"
+            data-provider="ElevenLabs" data-input="file" data-field="audio_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="false" data-desc="Transcrição precisa de áudio com detecção de falantes.">
+        </div>
+        <div data-cat="audio" data-model="elevenlabs/audio-isolation" data-name="Audio Isolation"
+            data-provider="ElevenLabs" data-input="file" data-field="audio_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 10v4M10 6v12M14 8v8M18 10v4&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot;/></svg>"
+            data-color="mc-teal" data-prompt="false" data-desc="Isolamento e separação de voz de qualquer áudio."></div>
+
+        <!-- MUSIC (Suno) — Consolidated -->
+        <div data-cat="music" data-model="suno/generate-music" data-name="Criar Música" data-provider="Suno"
+            data-input="mix" data-field="prompt"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M9 18V5l12-2v13&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;/><circle cx=&quot;6&quot; cy=&quot;18&quot; r=&quot;3&quot; fill=&quot;currentColor&quot;/><circle cx=&quot;18&quot; cy=&quot;16&quot; r=&quot;3&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-yellow" data-prompt="true"
+            data-desc="Crie músicas completas com IA. Upload opcional para criar Covers."></div>
+
+
+
+
+
+
+
+        <!-- TOOLS -->
+        <div data-cat="tools" data-model="topaz/video-upscale" data-name="Video Upscale" data-provider="Topaz"
+            data-input="file" data-field="video_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2l-6 10h12zM5 14l7 8 7-8z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-shortcut="topaz-upscale" data-color="mc-red" data-prompt="false"
+            data-desc="Restauração e aumento de resolução para vídeos legados."></div>
+        <div data-cat="tools" data-model="topaz/image-upscale" data-name="Image Upscale" data-provider="Topaz"
+            data-input="file" data-field="image_url"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M12 2l-6 10h12zM5 14l7 8 7-8z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-teal" data-prompt="false"
+            data-desc="Upscale profissional com preservação de detalhes finos."></div>
+        <div data-cat="tools" data-model="recraft/crisp-upscale" data-name="Crisp Upscale" data-provider="Recraft"
+            data-input="file" data-field="image"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 6h12v12H6z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-blue" data-prompt="false" data-desc="Aumenta a nitidez e resolução de fotografias."></div>
+        <div data-cat="tools" data-model="recraft/remove-background" data-name="Remove BG" data-provider="Recraft"
+            data-input="file" data-field="image"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 6h12v12H6z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-shortcut="recraft-rmbg" data-color="mc-green" data-prompt="false"
+            data-desc="Remoção limpa de fundos usando IA avançada."></div>
+
+        <!-- MIDJOURNEY -->
+        <div data-cat="mj" data-model="mj-txt" data-name="Text-Image" data-provider="Midjourney" data-input="mj"
+            data-mj-type="mj_txt2img"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M3 19c3-2 6-3 9-3s6 1 9 3' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/><path d='M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>"
+            data-color="mc-mj" data-prompt="true" data-desc="Gera imagens ultra-artísticas a partir de texto."></div>
+        <div data-cat="mj" data-model="mj-img" data-name="Image-Image" data-provider="Midjourney" data-input="mj"
+            data-mj-type="mj_img2img"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M3 19c3-2 6-3 9-3s6 1 9 3' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/><path d='M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>"
+            data-color="mc-mj" data-prompt="true" data-desc="Refina e transforma uma imagem base usando referências.">
+        </div>
+        <div data-cat="mj" data-model="mj-video" data-name="Video" data-provider="Midjourney" data-input="mj"
+            data-mj-type="mj_video"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M3 19c3-2 6-3 9-3s6 1 9 3' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/><path d='M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>"
+            data-color="mc-mj" data-prompt="true" data-desc="Gera videoclipes artísticos curtos no estilo MJ."></div>
+        <div data-cat="mj" data-model="mj-ref" data-name="Style Reference" data-provider="Midjourney" data-input="mj"
+            data-mj-type="mj_style_ref"
+            data-icon="<svg viewBox='0 0 24 24' fill='none' class='brand-logo-svg'><path d='M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M3 19c3-2 6-3 9-3s6 1 9 3' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/><path d='M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>"
+            data-color="mc-mj" data-prompt="true" data-desc="Copia o estilo de uma imagem para outras criações."></div>
+    </template>
+
+    <!-- ====== NANO BANANA V2 — WORKSPACE OVERLAY ====== -->
+    <div id="v2-workspace" class="v2-ws hidden">
+        <div class="v2-ws-bg"></div>
+
+        <!-- ── LEFT COLUMN: Prompt + Upload + Generate ── -->
+        <div class="v2-ws-left">
+            <div class="v2-ws-panel v2-ws-panel-left">
+                <!-- Back button -->
+                <button class="v2-back-btn" id="v2-btn-back">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    Voltar
+                </button>
+
+                <!-- Model badge (populated dynamically by JS) -->
+                <div class="v2-model-badge">
+                    <div class="v2-model-badge-icon">
+                        <!-- Icon injected by JS -->
+                    </div>
+                    <div class="v2-model-badge-info">
+                        <span class="v2-model-badge-name"></span>
+                        <span class="v2-model-badge-provider"></span>
+                    </div>
+                    <span class="v2-model-badge-tag"></span>
+                </div>
+
+                <!-- Prompt -->
+                <div class="v2-form-group">
+                    <label class="v2-label">Prompt</label>
+                    <textarea id="v2-prompt" class="v2-textarea" placeholder="Descreva o que deseja gerar..."
+                        rows="6"></textarea>
+                    <div class="v2-prompt-meta">
+                        <span class="v2-char-counter" id="v2-char-counter">0 / 2.000</span>
+                    </div>
+                </div>
+
+                <!-- Negative Prompt (shown for models that support it) -->
+                <div class="v2-form-group hidden" id="v2-group-negative-prompt">
+                    <label class="v2-label">Prompt Negativo <span class="v2-label-hint">— opcional</span></label>
+                    <textarea id="v2-negative-prompt" class="v2-textarea"
+                        placeholder="O que você NÃO quer no resultado..." rows="2" style="min-height: 60px;"></textarea>
+                </div>
+
+                <!-- Multi-Shot Editor (Kling 3.0) -->
+                <div class="v2-form-group hidden" id="v2-group-multishot">
+                    <div class="v2-param-header">
+                        <label class="v2-label">Shots</label>
+                        <span class="v2-label-hint" id="v2-multishot-total">Total: 0s / 15s</span>
+                    </div>
+                    <div id="v2-multishot-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                    <button type="button" id="v2-multishot-add" class="v2-btn-secondary"
+                        style="margin-top: 10px; width: 100%; padding: 10px; border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 13px;">+
+                        Adicionar Shot</button>
+                </div>
+
+                <!-- Dialogue Editor (ElevenLabs Dialogue V3) -->
+                <div class="v2-form-group hidden" id="v2-group-dialogue">
+                    <div class="v2-param-header">
+                        <label class="v2-label">Diálogo</label>
+                        <span class="v2-label-hint" id="v2-dialogue-total">Múltiplas vozes</span>
+                    </div>
+                    <div id="v2-dialogue-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                    <button type="button" id="v2-dialogue-add" class="v2-btn-secondary"
+                        style="margin-top: 10px; width: 100%; padding: 10px; border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 13px;">+
+                        Adicionar Fala</button>
+                </div>
+
+                <!-- Upload -->
+                <div class="v2-form-group hidden" id="v2-group-upload">
+                    <div class="v2-label-row">
+                        <label class="v2-label" id="v2-upload-label">Imagens de referência <span class="v2-label-hint">—
+                                opcional, até 8</span></label>
+                        <span class="v2-file-counter" id="v2-file-counter">0 / 8</span>
+                    </div>
+                    <div class="v2-upload-zone" id="v2-upload-zone">
+                        <input type="file" id="v2-file-input" accept="image/*" multiple hidden>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>Arraste ou clique para enviar</span>
+                        <span class="v2-upload-hint">PNG, JPG, WEBP</span>
+                    </div>
+                    <div class="v2-files-grid" id="v2-files-grid">
+                        <!-- Thumbnails injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Initial/Final Frame Upload (Veo 3 / Kling) -->
+                <div class="v2-form-group hidden" id="v2-group-upload-frames">
+                    <div class="v2-frames-container" style="display: flex; gap: 12px;">
+
+                        <!-- Initial Frame -->
+                        <div class="v2-frame-dropzone" style="flex: 1;">
+                            <label class="v2-label"
+                                style="display: block; margin-bottom: 8px; color: var(--accent);">Foto Inicial <span
+                                    class="v2-label-hint">— como o vídeo começa</span></label>
+                            <div class="v2-upload-zone" id="v2-upload-zone-initial"
+                                style="padding: 16px 8px; min-height: 120px; border-color: rgba(255, 255, 255, 0.2);">
+                                <input type="file" id="v2-file-input-initial" accept="image/*" hidden>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5" style="margin-bottom: 8px; opacity: 0.7;">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <polyline points="21 15 16 10 5 21" />
+                                </svg>
+                                <span style="font-size: 12px; font-weight: 500;">Primeira Cena</span>
+                                <span class="v2-upload-hint">Upload ou arraste (opcional)</span>
+                            </div>
+                            <div class="v2-files-grid" id="v2-files-grid-initial"></div>
+                        </div>
+
+                        <!-- Final Frame -->
+                        <div class="v2-frame-dropzone" style="flex: 1;">
+                            <label class="v2-label"
+                                style="display: block; margin-bottom: 8px; color: var(--accent);">Foto Final <span
+                                    class="v2-label-hint">— como o vídeo termina</span></label>
+                            <div class="v2-upload-zone" id="v2-upload-zone-final"
+                                style="padding: 16px 8px; min-height: 120px; border-color: rgba(255, 255, 255, 0.2);">
+                                <input type="file" id="v2-file-input-final" accept="image/*" hidden>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5" style="margin-bottom: 8px; opacity: 0.7;">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <polyline points="21 15 16 10 5 21" />
+                                </svg>
+                                <span style="font-size: 12px; font-weight: 500;">Última Cena</span>
+                                <span class="v2-upload-hint">Upload ou arraste (opcional)</span>
+                            </div>
+                            <div class="v2-files-grid" id="v2-files-grid-final"></div>
+                        </div>
+
+                    </div>
+                </div>
+
+
+                <!-- ── Settings & Credits (Moved from right) ── -->
+                <div class="v2-settings-header" style="margin-top: 8px;">
+                    <span class="v2-settings-title">Settings</span>
+                    <button class="v2-settings-reset" id="v2-btn-reset">Reset</button>
+                </div>
+
+                <!-- Dynamic model params (rendered by JS from MODEL_CONFIGS) -->
+                <div id="v2-dynamic-params"></div>
+
+                <!-- Credits estimate -->
+                <div class="v2-credits-box">
+                    <span class="v2-credits-label">Estimated Cost</span>
+                    <span class="v2-credits-amount" id="v2-credits">~18 credits</span>
+                </div>
+
+                <!-- Model info (populated dynamically by JS) -->
+                <div class="v2-model-info">
+                    <span class="v2-model-info-label">Model</span>
+                    <span class="v2-model-info-value"></span>
+                </div>
+
+                <!-- Generate button -->
+                <button class="v2-generate-btn" id="v2-btn-generate" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 2L11 13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                    <span>Generate</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ── CENTER COLUMN: Gallery ── -->
+        <div class="v2-ws-center">
+            <div class="v2-gallery-header">
+                <span class="v2-gallery-title" id="v2-gallery-title">Gerado</span>
+                <span class="v2-gallery-count" id="v2-gallery-count">0 images</span>
+            </div>
+            <div class="v2-gallery" id="v2-gallery">
+                <div class="v2-gallery-empty" id="v2-gallery-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="0.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <path d="M21 15l-5-5L5 21" />
+                    </svg>
+                    <p>Nenhuma geração ainda</p>
+                    <p class="v2-gallery-empty-hint">Escreva um prompt e clique em Generate</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- (Right column removed, settings moved to left) -->
+    </div>
+
+    <!-- ====== VOICE PICKER MODAL ====== -->
+    <div id="modal-voice-picker" class="model-picker-modal hidden">
+        <div class="mpm-backdrop" id="voice-picker-backdrop"></div>
+        <div class="mpm-panel" style="max-width: 600px;">
+            <div class="mpm-header">
+                <div>
+                    <div class="mpm-title">Escolher Voz</div>
+                    <div class="mpm-subtitle">Selecione uma voz para este personagem</div>
+                </div>
+                <button class="mpm-close" id="voice-picker-close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="voice-picker-grid" id="voice-picker-grid"
+                style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 16px; overflow-y: auto; max-height: 400px;">
+                <!-- Voices injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== TOAST ====== -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/kie-ai/static/app.js?v=38"></script>
+
+    <script>
+        // Proxy credits text
+        setInterval(() => {
+            const og = document.getElementById('credits-display');
+            const hud = document.getElementById('hud-credits');
+            if (og && hud) hud.textContent = og.textContent;
+        }, 1000);
+    </script>
+
+</body>
+
+</html>
