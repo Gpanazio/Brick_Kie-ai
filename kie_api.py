@@ -11,7 +11,7 @@ import requests
 
 # ==================== Config ====================
 
-# Market + MJ share the same API key header.
+# Market API key header.
 # Accepts KIE_API_KEY or KIE_API (Railway env var name)
 API_KEY = os.environ.get("KIE_API_KEY") or os.environ.get("KIE_API")
 
@@ -28,12 +28,6 @@ UPLOAD_BASE_URL = os.environ.get("KIE_UPLOAD_BASE_URL", "https://kieai.redpandaa
 CREATE_TASK_PATH = "/api/v1/jobs/createTask"
 RECORD_INFO_PATH = "/api/v1/jobs/recordInfo"
 CREDITS_PATH = "/api/v1/chat/credit"
-
-# --- MJ API (Midjourney)
-# POST https://api.kie.ai/api/v1/mj/generate
-# GET  https://api.kie.ai/api/v1/mj/record-info?taskId=...
-MJ_GENERATE_PATH = "/api/v1/mj/generate"
-MJ_RECORD_INFO_PATH = "/api/v1/mj/record-info"
 
 # --- File Upload API (docs)
 # POST https://kieai.redpandaai.co/api/file-stream-upload
@@ -307,80 +301,6 @@ def veo_task_info(task_id: str) -> Dict[str, Any]:
     return r.json()
 
 
-# ==================== MJ (Midjourney) ====================
-
-MJ_UPSCALE_PATH = "/api/v1/mj/generateUpscale"
-MJ_VARY_PATH = "/api/v1/mj/generateVary"
-MJ_VIDEO_EXTEND_PATH = "/api/v1/mj/generateVideoExtend"
-
-
-def mj_generate(payload: Dict[str, Any]) -> Dict[str, Any]:
-    r = requests.post(_url(BASE_URL, MJ_GENERATE_PATH), headers=_auth_headers_json(), data=json.dumps(payload), timeout=180)
-    r.raise_for_status()
-    return r.json()
-
-
-def mj_upscale(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Upscale a previously generated MJ image. Payload: {taskId, imageIndex, waterMark?, callBackUrl?}"""
-    r = requests.post(_url(BASE_URL, MJ_UPSCALE_PATH), headers=_auth_headers_json(), data=json.dumps(payload), timeout=180)
-    r.raise_for_status()
-    return r.json()
-
-
-def mj_vary(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate variations of a previously generated MJ image. Payload: {taskId, imageIndex, waterMark?, callBackUrl?}"""
-    r = requests.post(_url(BASE_URL, MJ_VARY_PATH), headers=_auth_headers_json(), data=json.dumps(payload), timeout=180)
-    r.raise_for_status()
-    return r.json()
-
-
-def mj_video_extend(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Extend a previously generated MJ video. Payload: {taskId, index, taskType, prompt?, waterMark?, callBackUrl?}"""
-    r = requests.post(_url(BASE_URL, MJ_VIDEO_EXTEND_PATH), headers=_auth_headers_json(), data=json.dumps(payload), timeout=180)
-    r.raise_for_status()
-    return r.json()
-
-
-def mj_task_info(task_id: str) -> Dict[str, Any]:
-    r = requests.get(_url(BASE_URL, MJ_RECORD_INFO_PATH), headers=_auth_headers_json(), params={"taskId": task_id}, timeout=60)
-    r.raise_for_status()
-    return r.json()
-
-
-def _mj_state(resp: Dict[str, Any]) -> Optional[str]:
-    data = resp.get("data") if isinstance(resp, dict) else None
-    if isinstance(data, dict):
-        sf = data.get("successFlag")
-        if sf == 1 or data.get("resultUrls") or data.get("resultInfoJson"):
-            return "success"
-        if sf is not None and sf > 1:
-            return "fail"
-        if data.get("errorCode"):
-            return "fail"
-    return None
-
-
-def mj_wait(task_id: str, interval: float = 5.0, timeout_s: float = 1800.0) -> Dict[str, Any]:
-    t0 = time.time()
-    last: Dict[str, Any] = {}
-
-    while True:
-        last = mj_task_info(task_id)
-        status = _mj_state(last)
-
-        if status and str(status).lower() in ("success", "succeeded", "completed", "done", "fail", "failed", "error"):
-            return last
-
-        data = last.get("data") if isinstance(last, dict) else None
-        if isinstance(data, dict) and data.get("resultUrls"):
-            return last
-
-        if time.time() - t0 > timeout_s:
-            raise TimeoutError(f"Timeout (mj) task {task_id}. Último status: {status} | resp={last}")
-
-        time.sleep(interval)
-
-
 # ==================== GPT 4o Image ====================
 
 GPT4O_IMAGE_GENERATE = "/api/v1/gpt4o-image/generate"
@@ -522,7 +442,7 @@ def topaz_video_upscale_from_local(video_path: str, upscale_factor: str = "2", u
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    p = argparse.ArgumentParser(prog="kie_api", description="CLI para KIE.ai (Market + MJ + Upload)")
+    p = argparse.ArgumentParser(prog="kie_api", description="CLI para KIE.ai (Market + Upload)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("credits", help="Mostra créditos restantes (Market)")
@@ -540,18 +460,6 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_m_wait.add_argument("task_id")
     p_m_wait.add_argument("--interval", type=float, default=5.0)
     p_m_wait.add_argument("--timeout", type=float, default=1800.0)
-
-    # -------- MJ
-    p_mj_gen = sub.add_parser("mj-generate", help="(MJ) Cria uma task Midjourney (payload JSON)")
-    p_mj_gen.add_argument("--json", required=True)
-
-    p_mj_task = sub.add_parser("mj-task", help="(MJ) Busca info de uma task")
-    p_mj_task.add_argument("task_id")
-
-    p_mj_wait = sub.add_parser("mj-wait", help="(MJ) Espera uma task finalizar")
-    p_mj_wait.add_argument("task_id")
-    p_mj_wait.add_argument("--interval", type=float, default=5.0)
-    p_mj_wait.add_argument("--timeout", type=float, default=1800.0)
 
     # -------- Upload
     p_up_stream = sub.add_parser("upload-stream", help="(Upload) Sobe arquivo local e retorna JSON + URL")
@@ -595,21 +503,6 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         if args.cmd == "wait":
             resp = market_wait(args.task_id, interval=args.interval, timeout_s=args.timeout)
-            print(json.dumps(resp, indent=2, ensure_ascii=False))
-            return 0
-
-        if args.cmd == "mj-generate":
-            payload = json.loads(args.json)
-            resp = mj_generate(payload)
-            print(json.dumps(resp, indent=2, ensure_ascii=False))
-            return 0
-
-        if args.cmd == "mj-task":
-            print(json.dumps(mj_task_info(args.task_id), indent=2, ensure_ascii=False))
-            return 0
-
-        if args.cmd == "mj-wait":
-            resp = mj_wait(args.task_id, interval=args.interval, timeout_s=args.timeout)
             print(json.dumps(resp, indent=2, ensure_ascii=False))
             return 0
 

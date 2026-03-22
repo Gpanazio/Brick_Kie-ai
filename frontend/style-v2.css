@@ -1034,14 +1034,7 @@ body {
     background: radial-gradient(circle at 100% 0%, rgba(2, 106, 240, 0.1), var(--surface-2) 70%);
 }
 
-.mpm-card[data-color="mc-mj"] {
-    background: radial-gradient(circle at 100% 0%, rgba(200, 200, 200, 0.05), var(--surface-2) 60%);
-}
 
-.mpm-card.active[data-color="mc-mj"] {
-    border-color: #FFFFFF;
-    background: radial-gradient(circle at 100% 0%, rgba(200, 200, 200, 0.1), var(--surface-2) 70%);
-}
 
 /* V1 card sub-elements removed (.mpm-card-top, .mpm-card-icon, .mpm-card-cost,
    .mpm-card-name, .mpm-card-provider, .mpm-card-desc, .mpm-card-footer,
@@ -1158,11 +1151,6 @@ body {
 .mpm-card-v2[data-color="mc-white"] {
     --v2-c1: 208, 208, 208;
     --v2-c2: 158, 158, 158;
-}
-
-.mpm-card-v2[data-color="mc-mj"] {
-    --v2-c1: 88, 101, 242;
-    --v2-c2: 45, 136, 255;
 }
 
 .mpm-card.mpm-card-v2 {
@@ -3283,54 +3271,6 @@ body {
     /* Spaced neatly within bottom section */
 }
 
-/* ── MJ Post-Action Buttons ── */
-.mj-actions-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 100%;
-    margin-top: 4px;
-}
-
-.mj-action-row {
-    display: flex;
-    gap: 4px;
-}
-
-.mj-action-row .mj-action {
-    flex: 1;
-    min-width: 0;
-    justify-content: center;
-    padding: 6px 4px;
-    font-size: 10px;
-    font-family: var(--mono);
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.mj-action-row .mj-action:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: rgba(220, 38, 38, 0.08);
-}
-
-.mj-action-row .mj-action.loading {
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-.mj-action-row .mj-action:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
 /* ── Empty state ── */
 .tasks-empty-hint {
     font-size: 10px !important;
@@ -4311,51 +4251,7 @@ body {
     gap: 6px;
 }
 
-/* ── MJ Speed & Version buttons ── */
-.v2-mj-speed-btns,
-.v2-mj-version-btns {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-}
 
-/* ── MJ action buttons in V2 gallery ── */
-.v2-gallery-item .v2-mj-actions {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 8px;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.v2-gallery-item:hover .v2-mj-actions {
-    opacity: 1;
-}
-
-.v2-mj-action-btn {
-    padding: 4px 8px;
-    font-family: var(--mono);
-    font-size: 9px;
-    font-weight: 700;
-    color: #93c5fd;
-    background: rgba(15, 15, 15, 0.8);
-    border: 1px solid rgba(96, 165, 250, 0.3);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.v2-mj-action-btn:hover {
-    background: rgba(59, 130, 246, 0.3);
-    border-color: rgba(96, 165, 250, 0.6);
-    color: #ffffff;
-}
 
 /* ── Video gallery items ── */
 .v2-gallery-item.video-item {
@@ -5097,9 +4993,7 @@ body {
 .v2-res-btn,
 .v2-fmt-btn,
 .v2-dur-btn,
-.v2-var-btn,
-.v2-mjspd-btn,
-.v2-mjver-btn {
+.v2-var-btn {
     padding: 8px 4px;
     font-family: var(--mono);
     font-size: 11px;
@@ -5117,9 +5011,7 @@ body {
 .v2-res-btn:hover,
 .v2-fmt-btn:hover,
 .v2-dur-btn:hover,
-.v2-var-btn:hover,
-.v2-mjspd-btn:hover,
-.v2-mjver-btn:hover {
+.v2-var-btn:hover {
     border-color: rgba(220, 38, 38, 0.3);
     color: #e2e8f0;
 }
@@ -5128,9 +5020,7 @@ body {
 .v2-res-btn.active,
 .v2-fmt-btn.active,
 .v2-dur-btn.active,
-.v2-var-btn.active,
-.v2-mjspd-btn.active,
-.v2-mjver-btn.active {
+.v2-var-btn.active {
     background: linear-gradient(135deg, rgba(220, 38, 38, 0.2), rgba(220, 38, 38, 0.2));
     border-color: rgba(220, 38, 38, 0.5);
     color: #DC2626;
@@ -5644,9 +5534,8 @@ body {
 
 /* .lightbox-delete:hover is handled by .btn-ghost.btn-sm:hover above */
 
-/* Veo / MJ special model actions — subtle highlight */
-.lightbox-overlay.video-mode .veo-action,
-.lightbox-overlay.video-mode .mj-action {
+/* Veo special model actions — subtle highlight */
+.lightbox-overlay.video-mode .veo-action {
     background: var(--surface-2);
     border-color: var(--border);
 }

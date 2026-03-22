@@ -77,12 +77,6 @@ const MODEL_COST_ESTIMATES = {
     'veo3/extend-quality': 250,           // 250 cr/video
     'veo3/get-1080p': 5,                  // 5 cr/video
     'veo3/get-4k': 120,                   // 120 cr/video
-    // ── MJ ──
-    'mj': 8,                              // relaxed=3, fast=8, turbo=16
-    'mj-txt': 8,                          // relaxed=3, fast=8, turbo=16
-    'mj-img': 8,                          // relaxed=3, fast=8, turbo=16
-    'mj-video': 16,                       // video = turbo only
-    'mj-ref': 8,                          // relaxed=3, fast=8, turbo=16
 };
 
 // ==================== BRAND SVG LOGOS ====================
@@ -103,11 +97,7 @@ const BRAND_LOGOS = {
     'suno': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10S22 17.52 22 12c0-.34-.02-.67-.06-1h-2.02c.05.33.08.66.08 1 0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8c1.69 0 3.24.53 4.54 1.44l1.52-1.25A9.95 9.95 0 0012 2zm7 3l-1.5 3L13 9l4.5 1.5L19 15l1.5-4.5L25 9l-4.5-1.5z" fill="currentColor"/></svg>`,
     'recraft': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M6 6h12v12H6z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
     'topaz': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2l-6 10h12zM5 14l7 8 7-8z" fill="currentColor"/></svg>`,
-    'midjourney': `<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 3C10 7 6 11 4 13c2 0 5 .5 7 2V3zm0 0c2 4 6 8 8 10-2 0-5 .5-7 2V3z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 19c3-2 6-3 9-3s6 1 9 3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M5 21c2.5-1 5-1.5 7-1.5s4.5.5 7 1.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`
 };
-
-// Midjourney cost per speed tier
-const MJ_COSTS = { relaxed: 3, fast: 8, turbo: 16 };
 
 // Default V2 settings (used for initialization and reset)
 const DEFAULT_V2_SETTINGS = {
@@ -565,34 +555,6 @@ const MODEL_CONFIGS = {
         ]
     },
 
-    // ──── MIDJOURNEY ────
-    'mj-txt': {
-        params: [
-            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
-            { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
-            { key: 'version', label: 'Version', type: 'radio', options: ['7', '6.1', '6'], default: '7' },
-        ]
-    },
-    'mj-img': {
-        params: [
-            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
-            { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
-            { key: 'version', label: 'Version', type: 'radio', options: ['7', '6.1', '6'], default: '7' },
-        ]
-    },
-    'mj-video': {
-        params: [
-            { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
-        ]
-    },
-    'mj-ref': {
-        params: [
-            { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '2:3', '3:2', '3:4', '4:3', '16:9', '9:16', '21:9'], default: '1:1' },
-            { key: 'speed', label: 'Speed', type: 'radio', options: ['relaxed', 'fast', 'turbo'], default: 'relaxed' },
-            { key: 'version', label: 'Version', type: 'radio', options: ['7', '6.1', '6'], default: '7' },
-        ]
-    },
-
     // ──── VEO 3.1 (Google) ────
     'veo3/text-to-video': {
         params: [
@@ -771,7 +733,6 @@ function _migrateHistoryEntry(h) {
             if (item && item.dataset.cat) { h.cat = item.dataset.cat; migrated = true; }
         } catch (e) { console.warn('[history] Failed to migrate entry model:', h.model, e); }
     }
-    if (!h.cat && h.model.startsWith('mj-')) { h.cat = 'mj'; migrated = true; }
     if (!h.cat && h.model) {
         const m = h.model;
         if (m.includes('suno')) { h.cat = 'music'; migrated = true; }
@@ -841,7 +802,7 @@ function _extractResultUrls(data) {
         if (data._parsedResult.resultUrl) urls.push(data._parsedResult.resultUrl);
     }
 
-    // Midjourney: resultInfoJson is an object with resultUrls array of {resultUrl: "..."}
+    // resultInfoJson: object with resultUrls array of {resultUrl: "..."}
     if (data.resultInfoJson && typeof data.resultInfoJson === 'object') {
         const rij = data.resultInfoJson;
         if (Array.isArray(rij.resultUrls)) {
@@ -975,7 +936,7 @@ const els = {
 };
 
 // Category labels
-const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale', mj: 'Midjourney' };
+const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale' };
 
 // ==================== Init ====================
 
@@ -1298,7 +1259,7 @@ function openModelPickerModal() {
         card.dataset.model = data.model;
         if (data.color) card.dataset.color = data.color;
 
-        const inputTypeTag = data.input === 'file' ? 'Image/File' : data.input === 'mj' ? 'Midjourney' : data.input === 'mix' ? 'Mix' : 'Text';
+        const inputTypeTag = data.input === 'file' ? 'Image/File' : data.input === 'mix' ? 'Mix' : 'Text';
 
         // Build feature tags from input type
         const features = [];
@@ -1355,7 +1316,6 @@ function selectModelFromData(data) {
         input: data.input,
         field: data.field || 'image',
         shortcut: data.shortcut || null,
-        mjType: data.mjType || null,
         hasPrompt: data.prompt === 'true',
     };
     // Persist selected model so F5 restores to same model
@@ -1504,12 +1464,11 @@ function startPolling(task) {
         }
         try {
             const safeId = encodeURIComponent(task.id);
-            const ep = task.mode === 'midjourney' ? `/api/mj/task/${safeId}` :
-                task.mode === 'suno' ? `/api/suno/task/${safeId}` :
-                    task.mode === 'veo' ? `/api/veo/task/${safeId}` :
-                        task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${safeId}` :
-                            task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${safeId}` :
-                                `/api/market/task/${safeId}`;
+            const ep = task.mode === 'suno' ? `/api/suno/task/${safeId}` :
+                task.mode === 'veo' ? `/api/veo/task/${safeId}` :
+                    task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${safeId}` :
+                        task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${safeId}` :
+                            `/api/market/task/${safeId}`;
             const controller = new AbortController();
             const fetchTimer = setTimeout(() => controller.abort(), 30000);
             let resp;
@@ -1538,8 +1497,8 @@ function startPolling(task) {
             if (!data.failCode && data.errorCode) data.failCode = data.errorCode;
 
             let state;
-            if (task.mode === 'midjourney' || task.mode === 'veo') {
-                // Veo 3 and MJ both use successFlag: 0=processing, 1=success, 2/3=fail
+            if (task.mode === 'veo') {
+                // Veo 3 uses successFlag: 0=processing, 1=success, 2/3=fail
                 const sf = data.successFlag;
                 const respUrls = data.response?.resultUrls || data.resultUrls;
                 if (sf === 1 || respUrls?.length || data.resultInfoJson) state = 'success';
@@ -1721,7 +1680,7 @@ function renderTaskResult(task) {
     const urls = _extractResultUrls(data);
     const unique = [...new Set(urls.filter(u => typeof u === 'string' && u.startsWith('http')))];
     if (unique.length > 0) {
-        const isVidModel = task.cat === 'video' || task.cat === 'veo3' || task.model === 'mj-video';
+        const isVidModel = task.cat === 'video' || task.cat === 'veo3';
         const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(unique[0]) || isVidModel;
         const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(unique[0]) || task.model?.startsWith('suno/');
         html += '<div class="task-result-media">';
@@ -1808,33 +1767,6 @@ function renderTaskResult(task) {
             html += `<button class="btn-ghost btn-sm veo-action" data-action="veo3/extend-quality" data-task-id="${esc(task.id)}">Extend (Pro)</button>`;
         }
 
-        // MJ post-generation actions (Upscale, Vary, Video Extend)
-        if (task.mode === 'midjourney' && task.state === 'success') {
-            const isMjVideo = task.model === 'mj-video';
-            html += '<div class="mj-actions-grid">';
-            if (!isMjVideo) {
-                // Upscale U1–U4 (imageIndex 0-3 per docs)
-                html += '<div class="mj-action-row">';
-                for (let i = 0; i < 4; i++) {
-                    html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="upscale" data-mj-index="${i}" data-task-id="${esc(task.id)}" title="Upscale imagem ${i + 1}">U${i + 1}</button>`;
-                }
-                html += '</div>';
-                // Vary V1–V4 (imageIndex 1-4 per docs)
-                html += '<div class="mj-action-row">';
-                for (let i = 1; i <= 4; i++) {
-                    html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="vary" data-mj-index="${i}" data-task-id="${esc(task.id)}" title="Variação da imagem ${i}">V${i}</button>`;
-                }
-                html += '</div>';
-            }
-            if (isMjVideo) {
-                // Video extend options
-                html += '<div class="mj-action-row">';
-                html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_auto" data-mj-index="0" data-task-id="${esc(task.id)}">Extend (Auto)</button>`;
-                html += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend="mj_video_extend_manual" data-mj-index="0" data-task-id="${esc(task.id)}">Extend (Manual)</button>`;
-                html += '</div>';
-            }
-            html += '</div>';
-        }
 
         html += '</div>';
     }
@@ -1997,9 +1929,8 @@ function renderHistoryGallery() {
         card.dataset.historyId = entry.id;
 
         const url = entry.urls[0] || '';
-        const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url) || entry.model === 'mj-video' || entry.model.startsWith('veo3/');
+        const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url) || entry.model.startsWith('veo3/');
         const isSuno = entry.model.startsWith('suno/');
-        const isMj = entry.model.startsWith('mj-');
 
         let thumbHtml;
         if (isSuno) {
@@ -2014,13 +1945,6 @@ function renderHistoryGallery() {
                                  </svg>
                              </div>`;
             }
-        } else if (isMj && entry.urls.length > 1 && !isVid) {
-            // Multi-image mini-grid (MJ 4 images)
-            thumbHtml = '<div class="history-thumb-grid">';
-            entry.urls.slice(0, 4).forEach(u => {
-                thumbHtml += `<img src="${esc(u)}" alt="" loading="lazy" class="history-thumb-grid-img">`;
-            });
-            thumbHtml += '</div>';
         } else if (isVid) {
             thumbHtml = `<video src="${esc(url)}#t=0.001" muted preload="metadata" class="history-thumb-media" onerror="window.handleExpiredMedia(this)"></video>
                          <div class="history-play-icon">
@@ -2117,7 +2041,7 @@ function openHistoryLightbox(entry) {
     const nextEntry = currentIdx >= 0 && currentIdx < navEntries.length - 1 ? navEntries[currentIdx + 1] : null;
 
     const url = entry.urls[0] || '';
-    const isVidModel = entry.cat === 'video' || entry.cat === 'veo3' || entry.model === 'mj-video';
+    const isVidModel = entry.cat === 'video' || entry.cat === 'veo3';
     const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url) || isVidModel;
     const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(url) || entry.model?.startsWith('suno/');
 
@@ -2246,19 +2170,6 @@ function openHistoryLightbox(entry) {
                     <button class="btn-ghost btn-sm veo-action" data-action="veo3/extend-quality" data-task-id="${esc(entry.id)}">Extend (Pro)</button>
                 ` : ''}
 
-                ${entry.model.startsWith('mj-') ? (() => {
-            const isMjVideo = entry.model === 'mj-video';
-            let btns = '';
-            if (!isMjVideo) {
-                for (let i = 0; i < 4; i++) btns += `<button class="btn-ghost btn-sm mj-action" data-mj-op="upscale" data-mj-index="${i}" data-task-id="${esc(entry.id)}">U${i + 1}</button>`;
-                for (let i = 1; i <= 4; i++) btns += `<button class="btn-ghost btn-sm mj-action" data-mj-op="vary" data-mj-index="${i}" data-task-id="${esc(entry.id)}">V${i}</button>`;
-            }
-            if (isMjVideo) {
-                btns += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_auto" data-mj-index="0" data-task-id="${esc(entry.id)}">Extend (Auto)</button>`;
-                btns += `<button class="btn-ghost btn-sm mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_manual" data-mj-index="0" data-task-id="${esc(entry.id)}">Extend (Manual)</button>`;
-            }
-            return btns;
-        })() : ''}
 
                 <button class="btn-ghost btn-sm lightbox-reuse" data-id="${esc(entry.id)}" title="Reutilizar Prompt e Configurações">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2519,73 +2430,6 @@ document.body.addEventListener('click', async (e) => {
         if (targetLightbox) closeLightbox(targetLightbox);
     } catch (err) {
         toast(`❌ Erro: ${err.message}`, 'error');
-    } finally {
-        btn.textContent = prevText;
-        btn.disabled = false;
-        btn.classList.remove('loading');
-    }
-});
-
-// MJ post-actions (Upscale, Vary, Video Extend)
-document.body.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.mj-action');
-    if (!btn) return;
-
-    const op = btn.dataset.mjOp;            // 'upscale' | 'vary' | 'video-extend'
-    const index = parseInt(btn.dataset.mjIndex, 10);
-    const originalTaskId = btn.dataset.taskId;
-    if (!originalTaskId || !op) return;
-
-    // Disable button visually
-    const prevText = btn.textContent;
-    btn.textContent = '...';
-    btn.disabled = true;
-    btn.classList.add('loading');
-
-    try {
-        let payload, endpoint, opLabel;
-
-        if (op === 'upscale') {
-            payload = { taskId: originalTaskId, imageIndex: index };
-            endpoint = '/api/mj/upscale';
-            opLabel = `Upscale U${index + 1}`;
-        } else if (op === 'vary') {
-            payload = { taskId: originalTaskId, imageIndex: index };
-            endpoint = '/api/mj/vary';
-            opLabel = `Variação V${index}`;
-        } else if (op === 'video-extend') {
-            const extendType = btn.dataset.mjExtendType || 'mj_video_extend_auto';
-            payload = { taskId: originalTaskId, index: index, taskType: extendType };
-            // If manual, prompt from the prompt field (if visible)
-            if (extendType === 'mj_video_extend_manual') {
-                const manualPrompt = prompt('Digite o prompt para extensão manual do vídeo:', '');
-                if (manualPrompt === null) { btn.textContent = prevText; btn.disabled = false; btn.classList.remove('loading'); return; }
-                payload.prompt = manualPrompt;
-            }
-            endpoint = '/api/mj/video-extend';
-            opLabel = extendType === 'mj_video_extend_auto' ? 'Extend (Auto)' : 'Extend (Manual)';
-        } else {
-            return;
-        }
-
-        const fd = new FormData();
-        fd.append('payload_json', JSON.stringify(payload));
-
-        const resp = await fetch(`${API}${endpoint}`, { method: 'POST', body: fd });
-        const json = await resp.json();
-        if (!resp.ok) throw new Error(json.detail || 'Falha ao executar ação MJ');
-
-        const taskId = json?.data?.taskId;
-        if (taskId) {
-            addTask(taskId, `mj-${op}`, 'midjourney', null, { parentTaskId: originalTaskId, op, index }, 'mj');
-            toast(`✅ ${opLabel} enviado!`, 'success');
-
-            // Close lightbox if clicking from history
-            const targetLightbox = e.target.closest('#history-lightbox');
-            if (targetLightbox) closeLightbox(targetLightbox);
-        }
-    } catch (err) {
-        toast(`❌ Erro MJ: ${err.message}`, 'error');
     } finally {
         btn.textContent = prevText;
         btn.disabled = false;
@@ -2896,8 +2740,6 @@ const v2Registry = {};
     // ── Update workspace UI to reflect selected model ──
     function v2UpdateModelUI(data) {
         const isVideo = VIDEO_CATS.includes(currentCat);
-        const isMj = currentCat === 'mj';
-        const isMjNeedsFile = isMj && data.mjType && data.mjType !== 'mj_txt2img';
 
         // ── Model badge ──
         const badgeIcon = ws.querySelector('.v2-model-badge-icon');
@@ -2907,9 +2749,8 @@ const v2Registry = {};
         if (badgeIcon) badgeIcon.innerHTML = data.icon || '';
         if (badgeName) badgeName.textContent = data.name || '';
         if (badgeProvider) badgeProvider.textContent = data.provider || '';
-        const inputLabel = isMj ? 'MIDJOURNEY'
-            : data.input === 'file' ? (isVideo ? 'VÍDEO' : 'IMAGEM')
-                : data.input === 'mix' ? 'MIX' : 'TEXTO';
+        const inputLabel = data.input === 'file' ? (isVideo ? 'VÍDEO' : 'IMAGEM')
+            : data.input === 'mix' ? 'MIX' : 'TEXTO';
         if (badgeTag) badgeTag.textContent = inputLabel;
 
         // ── Model info ──
@@ -2930,7 +2771,7 @@ const v2Registry = {};
         v2RenderModelParams(data.model);
 
         // ── Cost (after params are rendered so MJ cost can read speed) ──
-        const cost = isMj ? _getMjCostFromV2() : (typeof getModelCost === 'function' ? getModelCost(data.model) : null);
+        const cost = (typeof getModelCost === 'function' ? getModelCost(data.model) : null);
         if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
 
         // ── Generate button label ──
@@ -2941,18 +2782,17 @@ const v2Registry = {};
             if (isVideo) btnSpan.textContent = 'Gerar Vídeo';
             else if (isSunoMain) btnSpan.textContent = 'Gerar Música';
             else if (isAudioCat) btnSpan.textContent = 'Gerar';
-            else if (isMj) btnSpan.textContent = 'Gerar';
             else btnSpan.textContent = 'Gerar Imagem';
         }
 
         // ── Prompt show/hide ──
         const promptGroup = v2.prompt?.closest('.v2-form-group');
-        const needsPrompt = isMj || data.input === 'text' || data.input === 'mix' || data.prompt === 'true';
+        const needsPrompt = data.input === 'text' || data.input === 'mix' || data.prompt === 'true';
         if (promptGroup) promptGroup.style.display = needsPrompt ? '' : 'none';
 
         // ── Upload zone show/hide + label + max files ──
         const isAudio = currentCat === 'audio' || currentCat === 'music';
-        const needsFile = !isAudio && (isMjNeedsFile || data.input === 'file' || data.input === 'mix');
+        const needsFile = !isAudio && (data.input === 'file' || data.input === 'mix');
         const uploadGroup = document.getElementById('v2-group-upload');
         const uploadFramesGroup = v2.uploadFramesGroup;
 
@@ -3001,9 +2841,7 @@ const v2Registry = {};
             'kling-3.0/video': 2,              // first + last frame
         };
         const modelKey = data.model || '';
-        if (isMj || isMjNeedsFile) {
-            v2MaxFiles = 1;
-        } else if (isVideo || isAudio) {
+        if (isVideo || isAudio) {
             v2MaxFiles = 1;
         } else if (modelKey in MODEL_MAX_FILES) {
             v2MaxFiles = MODEL_MAX_FILES[modelKey];
@@ -3035,12 +2873,6 @@ const v2Registry = {};
         const cfg = MODEL_CONFIGS[modelKey];
         const hasNegPrompt = cfg && cfg.params.some(p => p.key === 'negative_prompt');
         if (negPromptGroup) negPromptGroup.classList.toggle('hidden', !hasNegPrompt);
-    }
-
-    function _getMjCostFromV2() {
-        const params = v2CollectModelParams();
-        const speed = params.speed || 'relaxed';
-        return MJ_COSTS[speed] || MJ_COSTS.fast;
     }
 
     // ── Dynamic V2 Model Params ──
@@ -3561,12 +3393,9 @@ const v2Registry = {};
     if (vpBackdrop) vpBackdrop.addEventListener('click', () => document.getElementById('modal-voice-picker').classList.add('hidden'));
 
     function v2UpdateCost() {
-        const isMj = currentCat === 'mj';
         const isVeo = currentCat === 'veo3';
         const isKling = v2Model?.model === 'kling-3.0/video';
-        if (isMj) {
-            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${_getMjCostFromV2()} créditos`;
-        } else if (isVeo) {
+        if (isVeo) {
             const params = v2CollectModelParams();
             const quality = (params.quality || 'Fast').toLowerCase();
             const base = (v2Model?.model || 'veo3/text-to-video').replace('-video', `-video-${quality}`);
@@ -3881,18 +3710,8 @@ const v2Registry = {};
         const hasPrompt = v2.prompt.value.trim().length > 0;
         const hasFiles = v2Files.length > 0;
         const hasFrames = v2FrameInitial !== null || v2FrameFinal !== null;
-        const isMj = currentCat === 'mj';
 
-        if (isMj) {
-            const mjType = v2Model?.mjType || 'mj_txt2img';
-            const needsFile = mjType !== 'mj_txt2img';
-            // MJ txt2img needs prompt; img2img/video/style_ref need file (prompt optional)
-            if (needsFile) {
-                v2.btnGenerate.disabled = !hasFiles;
-            } else {
-                v2.btnGenerate.disabled = !hasPrompt;
-            }
-        } else if (v2Model?.model === 'elevenlabs/text-to-dialogue-v3') {
+        if (v2Model?.model === 'elevenlabs/text-to-dialogue-v3') {
             const diagList = document.getElementById('v2-dialogue-list');
             let hasAnyDialogue = false;
             if (diagList) {
@@ -3936,40 +3755,6 @@ const v2Registry = {};
     }
 
     // ── Submission helpers ──
-    async function _handleMjSubmission(prompt, btnSpan, modelParams) {
-        const mjType = v2Model?.mjType || v2Model?.dataset?.mjType || 'mj_txt2img';
-        const ar = modelParams.aspectRatio || '1:1';
-        const speed = modelParams.speed || 'relaxed';
-        const version = modelParams.version || '7';
-
-        let payload = { taskType: mjType, speed, prompt, aspectRatio: ar, version };
-
-        const isImageReq = mjType !== 'mj_txt2img';
-        if (isImageReq && v2Files.length > 0) {
-            btnSpan.textContent = 'Uploading...';
-            const imageUrl = encodeURI(await v2UploadSingleFile(v2Files[0], 0, 1));
-            if (mjType === 'mj_img2img' || mjType === 'mj_video') {
-                payload.prompt = `${imageUrl} ${prompt}`.trim();
-            } else if (mjType === 'mj_style_ref') {
-                payload.prompt = `${prompt} --sref ${imageUrl}`.trim();
-            }
-        }
-
-        btnSpan.textContent = 'Enviando...';
-        const fd = new FormData();
-        fd.append('payload_json', JSON.stringify(payload));
-        const resp = await fetch(`${API}/api/mj/generate`, { method: 'POST', body: fd });
-        const json = await resp.json();
-        if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
-        if (json.code && json.code !== 200) throw new Error(json.msg || `Erro da API (code ${json.code})`);
-        const taskId = json?.data?.taskId;
-        if (!taskId) throw new Error(json.msg || 'Nenhum taskId retornado');
-
-        addTask(taskId, v2Model?.model || 'mj-txt', 'midjourney', null, { ar, speed, version });
-        v2Tasks.push(taskId);
-        toast('✅ Midjourney task created!', 'success');
-    }
-
     async function _handleVeo3Submission(prompt, btnSpan) {
         const extra = {};
         if (prompt) extra.prompt = prompt;
@@ -4153,13 +3938,10 @@ const v2Registry = {};
 
         try {
             const isVideo = VIDEO_CATS.includes(currentCat);
-            const isMj = currentCat === 'mj';
 
             const modelParams = v2CollectModelParams();
 
-            if (isMj) {
-                await _handleMjSubmission(prompt, btnSpan, modelParams);
-            } else if (currentCat === 'veo3') {
+            if (currentCat === 'veo3') {
                 await _handleVeo3Submission(prompt, btnSpan);
             } else {
                 await _handleStandardSubmission(prompt, btnSpan, modelParams);
@@ -4186,10 +3968,9 @@ const v2Registry = {};
     });
 
     // ── V2 Gallery Management ──
-    function v2MediaHtml(url, mjTaskId, coverUrl, isSuno) {
+    function v2MediaHtml(url, coverUrl, isSuno) {
         const safeUrl = esc(url || '');
         const safeCoverUrl = esc(coverUrl || '');
-        const safeMjId = esc(mjTaskId || '');
         let html = '';
         if (isVideoUrl(url)) {
             html += `<video src="${safeUrl}" autoplay loop muted playsinline onerror="window.handleExpiredMedia(this)"></video>
@@ -4213,24 +3994,6 @@ const v2Registry = {};
             html += `<img src="${safeUrl}" alt="Gerado" onerror="window.handleExpiredMedia(this)">
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
         }
-        // MJ action buttons
-        if (mjTaskId) {
-            const task = tasks.find(t => t.id === mjTaskId);
-            const isMjVideo = task?.model === 'mj-video';
-            html += '<div class="v2-mj-actions">';
-            if (!isMjVideo) {
-                for (let i = 0; i < 4; i++) {
-                    html += `<button class="v2-mj-action-btn mj-action" data-mj-op="upscale" data-mj-index="${i}" data-task-id="${safeMjId}">U${i + 1}</button>`;
-                }
-                for (let i = 1; i <= 4; i++) {
-                    html += `<button class="v2-mj-action-btn mj-action" data-mj-op="vary" data-mj-index="${i}" data-task-id="${safeMjId}">V${i}</button>`;
-                }
-            } else {
-                html += `<button class="v2-mj-action-btn mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_auto" data-mj-index="0" data-task-id="${safeMjId}">Extend</button>`;
-                html += `<button class="v2-mj-action-btn mj-action" data-mj-op="video-extend" data-mj-extend-type="mj_video_extend_manual" data-mj-index="0" data-task-id="${safeMjId}">Extend (Manual)</button>`;
-            }
-            html += '</div>';
-        }
         return html;
     }
 
@@ -4253,7 +4016,7 @@ const v2Registry = {};
         item.appendChild(dismissBtn);
     }
 
-    function addV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl, taskModel, failMsg) {
+    function addV2GalleryItem(elementId, state, mediaUrl, baseTaskId, coverUrl, taskModel, failMsg) {
         v2.galleryEmpty.style.display = 'none';
 
         const item = document.createElement('div');
@@ -4265,7 +4028,7 @@ const v2Registry = {};
         item.dataset.baseTaskId = baseTaskId || elementId;
 
         if (state === 'success' && mediaUrl) {
-            item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl, isSunoItem);
+            item.innerHTML = v2MediaHtml(mediaUrl, coverUrl, isSunoItem);
         } else if (state === 'failed' || state === 'fail') {
             _renderFailedItemUI(item, failMsg);
         }
@@ -4303,7 +4066,7 @@ const v2Registry = {};
         item.addEventListener('click', (e) => {
             // Do not trigger if clicking an action button/link or interacting with video controls
             // Note: do NOT block on .v2-item-actions itself - only on interactive children inside it
-            if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.v2-mj-actions') || (e.target.tagName.toLowerCase() === 'video' && e.offsetX > e.target.clientWidth - 40)) return;
+            if (e.target.closest('button') || e.target.closest('a') || (e.target.tagName.toLowerCase() === 'video' && e.offsetX > e.target.clientWidth - 40)) return;
             // Search in-memory tasks first, fall back to history cache, then server cache
             let t = tasks.find(x => x.id === item.dataset.baseTaskId);
             let fromHistory = false;
@@ -4355,7 +4118,7 @@ const v2Registry = {};
         updateV2GalleryCount();
     }
 
-    function updateV2GalleryItem(elementId, state, mediaUrl, mjTaskId, baseTaskId, coverUrl, taskModel, failMsg) {
+    function updateV2GalleryItem(elementId, state, mediaUrl, baseTaskId, coverUrl, taskModel, failMsg) {
         const item = document.getElementById(`v2-item-${CSS.escape(elementId)}`);
         if (!item) return;
 
@@ -4366,7 +4129,7 @@ const v2Registry = {};
         if (!item.dataset.baseTaskId) item.dataset.baseTaskId = baseTaskId || elementId;
 
         if (state === 'success' && mediaUrl) {
-            item.innerHTML = v2MediaHtml(mediaUrl, mjTaskId, coverUrl, isSunoItem);
+            item.innerHTML = v2MediaHtml(mediaUrl, coverUrl, isSunoItem);
         } else if (state === 'fail' || state === 'failed') {
             _renderFailedItemUI(item, failMsg);
         }
@@ -4392,7 +4155,6 @@ const v2Registry = {};
             _v2CompletedTasks.add(task.id);
             const data = task.data?.data || {};
             const urls = _extractResultUrls(data);
-            const isMjTask = task.mode === 'midjourney';
             if (urls.length > 0) {
                 // Remove the processing placeholder
                 const existing = document.getElementById(`v2-item-${CSS.escape(task.id)}`);
@@ -4400,7 +4162,7 @@ const v2Registry = {};
                 const coverU = data.response?.sunoData?.[0]?.image_large_url || data.response?.sunoData?.[0]?.imageLargeUrl || data.response?.sunoData?.[0]?.imageUrl || data.response?.sunoData?.[0]?.image_url || null;
                 const maxUrls = task.model.startsWith('suno/') ? 1 : urls.length;
                 urls.slice(0, maxUrls).forEach((url, i) => {
-                    addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
+                    addV2GalleryItem(`${task.id}-${i}`, 'success', url, task.id, coverU, task.model);
                 });
             } else {
                 updateV2GalleryItem(task.id, 'success');
@@ -4408,7 +4170,7 @@ const v2Registry = {};
         } else if (task.state === 'fail') {
             _v2CompletedTasks.add(task.id);
             const failMsg = task.data?.data?.failMsg || task.data?.data?.failReason || task.data?.data?.errorMessage || '';
-            updateV2GalleryItem(task.id, 'failed', null, null, null, null, null, failMsg);
+            updateV2GalleryItem(task.id, 'failed', null, null, null, null, failMsg);
         }
     };
 
@@ -4468,11 +4230,10 @@ const v2Registry = {};
                 // Cache this server item so the click handler can find it
                 _serverHistoryCache.set(task.id, task);
                 if (task.state === 'success' && Array.isArray(task.urls) && task.urls.length > 0) {
-                    const isMjTask = task.cat === 'mj';
                     const coverU = task.coverUrl || null;
                     const maxUrls = (task.model || '').startsWith('suno/') ? 1 : task.urls.length;
                     task.urls.slice(0, maxUrls).forEach((url, i) => {
-                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, task.id, coverU, task.model);
                     });
                 }
             });
@@ -4510,7 +4271,6 @@ const v2Registry = {};
             if (s.startsWith('recraft/crisp')) return 'recraft-crisp';
             if (s.startsWith('recraft/remove')) return 'recraft-bg';
             if (s.startsWith('suno/')) return 'suno';
-            if (s.startsWith('mj-')) return 'midjourney';
             // Fallback: first path segment or whole string
             return s.split('/')[0].split('-')[0];
         }
@@ -4520,14 +4280,12 @@ const v2Registry = {};
             let tc = t.cat;
             // Map legacy category names from V1 to V2 standards
             if (tc === 'suno') tc = 'music';
-            if (tc === 'midjourney') tc = 'mj';
             if (tc === 'veo') tc = 'video';
             if (tc === 'veo3') tc = 'video';
             if (tc === 'vid-txt') tc = 'video';
             if (tc === 'vid-img') tc = 'video';
 
             // Fallback: if no cat, try to infer from mode
-            if (!tc && t.mode === 'midjourney') tc = 'mj';
             if (!tc && t.mode === 'market') {
                 // Try to infer from model name
                 const m = t.model || '';
@@ -4572,7 +4330,6 @@ const v2Registry = {};
             if (task.state === 'processing' && !v2Tasks.includes(task.id)) {
                 v2Tasks.push(task.id);
             }
-            const isMjTask = task.mode === 'midjourney' || task.cat === 'mj';
 
             if (task.state === 'success') {
                 // Active tasks have data.data; history entries have urls[] directly
@@ -4587,13 +4344,13 @@ const v2Registry = {};
                     const coverU = data2.response?.sunoData?.[0]?.image_large_url || data2.response?.sunoData?.[0]?.imageLargeUrl || data2.response?.sunoData?.[0]?.imageUrl || data2.response?.sunoData?.[0]?.image_url || task.coverUrl || null;
                     const maxUrls = (task.model || '').startsWith('suno/') ? 1 : urls.length;
                     urls.slice(0, maxUrls).forEach((url, i) => {
-                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, isMjTask ? task.id : null, task.id, coverU, task.model);
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, task.id, coverU, task.model);
                     });
                 }
             } else if (task.state === 'fail') {
                 const errorData = task.data?.data || {};
                 const fm = errorData.failMsg || errorData.failReason || errorData.errorMessage || '';
-                addV2GalleryItem(task.id, 'failed', null, null, null, null, null, fm);
+                addV2GalleryItem(task.id, 'failed', null, null, null, null, fm);
             } else {
                 addV2GalleryItem(task.id, 'processing');
             }

@@ -16,7 +16,6 @@ svgs = {
     "flux": """<svg viewBox="0 0 40 40" fill="none" class="brand-logo-svg"><path d="M8 8h24v8H20v16h-4V16H8z" fill="#000" stroke="#fff" stroke-width="1"/></svg>""",
     "sora": """<svg viewBox="0 0 40 40" fill="none" class="brand-logo-svg"><circle cx="20" cy="20" r="14" fill="#10A37F"/></svg>""",
     "kling": """<svg viewBox="0 0 40 40" fill="none" class="brand-logo-svg"><path d="M10 30L20 10l10 20z" fill="#00C4B6"/></svg>""",
-    "mj": """<svg viewBox="0 0 40 40" fill="none" class="brand-logo-svg"><path d="M10 20c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10-10-4.48-10-10z" stroke="#fff" stroke-width="3"/><path d="M15 20c0-2.76 2.24-5 5-5s5 2.24 5 5-2.24 5-5 5-5-2.24-5-5z" fill="#fff"/></svg>"""
 }
 
 # Add data-logo attribute with SVG
@@ -42,10 +41,7 @@ def replace_icon(match):
     elif "kling" in provider:
         logo = svgs["kling"]
         color_class = "mc-kling"
-    elif "midjourney" in provider or "mj" in provider:
-        logo = svgs["mj"]
-        color_class = "mc-mj"
-        
+
     return full_match.replace('data-icon="'+match.group(3)+'"', f"data-icon='{logo}'").replace(f'data-color="{match.group(2)}"', f'data-color="{color_class}"')
 
 # regex to find the elements in the template

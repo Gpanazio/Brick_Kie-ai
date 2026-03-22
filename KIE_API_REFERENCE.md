@@ -21,8 +21,7 @@
 12. [Suno API (Music)](#12-suno-api-music)
 13. [4o Image API (GPT Image 1)](#13-4o-image-api-gpt-image-1)
 14. [Flux Kontext API](#14-flux-kontext-api)
-15. [Midjourney API](#15-midjourney-api)
-16. [Market Unified API](#16-market-unified-api)
+15. [Market Unified API](#15-market-unified-api)
 17. [ElevenLabs API (via Market)](#17-elevenlabs-api-via-market)
 18. [Nano Banana / Google (via Market)](#18-nano-banana--google-via-market)
 19. [All Other Market Models](#19-all-other-market-models)
@@ -33,7 +32,7 @@
 
 ## 1. Platform Overview
 
-KIE.ai is an **AI API aggregator** providing a single, unified point of access to leading third-party AI models. It does not create its own models -- it acts as an intermediary to models from Google, OpenAI, Runway, Midjourney, Suno, ElevenLabs, ByteDance, and many others.
+KIE.ai is an **AI API aggregator** providing a single, unified point of access to leading third-party AI models. It does not create its own models -- it acts as an intermediary to models from Google, OpenAI, Runway, Suno, ElevenLabs, ByteDance, and many others.
 
 **Base API URL:** `https://api.kie.ai`
 **Upload API URL:** `https://kieai.redpandaai.co`
@@ -125,8 +124,6 @@ Always download and persist generated content promptly.
 | Veo 3.1 Fast (16:9 / 9:16) | 60 | $0.30 |
 | Veo 3.1 Quality | 250 | $1.25 |
 | Veo 3.1 Fallback | 100 | $0.50 |
-| Midjourney (4 images) | ~8 | ~$0.04 |
-| Midjourney Video | ~40 | ~$0.20 |
 | Nano Banana Image | 4 | $0.02 |
 | Seedream 4.0 Image | 3.5 | $0.0175 |
 | Image Models (general) | 10-50 | $0.05-$0.25 |
@@ -592,40 +589,7 @@ GET https://api.kie.ai/api/v1/flux/kontext/record-info?taskId={taskId}
 
 ---
 
-## 15. Midjourney API
-
-### 15.1 Generate Image (Imagine)
-```
-POST https://api.kie.ai/api/v1/mj/generate
-```
-
-| Parameter | Required | Description |
-|---|---|---|
-| `taskType` | Yes | `mj_txt2img`, `mj_img2img`, or `mj_video` |
-| `prompt` | Yes | Text description |
-| `speed` | No | `"Relax"`, `"Fast"`, or `"Turbo"` |
-| `aspectRatio` | No | e.g., `"16:9"` |
-| `version` | No | `"7"`, `"6.1"`, `"5.2"`, `"niji6"` |
-| `stylization` | No | 0-1000 |
-| `weirdness` | No | 0-3000 |
-| `waterMark` | No | Watermark option |
-| `fileUrl` | No | Image URL for img2img/video |
-| `callBackUrl` | No | Webhook URL |
-
-### 15.2 Get Task Details
-```
-GET https://api.kie.ai/api/v1/mj/record-info?taskId={taskId}
-```
-
-Response includes `taskId`, `taskType`, `paramJson`, `resultInfoJson` (with `resultUrls` array -- typically 4 images), `completeTime`, `successFlag`.
-
-**Docs:**
-- https://docs.kie.ai/mj-api/midjourney-api
-- https://docs.kie.ai/mj-api/get-mj-task-details
-
----
-
-## 16. Market Unified API
+## 15. Market Unified API
 
 The Market API provides access to dozens of AI models through **two unified endpoints**.
 
@@ -922,10 +886,6 @@ POST https://api.kie.ai/api/v1/jobs/createTask
 - https://docs.kie.ai/flux-kontext-api/generate-or-edit-image-callbacks
 - https://docs.kie.ai/flux-kontext-api/get-image-details
 
-### Midjourney API
-- https://docs.kie.ai/mj-api/midjourney-api
-- https://docs.kie.ai/mj-api/get-mj-task-details
-
 ### File Upload API
 - https://docs.kie.ai/file-upload-api/quickstart
 - https://docs.kie.ai/file-upload-api/upload-file-base-64
@@ -995,10 +955,6 @@ These are the verified paths used in the project's existing API client at `/home
 CREATE_TASK_PATH   = "/api/v1/jobs/createTask"
 RECORD_INFO_PATH   = "/api/v1/jobs/recordInfo"
 CREDITS_PATH       = "/api/v1/chat/credit"
-
-# Midjourney
-MJ_GENERATE_PATH   = "/api/v1/mj/generate"
-MJ_RECORD_INFO_PATH = "/api/v1/mj/record-info"
 
 # File Upload (base: https://kieai.redpandaai.co)
 UPLOAD_STREAM_PATH = "/api/file-stream-upload"

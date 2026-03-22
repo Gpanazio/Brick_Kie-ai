@@ -259,111 +259,6 @@ def market_task(request: Request, task_id: str):
         raise HTTPException(status_code=500, detail=_sanitize_error(e))
 
 
-# ==================== MJ (Midjourney) ====================
-
-
-@app.post("/api/mj/generate")
-def mj_create(
-    request: Request,
-    payload_json: str = Form(...),
-):
-    rid = _request_id(request)
-    try:
-        payload = json.loads(payload_json)
-        _ensure_callback_url(payload)
-        resp = kie_api.mj_generate(payload)
-        _validate_api_response(resp)
-        logger.info("[%s] mj/generate: submitted", rid)
-        return resp
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON payload")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("[%s] mj/generate: %s", rid, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=_sanitize_error(e))
-
-
-@app.get("/api/mj/task/{task_id}")
-def mj_task(request: Request, task_id: str):
-    rid = _request_id(request)
-    try:
-        resp = kie_api.mj_task_info(task_id)
-        _validate_api_response(resp)
-        return resp
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("[%s] mj/task: %s", rid, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=_sanitize_error(e))
-
-
-@app.post("/api/mj/upscale")
-def mj_upscale(
-    request: Request,
-    payload_json: str = Form(...),
-):
-    """Upscale a previously generated MJ image."""
-    rid = _request_id(request)
-    try:
-        payload = json.loads(payload_json)
-        _ensure_callback_url(payload)
-        resp = kie_api.mj_upscale(payload)
-        _validate_api_response(resp)
-        return resp
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON payload")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("[%s] mj/upscale: %s", rid, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=_sanitize_error(e))
-
-
-@app.post("/api/mj/vary")
-def mj_vary(
-    request: Request,
-    payload_json: str = Form(...),
-):
-    """Generate variations of a previously generated MJ image."""
-    rid = _request_id(request)
-    try:
-        payload = json.loads(payload_json)
-        _ensure_callback_url(payload)
-        resp = kie_api.mj_vary(payload)
-        _validate_api_response(resp)
-        return resp
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON payload")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("[%s] mj/vary: %s", rid, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=_sanitize_error(e))
-
-
-@app.post("/api/mj/video-extend")
-def mj_video_extend(
-    request: Request,
-    payload_json: str = Form(...),
-):
-    """Extend a previously generated MJ video."""
-    rid = _request_id(request)
-    try:
-        payload = json.loads(payload_json)
-        _ensure_callback_url(payload)
-        resp = kie_api.mj_video_extend(payload)
-        _validate_api_response(resp)
-        return resp
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON payload")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("[%s] mj/video-extend: %s", rid, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=_sanitize_error(e))
-
-
 # ==================== Perfect Shortcuts ====================
 
 
@@ -935,7 +830,6 @@ def _infer_cat(model: str) -> str:
     if "elevenlabs" in m: return "audio"
     if "topaz" in m or "crisp" in m or "recraft" in m: return "tools"
     if any(x in m for x in ["video", "kling", "wan", "hailuo", "sora", "veo"]): return "video"
-    if "mj" in m or "midjourney" in m: return "mj"
     return "image"
 
 @app.post("/api/history/import")

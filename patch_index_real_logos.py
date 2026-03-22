@@ -50,8 +50,6 @@ svgs = {
     # Topaz
     "topaz": """<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2l-6 10h12zM5 14l7 8 7-8z" fill="currentColor"/></svg>""",
 
-    # Midjourney
-    "midjourney": """<svg viewBox="0 0 24 24" fill="none" class="brand-logo-svg"><path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.93V13h-2v3.93C7.06 16.43 4 13.56 4 10c0-3.87 3.13-7 7-7s7 3.13 7 7c0 3.56-3.06 6.43-7 6.93z" fill="currentColor"/></svg>"""
 }
 
 def replace_icon(match):
@@ -75,8 +73,7 @@ def replace_icon(match):
     elif "suno" in provider: logo = svgs["suno"]
     elif "recraft" in provider: logo = svgs["recraft"]
     elif "topaz" in provider: logo = svgs["topaz"]
-    elif "midjourney" in provider or "mj" in provider: logo = svgs["midjourney"]
-    
+
     # Replaces whatever is in 'data-icon="..." ' with the proper SVG
     # We use a regex over the full match to strip current data-icon and inject the new one
     icon_pattern = r'data-icon="([^"]*?)"'

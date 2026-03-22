@@ -34,7 +34,6 @@ frontend/
 | API | Base URL | Uso |
 |---|---|---|
 | Market (Unified) | `https://api.kie.ai/api/v1/jobs/` | Modelos de imagem, vídeo, áudio via endpoint unificado |
-| Midjourney | `https://api.kie.ai/api/v1/mj/` | txt2img, img2img, video, style ref |
 | Veo 3.1 (Google) | `https://api.kie.ai/api/v1/veo/` | Text/image→video, extend, 1080p, 4K |
 | Suno (Music) | `https://api.kie.ai/api/v1/generate/` | Música, letras, extend, cover, stems, WAV |
 | File Upload | `https://kieai.redpandaai.co/api/` | Upload de arquivos (stream, base64, URL) |
@@ -79,9 +78,6 @@ Bases configuráveis via `KIE_BASE_URL` e `KIE_UPLOAD_BASE_URL`.
 - Editar Áudio (extend, instrumental, vocals, separação)
 - Utilitários (music video, WAV, timestamped lyrics)
 
-### Midjourney
-- Text→Image, Image→Image, Video, Style Reference
-
 ### Tools
 - **Recraft** — Remove BG, Crisp Upscale
 - **Topaz** — Image Upscale, Video Upscale
@@ -98,8 +94,6 @@ Bases configuráveis via `KIE_BASE_URL` e `KIE_UPLOAD_BASE_URL`.
 | POST | `/api/market/create-json` | Criar task Market (JSON, sem file) |
 | GET | `/api/market/task/{id}` | Status de task Market |
 | POST | `/api/process` | Upload + criar task Market |
-| POST | `/api/mj/generate` | Criar task Midjourney |
-| GET | `/api/mj/task/{id}` | Status de task MJ |
 | POST | `/api/suno/create` | Criar task Suno |
 | GET | `/api/suno/task/{id}` | Status de task Suno |
 | POST | `/api/veo/create` | Criar task Veo 3.1 |
@@ -120,11 +114,6 @@ python kie_api.py create --model sora-2-pro-text-to-video --input '{"prompt":"..
 python kie_api.py task <TASK_ID>
 python kie_api.py wait <TASK_ID>
 
-# Midjourney
-python kie_api.py mj-generate --json '{"taskType":"mj_txt2img","speed":"relaxed","prompt":"...","aspectRatio":"16:9","version":"7"}'
-python kie_api.py mj-task <TASK_ID>
-python kie_api.py mj-wait <TASK_ID>
-
 # Upload
 python kie_api.py upload-stream --path "./image.png" --uploadPath "images"
 python kie_api.py upload-url --fileUrl "https://example.com/img.jpg"
@@ -140,7 +129,6 @@ Todas as gerações são assíncronas. O frontend faz polling a cada 5s. Estados
 
 - **Market**: `waiting` → `queuing` → `generating` → `success` / `fail`
 - **Veo/Suno**: campo `status`
-- **Midjourney**: `successFlag` (1=ok, >1=erro)
 
 O frontend persiste tasks pendentes em `localStorage` e retoma polling ao recarregar.
 

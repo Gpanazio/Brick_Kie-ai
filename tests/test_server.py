@@ -175,9 +175,6 @@ class TestInferCat:
     def test_video(self):
         assert server._infer_cat("kling/video-gen") == "video"
 
-    def test_midjourney(self):
-        assert server._infer_cat("mj-generate") == "mj"
-
     def test_image_default(self):
         assert server._infer_cat("flux/something") == "image"
 
