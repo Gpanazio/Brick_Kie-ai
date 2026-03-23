@@ -23,6 +23,11 @@ window.handleExpiredMedia = function(el) {
 // Shared category constants
 const VIDEO_CATS = ['video'];
 
+// Topaz video upscale model identifier and accepted MIME types
+const TOPAZ_VIDEO_UPSCALE_MODEL = 'topaz/video-upscale';
+const TOPAZ_VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-matroska'];
+const TOPAZ_VIDEO_ACCEPT = TOPAZ_VIDEO_MIME_TYPES.join(',');
+
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
@@ -2803,8 +2808,8 @@ const v2Registry = {};
 
         // ── Update file input accept for video models ──
         if (v2.fileInput) {
-            v2.fileInput.accept = (data.model === 'topaz/video-upscale')
-                ? 'video/mp4,video/quicktime,video/x-matroska'
+            v2.fileInput.accept = (data.model === TOPAZ_VIDEO_UPSCALE_MODEL)
+                ? TOPAZ_VIDEO_ACCEPT
                 : 'image/*';
         }
 
@@ -2852,7 +2857,7 @@ const v2Registry = {};
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
             const isImageEdit = ['qwen/image-edit', 'google/nano-banana-edit'].includes(modelKey);
-            const isVideoUpscale = modelKey === 'topaz/video-upscale';
+            const isVideoUpscale = modelKey === TOPAZ_VIDEO_UPSCALE_MODEL;
             if (isVideoUpscale) {
                 uploadLabel.innerHTML = 'Vídeo para upscale <span class="v2-label-hint">— MP4, MOV ou MKV, máx. 50MB</span>';
             } else if (isImageEdit) {
@@ -3585,10 +3590,9 @@ const v2Registry = {};
     );
 
     function v2AddFiles(newFiles) {
-        const isVideoUpscale = v2Model?.model === 'topaz/video-upscale';
-        const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/x-matroska'];
+        const isVideoUpscale = v2Model?.model === TOPAZ_VIDEO_UPSCALE_MODEL;
         const accepted = newFiles.filter(f =>
-            f.type.startsWith('image/') || (isVideoUpscale && ACCEPTED_VIDEO_TYPES.includes(f.type))
+            isVideoUpscale ? TOPAZ_VIDEO_MIME_TYPES.includes(f.type) : f.type.startsWith('image/')
         );
         if (!accepted.length) {
             if (isVideoUpscale) toast('Formato inválido. Use MP4, MOV ou MKV (máx. 50MB)', 'error');
@@ -3659,9 +3663,6 @@ const v2Registry = {};
                 mediaEl.src = objUrl;
                 mediaEl.muted = true;
                 mediaEl.preload = 'metadata';
-                mediaEl.style.width = '100%';
-                mediaEl.style.height = '100%';
-                mediaEl.style.objectFit = 'cover';
             } else {
                 mediaEl = document.createElement('img');
                 mediaEl.src = objUrl;
