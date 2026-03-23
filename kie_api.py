@@ -13,7 +13,10 @@ import requests
 
 # Market API key header.
 # Accepts KIE_API_KEY or KIE_API (Railway env var name)
-API_KEY = os.environ.get("KIE_API_KEY") or os.environ.get("KIE_API")
+# Read lazily so dotenv / Railway env injection works regardless of import order.
+def _get_api_key() -> str:
+    key = os.environ.get("KIE_API_KEY") or os.environ.get("KIE_API") or ""
+    return key
 
 # Market base
 BASE_URL = os.environ.get("KIE_BASE_URL", "https://api.kie.ai")
@@ -37,18 +40,20 @@ UPLOAD_URL_PATH = "/api/file-url-upload"
 
 
 def _auth_headers_json() -> Dict[str, str]:
-    if not API_KEY:
+    key = _get_api_key()
+    if not key:
         raise ValueError("KIE_API_KEY não definido no ambiente.")
     return {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
 
 
 def _auth_headers_no_content_type() -> Dict[str, str]:
-    if not API_KEY:
+    key = _get_api_key()
+    if not key:
         raise ValueError("KIE_API_KEY não definido no ambiente.")
-    return {"Authorization": f"Bearer {API_KEY}"}
+    return {"Authorization": f"Bearer {key}"}
 
 
 def _url(base: str, path: str) -> str:
