@@ -1145,11 +1145,10 @@ function enterWorkspace(cat) {
     // Persist current workspace so F5 / Ctrl+R restores it
     try { sessionStorage.setItem('kie-workspace-cat', cat); } catch (e) { console.warn('Could not persist workspace to sessionStorage:', e); }
 
-    // Hide lobby, show workspace
+    // Hide lobby — do NOT show app-main (V1 shell); V2 workspace handles everything
     els.lobby.classList.add('exit');
     setTimeout(() => {
         els.lobby.classList.add('hidden');
-        els.appMain.classList.remove('hidden');
     }, 250);
 
     // Set breadcrumb
@@ -1181,8 +1180,9 @@ function enterWorkspace(cat) {
     els.mptIcon.textContent = '—';
     if (els.mptCost) els.mptCost.classList.add('hidden');
     if (els.btnModelPicker) els.btnModelPicker.classList.remove('has-model');
+
+    // Single-model categories go straight to V2 workspace
     if (cat === 'music') {
-        // Suno goes directly to workspace — no model picker step
         const tplItem = tpl?.content.querySelector('[data-model="suno/generate-music"]');
         if (tplItem && typeof window._v2ShowWorkspace === 'function') {
             setTimeout(() => window._v2ShowWorkspace({ ...tplItem.dataset }), 60);
@@ -1209,11 +1209,11 @@ function enterWorkspace(cat) {
         setTimeout(() => openModelPickerModal(), 50);
     }
 
-    els.panelSettings.classList.add('hidden');
+    if (els.panelSettings) els.panelSettings.classList.add('hidden');
 }
 
 function exitWorkspace() {
-    els.appMain.classList.add('hidden');
+    if (els.appMain) els.appMain.classList.add('hidden');
     els.lobby.classList.remove('hidden', 'exit');
     els.headerBreadcrumb.innerHTML = '';
     selectedModel = null;
@@ -1310,7 +1310,8 @@ function openModelPickerModal() {
 
 function closeModelPickerModal() {
     if (els.modalModelPicker) els.modalModelPicker.classList.add('hidden');
-    if (!selectedModel && els.appMain && !els.appMain.classList.contains('hidden')) {
+    // If no model was selected and we're in a workspace, go back to lobby
+    if (!selectedModel && currentCat) {
         exitWorkspace();
     }
 }
