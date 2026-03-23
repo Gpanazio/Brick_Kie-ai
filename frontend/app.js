@@ -3830,10 +3830,12 @@ const v2Registry = {};
         
         // KIE API (e.g. Kling, Grok) strictly requires a prompt for text-to-video endpoints
         // even when an image is supplied. Provide a safe default if user left it blank.
-        if (!prompt && (v2Files.length > 0 || v2FrameInitial || v2FrameFinal)) {
+        // Skip for file-only models (e.g. Topaz upscale) that don't accept a prompt field.
+        const modelNeedsPrompt = v2Model?.prompt === 'true' || selectedModel?.hasPrompt;
+        if (!prompt && modelNeedsPrompt && (v2Files.length > 0 || v2FrameInitial || v2FrameFinal)) {
             prompt = 'Mantenha os detalhes originais, proporções e faça uma animação suave.';
         }
-        if (prompt) extra.prompt = prompt;
+        if (prompt && modelNeedsPrompt) extra.prompt = prompt;
 
         let resolvedModel = v2Model?.model || selectedModel?.model || 'nano-banana-2';
 
