@@ -953,11 +953,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     initHistory();
     restorePendingTasks();
-    // If user was in a workspace before refresh, go back there
-    let savedCat;
-    try { savedCat = sessionStorage.getItem('kie-workspace-cat'); }
-    catch (e) { console.warn('Could not read from sessionStorage:', e); }
-    if (savedCat && CAT_LABELS[savedCat]) enterWorkspace(savedCat);
+    // Always start at lobby — don't auto-restore last workspace
+    try { sessionStorage.removeItem('kie-workspace-cat'); sessionStorage.removeItem('kie-workspace-model'); } catch (e) { /* ignore */ }
     fetchCredits();
     initSocketCallbacks();
 });
