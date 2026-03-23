@@ -25,8 +25,8 @@ const VIDEO_CATS = ['video'];
 
 // Topaz video upscale model identifier and accepted MIME types
 const TOPAZ_VIDEO_UPSCALE_MODEL = 'topaz/video-upscale';
-const TOPAZ_VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-matroska'];
-const TOPAZ_VIDEO_ACCEPT = TOPAZ_VIDEO_MIME_TYPES.join(',');
+const TOPAZ_VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm', 'video/x-msvideo'];
+const TOPAZ_VIDEO_ACCEPT = 'video/*,.mp4,.mov,.mkv,.avi,.webm';
 
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
@@ -2868,6 +2868,18 @@ const v2Registry = {};
                 uploadLabel.innerHTML = `Imagens de referência <span class="v2-label-hint">— opcional, até ${v2MaxFiles}</span>`;
             }
         }
+        const uploadZoneHint = document.querySelector('#v2-upload-zone .v2-upload-hint');
+        if (uploadZoneHint) {
+            if (isVideoUpscale) uploadZoneHint.textContent = 'MP4, MOV, MKV, AVI';
+            else uploadZoneHint.textContent = 'PNG, JPG, WEBP';
+        }
+
+        const emptyGalleryHint = document.querySelector('#v2-gallery-empty .v2-gallery-empty-hint');
+        if (emptyGalleryHint) {
+            if (!needsPrompt && needsFile) emptyGalleryHint.textContent = 'Faça o upload do arquivo e clique em Generate';
+            else emptyGalleryHint.textContent = 'Escreva um prompt e clique em Generate';
+        }
+
         // Trim files if over new max, always re-render counter
         if (v2Files.length > v2MaxFiles) v2Files = v2Files.slice(0, v2MaxFiles);
         v2RenderFilesGrid(); // updates file counter to N / v2MaxFiles
@@ -3592,10 +3604,10 @@ const v2Registry = {};
     function v2AddFiles(newFiles) {
         const isVideoUpscale = v2Model?.model === TOPAZ_VIDEO_UPSCALE_MODEL;
         const accepted = newFiles.filter(f =>
-            isVideoUpscale ? TOPAZ_VIDEO_MIME_TYPES.includes(f.type) : f.type.startsWith('image/')
+            isVideoUpscale ? (f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|avi|webm)$/i)) : f.type.startsWith('image/')
         );
         if (!accepted.length) {
-            if (isVideoUpscale) toast('Formato inválido. Use MP4, MOV ou MKV (máx. 50MB)', 'error');
+            if (isVideoUpscale) toast('Formato inválido. Use MP4, MOV, MKV, etc. (máx. 50MB)', 'error');
             return;
         }
 
@@ -3880,8 +3892,9 @@ const v2Registry = {};
                         return encodeURI(url);
                     })
                 );
-                // Some fields expect a single URL string (not an array); image_url is singular per API spec
-                extra[imgField] = (imgField === 'image_url' && imageUrls.length === 1) ? imageUrls[0] : imageUrls;
+                // Fields that expect a single string rather than an array
+                const singleStringFields = ['image_url', 'video_url', 'audio_url', 'image', 'inputImage'];
+                extra[imgField] = (singleStringFields.includes(imgField) && imageUrls.length === 1) ? imageUrls[0] : imageUrls;
             }
             btnSpan.textContent = 'Creating task...';
         }
@@ -3969,11 +3982,11 @@ const v2Registry = {};
     });
 
     // ── V2 Gallery Management ──
-    function v2MediaHtml(url, coverUrl, isSuno) {
+    function v2MediaHtml(url, coverUrl, isSuno, isVid) {
         const safeUrl = esc(url || '');
         const safeCoverUrl = esc(coverUrl || '');
         let html = '';
-        if (isVideoUrl(url)) {
+        if (isVid || isVideoUrl(url)) {
             html += `<video src="${safeUrl}" autoplay loop muted playsinline onerror="window.handleExpiredMedia(this)"></video>
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
         } else if (isSuno || isAudioUrl(url)) {
@@ -4022,14 +4035,14 @@ const v2Registry = {};
 
         const item = document.createElement('div');
         const isSunoItem = (taskModel || '').startsWith('suno/');
-        const isVid = mediaUrl ? isVideoUrl(mediaUrl) : (currentCat === 'video');
+        const isVid = (mediaUrl && isVideoUrl(mediaUrl)) || currentCat === 'video' || (taskModel || '').includes('video');
         item.className = `v2-gallery-item ${state}${isVid ? ' video-item' : ''}`;
         item.id = `v2-item-${CSS.escape(elementId)}`;
         item.dataset.taskId = elementId;
         item.dataset.baseTaskId = baseTaskId || elementId;
 
         if (state === 'success' && mediaUrl) {
-            item.innerHTML = v2MediaHtml(mediaUrl, coverUrl, isSunoItem);
+            item.innerHTML = v2MediaHtml(mediaUrl, coverUrl, isSunoItem, isVid);
         } else if (state === 'failed' || state === 'fail') {
             _renderFailedItemUI(item, failMsg);
         }
@@ -4124,13 +4137,13 @@ const v2Registry = {};
         if (!item) return;
 
         const isSunoItem = (taskModel || '').startsWith('suno/');
-        const isVid = mediaUrl && isVideoUrl(mediaUrl);
+        const isVid = (mediaUrl && isVideoUrl(mediaUrl)) || currentCat === 'video' || (taskModel || '').includes('video');
         item.className = `v2-gallery-item ${state}${isVid ? ' video-item' : ''}`;
         // Ensure baseTaskId is set if missing
         if (!item.dataset.baseTaskId) item.dataset.baseTaskId = baseTaskId || elementId;
 
         if (state === 'success' && mediaUrl) {
-            item.innerHTML = v2MediaHtml(mediaUrl, coverUrl, isSunoItem);
+            item.innerHTML = v2MediaHtml(mediaUrl, coverUrl, isSunoItem, isVid);
         } else if (state === 'fail' || state === 'failed') {
             _renderFailedItemUI(item, failMsg);
         }
@@ -4139,7 +4152,9 @@ const v2Registry = {};
 
     function updateV2GalleryCount() {
         const count = v2.gallery.querySelectorAll('.v2-gallery-item').length;
-        v2.galleryCount.textContent = `${count} image${count !== 1 ? 's' : ''}`;
+        const isVid = (currentCat === 'video') || (v2Model?.model && v2Model.model.includes('video'));
+        const label = isVid ? (count === 1 ? 'vídeo' : 'vídeos') : (count === 1 ? 'imagem' : 'imagens');
+        v2.galleryCount.textContent = `${count} ${label}`;
     }
 
     // ── Poll observer: watch tasks for state changes and update V2 gallery ──
