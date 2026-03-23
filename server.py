@@ -127,7 +127,7 @@ app.add_middleware(KieAiPrefixMiddleware)
 @app.get("/kie-ai", response_class=FileResponse)
 @app.get("/kie-ai/", response_class=FileResponse)
 async def serve_index():
-    response = FileResponse(FRONTEND_DIR / "index.html", media_type="text/html")
+    response = FileResponse(FRONTEND_DIR / "index_alt.html", media_type="text/html")
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
