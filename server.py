@@ -4,7 +4,6 @@ Wraps kie_api.py functions into REST endpoints for the frontend.
 """
 
 import asyncio
-import fcntl
 import json
 import logging
 import os
@@ -24,6 +23,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import kie_api
+import db
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -216,14 +216,7 @@ async def kie_callback(request: Request):
             "prompt": prompt,
             "timestamp": task_data.get("createTime"),
         }
-        history = _load_server_history()
-        # Update or insert
-        existing_ids = {e["id"] for e in history}
-        if task_id in existing_ids:
-            history = [entry if e["id"] == task_id else e for e in history]
-        else:
-            history.insert(0, entry)
-        _save_server_history(history)
+        db.upsert_entry(entry)
 
     return {"code": 200, "msg": "success"}
 
@@ -802,47 +795,11 @@ def flux_kontext_task(request: Request, task_id: str):
         raise HTTPException(status_code=500, detail=_sanitize_error(e))
 
 
-# ==================== Server-Side History ====================
+# ==================== Server-Side History (PostgreSQL) ====================
 
-HISTORY_DIR = Path(os.environ.get("HISTORY_DIR", "/data"))
-if not HISTORY_DIR.exists():
-    HISTORY_DIR = Path(__file__).parent / "data"
-HISTORY_FILE = HISTORY_DIR / "kie_history.json"
-HISTORY_LOCK = HISTORY_DIR / ".kie_history.lock"
-HISTORY_MAX = 500  # Keep last N entries
-
-# Required fields for a valid history entry
-_HISTORY_REQUIRED_FIELDS = {"id"}
-_HISTORY_ALLOWED_FIELDS = {"id", "model", "state", "cat", "urls", "prompt", "timestamp", "data"}
-
-def _load_server_history() -> list:
-    try:
-        if HISTORY_FILE.exists():
-            data = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
-            if not isinstance(data, list):
-                logger.warning("[history] Corrupted history file (not a list), resetting")
-                return []
-            return data
-    except Exception as e:
-        logger.error("[history] Failed to load: %s", e, exc_info=True)
-    return []
-
-def _save_server_history(history: list):
-    """Save history with file locking to prevent concurrent write corruption."""
-    try:
-        HISTORY_DIR.mkdir(parents=True, exist_ok=True)
-        lock_path = HISTORY_LOCK
-        with open(lock_path, "w") as lock_file:
-            fcntl.flock(lock_file, fcntl.LOCK_EX)
-            try:
-                HISTORY_FILE.write_text(json.dumps(history[:HISTORY_MAX], ensure_ascii=False), encoding="utf-8")
-            finally:
-                fcntl.flock(lock_file, fcntl.LOCK_UN)
-    except Exception as e:
-        logger.error("[history] Failed to save: %s", e, exc_info=True)
 
 def _validate_history_entry(entry: dict) -> dict:
-    """Validate and sanitize a history entry before saving."""
+    """Validate a history entry before persisting."""
     if not isinstance(entry, dict):
         raise HTTPException(status_code=400, detail="Entry must be a JSON object")
     if not entry.get("id") or not isinstance(entry["id"], str):
@@ -855,23 +812,21 @@ def _validate_history_entry(entry: dict) -> dict:
         raise HTTPException(status_code=400, detail="'urls' must be an array")
     return entry
 
+
 @app.post("/api/history")
 def save_history_entry(
     request: Request,
     entry_json: str = Form(...),
 ):
-    """Save a task result to server-side history."""
+    """Save (upsert) a task result to PostgreSQL history."""
     rid = _request_id(request)
     try:
         entry = json.loads(entry_json)
         _validate_history_entry(entry)
-        history = _load_server_history()
-        # Remove duplicate
-        history = [h for h in history if h.get("id") != entry["id"]]
-        history.insert(0, entry)
-        _save_server_history(history)
-        logger.info("[%s] history/save: id=%s, count=%d", rid, entry["id"], len(history))
-        return {"success": True, "count": len(history)}
+        db.upsert_entry(entry)
+        total = db.count_history()
+        logger.info("[%s] history/save: id=%s, total=%d", rid, entry["id"], total)
+        return {"success": True, "count": total}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON")
     except HTTPException:
@@ -880,34 +835,30 @@ def save_history_entry(
         logger.error("[%s] history/save: %s", rid, e, exc_info=True)
         raise HTTPException(status_code=500, detail=_sanitize_error(e))
 
+
 @app.get("/api/history")
 def get_history(cat: Optional[str] = None, limit: int = 100):
-    """Get server-side history, optionally filtered by category."""
-    history = _load_server_history()
-    if cat:
-        history = [h for h in history if h.get("cat") == cat]
-    return {"history": history[:limit], "total": len(history)}
+    """Get history from PostgreSQL, optionally filtered by category."""
+    history = db.load_history(cat=cat, limit=limit)
+    total = db.count_history(cat=cat)
+    return {"history": history, "total": total}
+
 
 @app.delete("/api/history/{entry_id}")
 def delete_history_entry(request: Request, entry_id: str):
     """Delete a specific history entry by ID."""
     rid = _request_id(request)
-    history = _load_server_history()
-    history = [h for h in history if h.get("id") != entry_id]
-    _save_server_history(history)
+    db.delete_entry(entry_id)
+    total = db.count_history()
     logger.info("[%s] history/delete: id=%s", rid, entry_id)
-    return {"success": True, "count": len(history)}
+    return {"success": True, "count": total}
+
 
 @app.delete("/api/history")
-def clear_history(request: Request, cat: Optional[str] = None):
-    """Clear server-side history, optionally filtered to a specific category."""
+def clear_history_endpoint(request: Request, cat: Optional[str] = None):
+    """Clear history, optionally filtered to a specific category."""
     rid = _request_id(request)
-    history = _load_server_history()
-    if cat:
-        history = [h for h in history if h.get("cat") != cat]
-    else:
-        history = []
-    _save_server_history(history)
+    db.clear_history(cat=cat)
     logger.info("[%s] history/clear: cat=%s", rid, cat or "all")
     return {"success": True}
 
@@ -959,20 +910,19 @@ def _infer_cat(model: str) -> str:
     if any(x in m for x in ["video", "kling", "wan", "hailuo", "sora", "veo"]): return "video"
     return "image"
 
+
 @app.post("/api/history/import")
 def import_history_tasks(
     request: Request,
     task_ids_json: str = Form(...),
 ):
-    """Import tasks by fetching their info from kie.ai API and saving to history."""
+    """Import tasks by fetching their info from kie.ai API and saving to PostgreSQL."""
     rid = _request_id(request)
     try:
         task_ids = json.loads(task_ids_json)
         if not isinstance(task_ids, list):
             raise HTTPException(status_code=400, detail="task_ids_json must be a JSON array")
 
-        history = _load_server_history()
-        existing_ids = {h["id"] for h in history if "id" in h}
         imported = 0
         errors = []
 
@@ -980,7 +930,7 @@ def import_history_tasks(
             if not isinstance(tid, str) or not tid:
                 errors.append({"id": str(tid), "error": "Invalid task ID"})
                 continue
-            if tid in existing_ids:
+            if db.entry_exists(tid):
                 continue
             try:
                 resp = kie_api.market_task_info(tid)
@@ -1000,15 +950,15 @@ def import_history_tasks(
                     "prompt": prompt,
                     "timestamp": data.get("createTime"),
                 }
-                history.insert(0, entry)
+                db.upsert_entry(entry)
                 imported += 1
             except Exception as e:
                 logger.warning("[%s] history/import: failed for %s: %s", rid, tid, e)
                 errors.append({"id": tid, "error": _sanitize_error(e)})
 
-        _save_server_history(history)
+        total = db.count_history()
         logger.info("[%s] history/import: imported=%d, errors=%d", rid, imported, len(errors))
-        return {"success": True, "imported": imported, "total": len(history), "errors": errors}
+        return {"success": True, "imported": imported, "total": total, "errors": errors}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON")
     except HTTPException:
