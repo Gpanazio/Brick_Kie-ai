@@ -1,12 +1,42 @@
 # KIE AI Studio
 
-Interface visual para as APIs da [KIE.ai](https://kie.ai) — geração de imagens, vídeos, áudio, música e ferramentas de upscale.
+Interface visual para as APIs da [KIE.ai](https://kie.ai) — geração de imagens, vídeos, áudio, música e ferramentas de upscale em alta resolução.
+
+---
+
+## Contexto: Extração do Brick_Marketing
+
+Este repositório foi extraído do monorepo `Brick_Marketing` onde o `kie-ai` vivia como subpasta e dependia fortemente do Node.js pai para funcionar. As principais mudanças realizadas durante a extração foram:
+
+### O que foi removido
+- **Prefix middleware `/kie-ai/`**: o servidor Python reescrevia as rotas `/kie-ai/*` para `/` pois o Node.js funcionava como proxy reverso. Isso foi eliminado — o servidor agora serve na raiz diretamente.
+- **Dependência do Node.js**: todo o proxy (`/kie-ai/*`), gerenciamento de histórico via PostgreSQL, callback de webhooks e spawning do processo Python ficavam no `server.js` do Node. Nada disso existe mais aqui.
+- **Socket.IO**: o frontend usava Socket.IO (gerenciado pelo Node.js) para receber atualizações em tempo real. Foi substituído por **SSE (Server-Sent Events)** nativo do browser — mais simples, sem dependência extra.
+- **Código morto**: scripts de patch one-off (`patch_index_logos.py`, `patch_cards.py`, `replace_colors.py`), documentos internos (`REVIEW_KIE_AI.md`, `SKILL.md`) e `import_history.py` foram deletados.
+
+### O que foi adicionado
+- **Endpoint SSE** (`GET /api/events`): substitui o Socket.IO. O frontend conecta via `EventSource` e recebe eventos `kie:task-update` quando uma tarefa é concluída.
+- **Webhook callback** (`POST /api/kie-callback`): recebe callbacks da KIE.ai diretamente (antes chegavam no Node.js e eram repassados via Socket.IO). Suporta verificação HMAC opcional via `KIE_WEBHOOK_KEY`.
+- **Config endpoint atualizado** (`GET /api/config`): retorna `{ apiKey }` — antes retornava `{}` e o Node.js interceptava para injetar a chave.
+- **Arquivos de deploy**: `Procfile`, `railway.toml`, `.env.example`, `README.md`.
+
+### Mudanças no frontend
+| Antes | Depois |
+|---|---|
+| `const API = '/kie-ai'` | `const API = ''` |
+| `<script src="/socket.io/socket.io.js">` | removido |
+| `io().on('kie:task-update', ...)` | `new EventSource('/api/events')` |
+| `/kie-ai/static/style-v2.css` | `/static/style-v2.css` |
+| `/kie-ai/static/app.js` | `/static/app.js` |
+
+---
 
 ## Stack
 
 - **Backend**: Python (FastAPI + Uvicorn)
 - **Frontend**: Vanilla JS + HTML + CSS
 - **Real-time**: SSE (Server-Sent Events)
+- **Histórico**: JSON file-based (`data/kie_history.json`)
 - **API**: KIE.ai Market API
 
 ## Setup Local
@@ -28,35 +58,52 @@ python server.py
 # Acesse http://localhost:8420
 ```
 
+## Testes
+
+```bash
+source .venv/bin/activate
+pytest tests/ -v
+# 40 passed in ~0.25s
+```
+
 ## Variáveis de Ambiente
 
 | Variável | Descrição | Default |
 |---|---|---|
-| `KIE_API_KEY` | Chave da API KIE.ai (obrigatória) | — |
+| `KIE_API_KEY` | Chave da API KIE.ai **(obrigatória)** | — |
 | `KIE_PORT` | Porta do servidor | `8420` |
 | `API_KEY` | Chave de autenticação do frontend | `brick-squad-2026` |
-| `KIE_CALLBACK_URL` | URL para receber webhooks da KIE | — |
-| `KIE_WEBHOOK_KEY` | HMAC key para verificar webhooks | — |
+| `KIE_CALLBACK_URL` | URL pública para webhooks da KIE (ex: `https://seu-app.up.railway.app/api/kie-callback`) | — |
+| `KIE_WEBHOOK_KEY` | HMAC key para verificar assinatura dos webhooks (opcional) | — |
 
 ## Estrutura
 
 ```
-kie-ai/
-├── server.py          # FastAPI server (standalone)
-├── kie_api.py         # KIE.ai API client
-├── requirements.txt   # Python deps
+Brick_Kie-ai/
+├── server.py              # FastAPI server standalone
+├── kie_api.py             # KIE.ai API client
+├── requirements.txt       # Python deps (inclui pytest + httpx)
+├── Procfile               # web: python server.py
+├── railway.toml           # Config de deploy
+├── .env.example           # Template de variáveis
 ├── frontend/
-│   ├── index.html     # Main HTML
-│   ├── app.js         # Frontend logic
-│   └── style-v2.css   # Styles
-├── data/              # JSON history storage
+│   ├── index.html         # HTML principal
+│   ├── app.js             # Lógica do frontend (SSE, modelos, upload)
+│   └── style-v2.css       # Estilos
+├── data/                  # Histórico em JSON (gitignored)
+├── KIE_API_REFERENCE.md   # Referência completa da API KIE.ai
 └── tests/
-    └── test_server.py # Pytest suite
+    └── test_server.py     # 40 testes pytest
 ```
 
 ## Deploy (Railway)
 
-1. Criar novo projeto no Railway
-2. Conectar este repo
-3. Adicionar variáveis de ambiente (`KIE_API_KEY`, etc.)
-4. Railway detecta o `Procfile` automaticamente
+1. Criar novo projeto no Railway → conectar este repo (`Brick_Kie-ai`)
+2. Adicionar variáveis de ambiente:
+   - `KIE_API_KEY` (obrigatória)
+   - `KIE_CALLBACK_URL` = `https://<seu-dominio>/api/kie-callback`
+   - `API_KEY` (opcional, chave de login do frontend)
+3. Railway detecta o `Procfile` e o `railway.toml` automaticamente
+4. Deploy é iniciado via `python server.py`
+
+> **Nota:** O `data/` fica no container temporário por padrão. Para histórico persistente no Railway, configure um Volume montado em `/app/data`.
