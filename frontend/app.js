@@ -2852,10 +2852,10 @@ const v2Registry = {};
             v2MaxFiles = 1; // safe default
         }
 
+        const isVideoUpscale = modelKey === TOPAZ_VIDEO_UPSCALE_MODEL;
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
             const isImageEdit = ['qwen/image-edit', 'google/nano-banana-edit'].includes(modelKey);
-            const isVideoUpscale = modelKey === TOPAZ_VIDEO_UPSCALE_MODEL;
             if (isVideoUpscale) {
                 uploadLabel.innerHTML = 'Vídeo para upscale <span class="v2-label-hint">— MP4, MOV ou MKV, máx. 50MB</span>';
             } else if (isImageEdit) {
