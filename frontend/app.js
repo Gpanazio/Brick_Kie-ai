@@ -3,7 +3,7 @@
  * Full model parameter configuration from KIE docs.
  */
 
-const API = '/kie-ai';
+const API = '';
 
 // Global error handler for expired tempfile media URLs
 window.handleExpiredMedia = function(el) {
@@ -1022,18 +1022,13 @@ function extractResultUrls(data) {
 // ==================== Socket.IO Callbacks ====================
 
 function initSocketCallbacks() {
-    if (typeof io === 'undefined') {
-        console.warn('[Socket] socket.io client not loaded, callbacks disabled');
-        return;
-    }
-    const socket = io({ transports: ['websocket', 'polling'] });
+    // Use SSE (Server-Sent Events) instead of Socket.IO
+    const evtSource = new EventSource(`${API}/api/events`);
 
+    evtSource.addEventListener('kie:task-update', (event) => {
+        let body;
+        try { body = JSON.parse(event.data); } catch { return; }
 
-    socket.on('connect', () => {
-        console.log('[Socket] Connected for KIE callbacks');
-    });
-
-    socket.on('kie:task-update', (body) => {
         // taskId normalized to camelCase by server (handles Suno/Runway snake_case)
         const taskId = body?.data?.taskId;
         if (!taskId) return;
@@ -1085,9 +1080,9 @@ function initSocketCallbacks() {
         updateActiveCount();
     });
 
-    socket.on('disconnect', () => {
-        console.log('[Socket] Disconnected — polling continues as fallback');
-    });
+    evtSource.onerror = () => {
+        console.log('[SSE] Connection lost — polling continues as fallback');
+    };
 }
 
 // ==================== Credits ====================

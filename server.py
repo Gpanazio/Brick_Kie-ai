@@ -11,7 +11,9 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
+import hmac
+import hashlib
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,10 +27,14 @@ import kie_api
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
-# root_path for reverse proxy subpath (e.g. /kie-ai)
+# root_path for reverse proxy subpath
 ROOT_PATH = os.environ.get("ROOT_PATH", "")
-# Callback URL for KIE.ai webhooks (set by parent Node.js server from RAILWAY_PUBLIC_DOMAIN)
+# Callback URL for KIE.ai webhooks
 CALLBACK_URL = os.environ.get("KIE_CALLBACK_URL", "")
+# API key for frontend authentication
+API_KEY = os.environ.get("API_KEY", "brick-squad-2026")
+# Webhook HMAC key for verifying KIE.ai callbacks
+WEBHOOK_KEY = os.environ.get("KIE_WEBHOOK_KEY", "")
 
 logger = logging.getLogger(__name__)
 
@@ -102,30 +108,159 @@ app.add_middleware(
 )
 
 
+# ==================== SSE (Server-Sent Events) ====================
+
+
+# In-memory list of SSE subscribers
+_sse_clients: List[asyncio.Queue] = []
+
+
+async def _broadcast_sse(event_type: str, data: dict):
+    """Send an event to all connected SSE clients."""
+    payload = json.dumps(data)
+    dead: List[asyncio.Queue] = []
+    for q in _sse_clients:
+        try:
+            q.put_nowait({"event": event_type, "data": payload})
+        except asyncio.QueueFull:
+            dead.append(q)
+    for q in dead:
+        _sse_clients.remove(q)
+
+
+from starlette.responses import StreamingResponse
+
+
+@app.get("/api/events")
+async def sse_events():
+    """SSE endpoint — replaces Socket.IO for real-time task updates."""
+    q: asyncio.Queue = asyncio.Queue(maxsize=64)
+    _sse_clients.append(q)
+
+    async def stream():
+        try:
+            while True:
+                msg = await q.get()
+                yield f"event: {msg['event']}\ndata: {msg['data']}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            if q in _sse_clients:
+                _sse_clients.remove(q)
+
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    })
+
+
+# ==================== Webhook Callback ====================
+
+
+@app.post("/api/kie-callback")
+async def kie_callback(request: Request):
+    """Receives task completion callbacks from KIE.ai and broadcasts via SSE."""
+    rid = _request_id(request)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # Normalize task_id → taskId
+    task_id = None
+    if isinstance(body.get("data"), dict):
+        task_id = body["data"].get("taskId") or body["data"].get("task_id")
+        if task_id and "taskId" not in body["data"]:
+            body["data"]["taskId"] = task_id
+    if not task_id:
+        raise HTTPException(status_code=400, detail="Missing taskId")
+
+    # Verify HMAC signature if key is configured
+    if WEBHOOK_KEY:
+        timestamp = request.headers.get("x-webhook-timestamp", "")
+        signature = request.headers.get("x-webhook-signature", "")
+        if not timestamp or not signature:
+            raise HTTPException(status_code=401, detail="Missing signature headers")
+        message = f"{task_id}.{timestamp}"
+        expected = hmac.new(WEBHOOK_KEY.encode(), message.encode(), hashlib.sha256).digest()
+        import base64
+        expected_b64 = base64.b64encode(expected).decode()
+        if not hmac.compare_digest(expected_b64, signature):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+
+    logger.info("[%s] kie-callback: taskId=%s code=%s", rid, task_id, body.get("code"))
+
+    # Broadcast to SSE clients
+    await _broadcast_sse("kie:task-update", body)
+
+    # Save to history if completed
+    task_state = None
+    code = body.get("code")
+    if code == 200:
+        task_state = "success"
+    elif isinstance(code, int) and code >= 400:
+        task_state = "fail"
+
+    if task_state and task_id:
+        task_data = body.get("data", {})
+        inp = task_data.get("input", {})
+        prompt = inp.get("prompt", "") if isinstance(inp, dict) else ""
+        urls = _extract_callback_urls(task_data)
+        entry = {
+            "id": task_id,
+            "model": task_data.get("model", ""),
+            "state": task_state,
+            "cat": _infer_cat(task_data.get("model", "")),
+            "urls": urls,
+            "prompt": prompt,
+            "timestamp": task_data.get("createTime"),
+        }
+        history = _load_server_history()
+        # Update or insert
+        existing_ids = {e["id"] for e in history}
+        if task_id in existing_ids:
+            history = [entry if e["id"] == task_id else e for e in history]
+        else:
+            history.insert(0, entry)
+        _save_server_history(history)
+
+    return {"code": 200, "msg": "success"}
+
+
+def _extract_callback_urls(data: dict) -> list:
+    """Extract result URLs from a KIE callback payload."""
+    urls = []
+    if not isinstance(data, dict):
+        return urls
+    for k in ("resultUrl", "output", "fileUrl", "downloadUrl", "audioUrl", "videoUrl"):
+        v = data.get(k)
+        if isinstance(v, str) and v.startswith("http"):
+            urls.append(v)
+    for k in ("resultUrls", "output_urls", "urls"):
+        v = data.get(k)
+        if isinstance(v, list):
+            urls.extend(u for u in v if isinstance(u, str) and u.startswith("http"))
+    rj = data.get("resultJson")
+    if isinstance(rj, str):
+        try:
+            rj = json.loads(rj)
+        except (json.JSONDecodeError, ValueError):
+            rj = None
+    if isinstance(rj, dict):
+        for k in ("resultUrl", "resultUrls", "output", "fileUrl", "downloadUrl", "videoUrl", "audioUrl"):
+            v = rj.get(k)
+            if isinstance(v, str) and v.startswith("http"):
+                urls.append(v)
+            elif isinstance(v, list):
+                urls.extend(u for u in v if isinstance(u, str) and u.startswith("http"))
+    return list(dict.fromkeys(urls))  # deduplicate preserving order
+
+
 # ==================== Static Frontend ====================
-
-# ── Path-rewriting middleware: /kie-ai/* → /* (for local dev without Node proxy) ──
-# In production, the Node.js reverse proxy forwards /kie-ai/* to this server.
-# When running locally on port 8420 directly, the browser still sends /kie-ai/api/...
-# and /kie-ai/static/... — this middleware rewrites the path so the routes below match.
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-
-class KieAiPrefixMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: StarletteRequest, call_next):
-        path = request.scope.get("path", "")
-        # Rewrite /kie-ai/api/... → /api/...
-        # /kie-ai/static/... → /static/...  (served below)
-        if path.startswith("/kie-ai/"):
-            request.scope["path"] = "/" + path[len("/kie-ai/"):]
-        return await call_next(request)
-
-app.add_middleware(KieAiPrefixMiddleware)
 
 
 @app.get("/", response_class=FileResponse)
-@app.get("/kie-ai", response_class=FileResponse)
-@app.get("/kie-ai/", response_class=FileResponse)
 async def serve_index():
     response = FileResponse(FRONTEND_DIR / "index.html", media_type="text/html")
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -139,9 +274,9 @@ async def favicon():
     return Response(content=b"", media_type="image/x-icon", status_code=204)
 
 
-# Serve static files (CSS, JS, images) — handles ?v=N query string automatically
 @app.get("/static/{filename:path}", response_class=FileResponse)
 async def serve_static(filename: str):
+    """Serve static files (CSS, JS, images) — handles ?v=N query string automatically."""
     base_dir = FRONTEND_DIR.resolve()
     file_path = (FRONTEND_DIR / filename).resolve()
     if base_dir not in file_path.parents and file_path != base_dir:
@@ -155,21 +290,13 @@ async def serve_static(filename: str):
     return response
 
 
-# Stub for socket.io (not used in local dev mode)
-@app.get("/socket.io/socket.io.js")
-async def socket_io_stub():
-    """Return a minimal socket.io stub so the page doesn't throw errors."""
-    stub = "var io = function(){ return { on: function(){}, emit: function(){}, connected: false }; };"
-    return Response(content=stub, media_type="application/javascript")
-
-
 # ==================== Config ====================
 
 
 @app.get("/api/config")
 def get_config():
-    """Return non-sensitive frontend configuration."""
-    return {}
+    """Return frontend configuration including API key for auth."""
+    return {"apiKey": API_KEY}
 
 
 # ==================== Credits ====================
