@@ -140,8 +140,13 @@ async def sse_events():
     async def stream():
         try:
             while True:
-                msg = await q.get()
-                yield f"event: {msg['event']}\ndata: {msg['data']}\n\n"
+                try:
+                    # Wait up to 15s for a real event; if none, send a keep-alive comment
+                    msg = await asyncio.wait_for(q.get(), timeout=15)
+                    yield f"event: {msg['event']}\ndata: {msg['data']}\n\n"
+                except asyncio.TimeoutError:
+                    # SSE comment line — keeps connection alive through proxies/browsers
+                    yield ": heartbeat\n\n"
         except asyncio.CancelledError:
             pass
         finally:
