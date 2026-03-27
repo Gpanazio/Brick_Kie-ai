@@ -69,8 +69,14 @@ def _init_schema() -> None:
                     urls        JSONB       DEFAULT '[]'::jsonb,
                     prompt      TEXT        DEFAULT '',
                     ts          TEXT,
+                    local_urls  JSONB       DEFAULT '[]'::jsonb,
                     created_at  TIMESTAMPTZ DEFAULT NOW()
                 )
+            """)
+            # Migration: add local_urls for existing tables
+            cur.execute("""
+                ALTER TABLE kie_history
+                ADD COLUMN IF NOT EXISTS local_urls JSONB DEFAULT '[]'::jsonb
             """)
         conn.commit()
     logger.info("[db] Schema ready")
@@ -116,7 +122,7 @@ def load_history(cat: str | None = None, limit: int = 100) -> list[dict]:
             if cat:
                 cur.execute(
                     """
-                    SELECT id, model, state, cat, urls, prompt, ts AS "timestamp"
+                    SELECT id, model, state, cat, urls, prompt, ts AS "timestamp", local_urls
                     FROM kie_history
                     WHERE cat = %s
                     ORDER BY COALESCE(
@@ -134,7 +140,7 @@ def load_history(cat: str | None = None, limit: int = 100) -> list[dict]:
             else:
                 cur.execute(
                     """
-                    SELECT id, model, state, cat, urls, prompt, ts AS "timestamp"
+                    SELECT id, model, state, cat, urls, prompt, ts AS "timestamp", local_urls
                     FROM kie_history
                     ORDER BY COALESCE(
                         CASE
@@ -196,3 +202,33 @@ def entry_exists(entry_id: str) -> bool:
         with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM kie_history WHERE id = %s LIMIT 1", (entry_id,))
             return cur.fetchone() is not None
+
+
+def update_local_urls(entry_id: str, local_urls: list[str]) -> None:
+    """Update the local_urls for an entry after media download."""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE kie_history SET local_urls = %s::jsonb WHERE id = %s",
+                (json.dumps(local_urls), entry_id),
+            )
+        conn.commit()
+
+
+def entries_needing_backfill(limit: int = 50) -> list[dict]:
+    """Return entries that have KIE URLs but no local copies yet."""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id, urls
+                FROM kie_history
+                WHERE urls != '[]'::jsonb
+                  AND (local_urls IS NULL OR local_urls = '[]'::jsonb)
+                  AND state = 'success'
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            return [dict(r) for r in cur.fetchall()]

@@ -1894,6 +1894,19 @@ function initHistory() {
     }
 }
 
+/**
+ * Resolve the best available URL for a history entry's media.
+ * Prefers local copies (persisted on our server) over KIE CDN URLs.
+ */
+function _resolveMediaUrl(entry, index = 0) {
+    // Check for locally-stored copy first
+    if (Array.isArray(entry.local_urls) && entry.local_urls[index]) {
+        return `${API}/media/${entry.id}/${entry.local_urls[index]}`;
+    }
+    // Fallback to KIE CDN URL
+    return (entry.urls && entry.urls[index]) || '';
+}
+
 function renderHistoryGallery() {
     if (!els.historyGallery) return;
     const allHistory = loadHistory();
@@ -1929,7 +1942,7 @@ function renderHistoryGallery() {
         card.className = 'history-card';
         card.dataset.historyId = entry.id;
 
-        const url = entry.urls[0] || '';
+        const url = _resolveMediaUrl(entry, 0);
         const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url) || entry.model.startsWith('veo3/');
         const isSuno = entry.model.startsWith('suno/');
 
@@ -1973,7 +1986,7 @@ function renderHistoryGallery() {
         // Direct download button for upscale models (Topaz, Recraft crisp)
         const isUpscale = entry.model.startsWith('topaz/') || entry.model === 'recraft/crisp-upscale';
         const dlBtnHtml = (isUpscale && entry.urls?.length)
-            ? `<button class="history-card-dl" data-dl-url="${esc(entry.urls[0])}" title="Download direto">
+            ? `<button class="history-card-dl" data-dl-url="${esc(_resolveMediaUrl(entry, 0))}" title="Download direto">
                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                    </svg>
@@ -2041,7 +2054,7 @@ function openHistoryLightbox(entry) {
     const prevEntry = currentIdx > 0 ? navEntries[currentIdx - 1] : null;
     const nextEntry = currentIdx >= 0 && currentIdx < navEntries.length - 1 ? navEntries[currentIdx + 1] : null;
 
-    const url = entry.urls[0] || '';
+    const url = _resolveMediaUrl(entry, 0);
     const isVidModel = entry.cat === 'video' || entry.cat === 'veo3';
     const isVid = /\.(mp4|mov|webm|avi)($|\?)/i.test(url) || isVidModel;
     const isAud = /\.(mp3|wav|ogg|aac)($|\?)/i.test(url) || entry.model?.startsWith('suno/');
@@ -2051,7 +2064,8 @@ function openHistoryLightbox(entry) {
         // Multi-image grid (MJ 4 images etc.)
         mediaHtml = '<div class="task-result-grid lightbox-grid">';
         entry.urls.forEach((u, i) => {
-            mediaHtml += `<img src="${esc(u)}" alt="Result ${i + 1}" loading="lazy" class="task-result-grid-img lightbox-media">`;
+            const resolvedUrl = _resolveMediaUrl(entry, i);
+            mediaHtml += `<img src="${esc(resolvedUrl)}" alt="Result ${i + 1}" loading="lazy" class="task-result-grid-img lightbox-media">`;
         });
         mediaHtml += '</div>';
     } else if (entry.model && entry.model.startsWith('suno/')) {

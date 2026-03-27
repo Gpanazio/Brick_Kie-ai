@@ -24,6 +24,7 @@ load_dotenv()
 
 import kie_api
 import db
+import storage
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -223,7 +224,22 @@ async def kie_callback(request: Request):
         }
         db.upsert_entry(entry)
 
+        # Download media in background so files are persisted before KIE deletes them
+        if urls and task_state == "success":
+            asyncio.create_task(_download_and_save(task_id, urls))
+
     return {"code": 200, "msg": "success"}
+
+
+async def _download_and_save(task_id: str, urls: list[str]):
+    """Background task: download media files and update DB with local paths."""
+    try:
+        local_files = await storage.download_media(task_id, urls)
+        if local_files:
+            db.update_local_urls(task_id, local_files)
+            logger.info("[media] Saved %d files for task %s", len(local_files), task_id)
+    except Exception as e:
+        logger.error("[media] Background download failed for %s: %s", task_id, e)
 
 
 def _extract_callback_urls(data: dict) -> list:
@@ -286,6 +302,65 @@ async def serve_static(filename: str):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+
+# ==================== Media Serving ====================
+
+
+import mimetypes
+
+
+@app.get("/media/{task_id}/{filename}")
+async def serve_media(task_id: str, filename: str):
+    """Serve a locally-stored media file from the Railway volume."""
+    path = storage.get_local_path(task_id, filename)
+    if not path:
+        raise HTTPException(status_code=404, detail="Media file not found")
+    media_type = mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+    response = FileResponse(str(path), media_type=media_type)
+    # Cache for 30 days — these files are permanent
+    response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+    return response
+
+
+@app.post("/api/media/backfill")
+async def media_backfill(request: Request):
+    """Download media for existing history entries that don't have local copies yet."""
+    rid = _request_id(request)
+    try:
+        entries = db.entries_needing_backfill(limit=50)
+        if not entries:
+            return {"success": True, "processed": 0, "message": "Nothing to backfill"}
+
+        processed = 0
+        errors = []
+        for entry in entries:
+            try:
+                urls = entry.get("urls", [])
+                if isinstance(urls, str):
+                    import json as _json
+                    urls = _json.loads(urls)
+                if not urls:
+                    continue
+                local_files = await storage.download_media(entry["id"], urls)
+                if local_files:
+                    db.update_local_urls(entry["id"], local_files)
+                    processed += 1
+            except Exception as e:
+                logger.warning("[%s] backfill: failed for %s: %s", rid, entry["id"], e)
+                errors.append({"id": entry["id"], "error": str(e)[:100]})
+
+        total_remaining = len(db.entries_needing_backfill(limit=1))
+        logger.info("[%s] media/backfill: processed=%d, errors=%d", rid, processed, len(errors))
+        return {
+            "success": True,
+            "processed": processed,
+            "errors": errors,
+            "remaining": total_remaining,
+        }
+    except Exception as e:
+        logger.error("[%s] media/backfill: %s", rid, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=_sanitize_error(e))
 
 
 # ==================== Config ====================
@@ -819,7 +894,7 @@ def _validate_history_entry(entry: dict) -> dict:
 
 
 @app.post("/api/history")
-def save_history_entry(
+async def save_history_entry(
     request: Request,
     entry_json: str = Form(...),
 ):
@@ -831,6 +906,12 @@ def save_history_entry(
         db.upsert_entry(entry)
         total = db.count_history()
         logger.info("[%s] history/save: id=%s, total=%d", rid, entry["id"], total)
+
+        # Download media in background
+        urls = entry.get("urls", [])
+        if urls and entry.get("state") == "success":
+            asyncio.create_task(_download_and_save(entry["id"], urls))
+
         return {"success": True, "count": total}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON")
