@@ -2295,13 +2295,21 @@ function openHistoryLightbox(entry) {
     });
 
     // Delete handler
-    overlay.querySelector('.lightbox-delete')?.addEventListener('click', () => {
+    overlay.querySelector('.lightbox-delete')?.addEventListener('click', async () => {
+        // Delete from server first (await to prevent reappearance)
+        try {
+            await fetch(`${API}/api/history/${encodeURIComponent(entry.id)}`, { method: 'DELETE', headers: _kieAuthHeaders() });
+        } catch (err) {
+            console.warn('[history] Server delete failed:', err.message);
+        }
         const history = loadHistory().filter(h => h.id !== entry.id);
         saveHistory(history);
+        // Also remove from V2 server history cache
+        if (typeof _serverHistoryCache !== 'undefined') _serverHistoryCache.delete(entry.id);
+        // Remove V2 gallery item DOM element if visible
+        document.querySelectorAll(`.v2-gallery-item[data-base-task-id="${entry.id}"]`).forEach(el => el.remove());
         renderHistoryGallery();
         updateHistoryCount();
-        // Delete from server
-        fetch(`${API}/api/history/${encodeURIComponent(entry.id)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(err => console.warn('[history] Server delete failed:', err.message));
         closeLightbox(overlay);
         toast('🗑️ Geração removida do histórico', 'info');
     });
@@ -4090,6 +4098,8 @@ const v2Registry = {};
                 // Then remove from local cache
                 const history = loadHistory().filter(h => h.id !== bid);
                 saveHistory(history);
+                // Also remove from V2 server history cache
+                _serverHistoryCache.delete(bid);
                 item.style.transition = `opacity ${ITEM_FADE_MS / 1000}s, transform ${ITEM_FADE_MS / 1000}s`;
                 item.style.opacity = '0';
                 item.style.transform = 'scale(0.9)';
