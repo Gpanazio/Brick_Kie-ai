@@ -1916,6 +1916,9 @@ function renderHistoryGallery() {
     // Filter by model dropdown
     const filtered = filterModel ? history.filter(h => h.model === filterModel) : history;
 
+    // Sort newest-first (by timestamp descending)
+    filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
     // Show/hide empty state
     if (els.historyEmpty) els.historyEmpty.classList.toggle('hidden', filtered.length > 0);
 

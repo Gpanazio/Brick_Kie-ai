@@ -119,7 +119,14 @@ def load_history(cat: str | None = None, limit: int = 100) -> list[dict]:
                     SELECT id, model, state, cat, urls, prompt, ts AS "timestamp"
                     FROM kie_history
                     WHERE cat = %s
-                    ORDER BY created_at DESC
+                    ORDER BY COALESCE(
+                        CASE
+                            WHEN ts ~ '^[0-9]+$' AND length(ts) >= 13 THEN to_timestamp(ts::bigint / 1000.0)
+                            WHEN ts ~ '^[0-9]+$' THEN to_timestamp(ts::bigint)
+                            ELSE NULL
+                        END,
+                        created_at
+                    ) DESC
                     LIMIT %s
                     """,
                     (cat, limit),
@@ -129,7 +136,14 @@ def load_history(cat: str | None = None, limit: int = 100) -> list[dict]:
                     """
                     SELECT id, model, state, cat, urls, prompt, ts AS "timestamp"
                     FROM kie_history
-                    ORDER BY created_at DESC
+                    ORDER BY COALESCE(
+                        CASE
+                            WHEN ts ~ '^[0-9]+$' AND length(ts) >= 13 THEN to_timestamp(ts::bigint / 1000.0)
+                            WHEN ts ~ '^[0-9]+$' THEN to_timestamp(ts::bigint)
+                            ELSE NULL
+                        END,
+                        created_at
+                    ) DESC
                     LIMIT %s
                     """,
                     (limit,),
