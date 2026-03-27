@@ -70,13 +70,18 @@ def _init_schema() -> None:
                     prompt      TEXT        DEFAULT '',
                     ts          TEXT,
                     local_urls  JSONB       DEFAULT '[]'::jsonb,
+                    meta        JSONB       DEFAULT '{}'::jsonb,
                     created_at  TIMESTAMPTZ DEFAULT NOW()
                 )
             """)
-            # Migration: add local_urls for existing tables
+            # Migrations for existing tables
             cur.execute("""
                 ALTER TABLE kie_history
                 ADD COLUMN IF NOT EXISTS local_urls JSONB DEFAULT '[]'::jsonb
+            """)
+            cur.execute("""
+                ALTER TABLE kie_history
+                ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}'::jsonb
             """)
         conn.commit()
     logger.info("[db] Schema ready")
@@ -87,19 +92,24 @@ def _init_schema() -> None:
 
 def upsert_entry(entry: dict) -> None:
     """Insert or update a history entry (keyed by id)."""
+    # Collect extra fields into meta blob (inputFileUrl, extraParams, coverUrl, etc.)
+    core_keys = {"id", "model", "state", "cat", "urls", "prompt", "timestamp"}
+    meta = {k: v for k, v in entry.items() if k not in core_keys and v is not None}
+
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO kie_history (id, model, state, cat, urls, prompt, ts)
-                VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
+                INSERT INTO kie_history (id, model, state, cat, urls, prompt, ts, meta)
+                VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb)
                 ON CONFLICT (id) DO UPDATE SET
                     model  = EXCLUDED.model,
                     state  = EXCLUDED.state,
                     cat    = EXCLUDED.cat,
                     urls   = EXCLUDED.urls,
                     prompt = EXCLUDED.prompt,
-                    ts     = EXCLUDED.ts
+                    ts     = EXCLUDED.ts,
+                    meta   = EXCLUDED.meta
                 """,
                 (
                     entry.get("id"),
@@ -109,6 +119,7 @@ def upsert_entry(entry: dict) -> None:
                     json.dumps(entry.get("urls", [])),
                     entry.get("prompt", ""),
                     entry.get("timestamp"),
+                    json.dumps(meta),
                 ),
             )
         conn.commit()
@@ -122,7 +133,7 @@ def load_history(cat: str | None = None, limit: int = 100) -> list[dict]:
             if cat:
                 cur.execute(
                     """
-                    SELECT id, model, state, cat, urls, prompt, ts AS "timestamp", local_urls
+                    SELECT id, model, state, cat, urls, prompt, ts AS "timestamp", local_urls, meta
                     FROM kie_history
                     WHERE cat = %s
                     ORDER BY COALESCE(
@@ -140,7 +151,7 @@ def load_history(cat: str | None = None, limit: int = 100) -> list[dict]:
             else:
                 cur.execute(
                     """
-                    SELECT id, model, state, cat, urls, prompt, ts AS "timestamp", local_urls
+                    SELECT id, model, state, cat, urls, prompt, ts AS "timestamp", local_urls, meta
                     FROM kie_history
                     ORDER BY COALESCE(
                         CASE
@@ -162,6 +173,10 @@ def load_history(cat: str | None = None, limit: int = 100) -> list[dict]:
         # urls is already a Python list when coming from JSONB
         if isinstance(entry.get("urls"), str):
             entry["urls"] = json.loads(entry["urls"])
+        # Merge meta fields back into the entry (inputFileUrl, extraParams, etc.)
+        meta = entry.pop("meta", None)
+        if isinstance(meta, dict):
+            entry.update(meta)
         result.append(entry)
     return result
 
