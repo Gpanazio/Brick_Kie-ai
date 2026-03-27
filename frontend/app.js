@@ -1834,14 +1834,18 @@ function initHistory() {
 
     // Clear history
     if (els.btnClearHistory) {
-        els.btnClearHistory.addEventListener('click', () => {
+        els.btnClearHistory.addEventListener('click', async () => {
             if (!confirm('Limpar histórico desta categoria?')) return;
+            // Delete from server first (await to prevent reappearance on reload)
+            try {
+                await fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE', headers: _kieAuthHeaders() });
+            } catch (err) {
+                console.warn('[history] Server clear failed:', err.message);
+            }
             const keptHistory = loadHistory().filter(h => h.cat !== currentCat);
             saveHistory(keptHistory);
             renderHistoryGallery();
             updateHistoryCount();
-            // Delete this category from server
-            fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(err => console.warn('[history] Server clear failed:', err.message));
             toast('🗑️ Histórico limpo', 'info');
         });
     }
@@ -1929,8 +1933,8 @@ function renderHistoryGallery() {
     // Filter by model dropdown
     const filtered = filterModel ? history.filter(h => h.model === filterModel) : history;
 
-    // Sort newest-first (by timestamp descending)
-    filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    // Sort newest-first (by timestamp descending — coerce strings to numbers)
+    filtered.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
 
     // Show/hide empty state
     if (els.historyEmpty) els.historyEmpty.classList.toggle('hidden', filtered.length > 0);
@@ -4074,13 +4078,18 @@ const v2Registry = {};
             item.appendChild(actionsBar);
 
             // Delete from history + remove item
-            actionsBar.querySelector('.v2-item-del').addEventListener('click', (e) => {
+            actionsBar.querySelector('.v2-item-del').addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const bid = e.currentTarget.dataset.baseId;
+                // Delete from server first (await to prevent reappearance on reload)
+                try {
+                    await fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() });
+                } catch (err) {
+                    console.warn('[history] Server delete failed:', err.message);
+                }
+                // Then remove from local cache
                 const history = loadHistory().filter(h => h.id !== bid);
                 saveHistory(history);
-                // Delete from server
-                fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(err => console.warn('[history] Server delete failed:', err.message));
                 item.style.transition = `opacity ${ITEM_FADE_MS / 1000}s, transform ${ITEM_FADE_MS / 1000}s`;
                 item.style.opacity = '0';
                 item.style.transform = 'scale(0.9)';
