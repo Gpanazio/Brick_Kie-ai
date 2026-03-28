@@ -587,6 +587,8 @@ def market_create_json_body(
     rid = _request_id(request)
     try:
         input_data = json.loads(input_json)
+        if "kling" in model.lower():
+            logger.info("[%s] [KLING-DEBUG] model=%s input_data=%s", rid, model, json.dumps(input_data, ensure_ascii=False)[:500])
         resp = kie_api.market_create_task(model, input_data, callback_url=CALLBACK_URL)
         _validate_api_response(resp)
         logger.info("[%s] market/create-json: model=%s", rid, model)

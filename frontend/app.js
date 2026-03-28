@@ -3556,8 +3556,10 @@ const v2Registry = {};
         if (!images.length) return;
         if (type === 'initial') {
             v2FrameInitial = images[0];
+            console.log('[KLING-DEBUG] v2AddFrameFile INITIAL set:', images[0].name, images[0].size, 'bytes, type:', images[0].type);
         } else {
             v2FrameFinal = images[0];
+            console.log('[KLING-DEBUG] v2AddFrameFile FINAL set:', images[0].name, images[0].size, 'bytes, type:', images[0].type);
         }
         v2RenderFrameGrid(type);
         updateV2GenerateState();
@@ -3846,6 +3848,7 @@ const v2Registry = {};
 
         addTask(tid, resolvedModel, 'veo', json.uploaded_url || extra._uploaded_url_override || null, extra);
         v2Tasks.push(tid);
+        v2ClearAllFiles();
         toast('✅ Veo 3 task created!', 'success');
     }
 
@@ -3891,11 +3894,15 @@ const v2Registry = {};
                 btnSpan.textContent = 'Uploading frames...';
                 let initialUrl = "";
                 let finalUrl = "";
+                console.log('[KLING-DEBUG] PRE-UPLOAD v2FrameInitial:', v2FrameInitial ? {name: v2FrameInitial.name, size: v2FrameInitial.size, type: v2FrameInitial.type} : null);
+                console.log('[KLING-DEBUG] PRE-UPLOAD v2FrameFinal:', v2FrameFinal ? {name: v2FrameFinal.name, size: v2FrameFinal.size, type: v2FrameFinal.type} : null);
                 if (v2FrameInitial) {
                     initialUrl = await v2UploadSingleFile(v2FrameInitial, 0, 1);
+                    console.log('[KLING-DEBUG] POST-UPLOAD initialUrl:', initialUrl);
                 }
                 if (v2FrameFinal) {
                     finalUrl = await v2UploadSingleFile(v2FrameFinal, 0, 1);
+                    console.log('[KLING-DEBUG] POST-UPLOAD finalUrl:', finalUrl);
                 }
                 const urls = [];
                 if (initialUrl) {
@@ -3905,6 +3912,7 @@ const v2Registry = {};
                     urls.push(encodeURI(finalUrl));
                 }
                 if (urls.length > 0) extra[imgField] = urls;
+                console.log('[KLING-DEBUG] FINAL extra[' + imgField + ']:', extra[imgField]);
             } else {
                 const isVideo = v2Files.some(f => f.type.startsWith('video/'));
                 btnSpan.textContent = isVideo
@@ -3923,6 +3931,7 @@ const v2Registry = {};
             btnSpan.textContent = 'Creating task...';
         }
 
+        console.log('[KLING-DEBUG] PAYLOAD resolvedModel:', resolvedModel, 'extra:', JSON.stringify(extra));
         const fd = new FormData();
         fd.append('model', resolvedModel);
         fd.append('input_json', JSON.stringify(extra));
@@ -3959,6 +3968,9 @@ const v2Registry = {};
         const previewUrl = extra[imgField]?.length ? (Array.isArray(extra[imgField]) ? extra[imgField][0] : extra[imgField]) : null;
         addTask(taskId, resolvedModel, mode, previewUrl, extra);
         v2Tasks.push(taskId);
+        // Always clear uploaded files/frames after successful submission
+        // to prevent stale images from being re-sent.
+        v2ClearAllFiles();
         toast(`✅ Task created!${hasFiles ? ` (images uploaded)` : ''}`, 'success');
     }
 
@@ -3985,10 +3997,7 @@ const v2Registry = {};
                 await _handleStandardSubmission(prompt, btnSpan, modelParams);
             }
 
-            // Keep uploaded images so the next generation can reuse the same reference.
-            // Only clear if no files were attached (text-only generation).
-            const hadFiles = v2Files.length > 0 || v2FrameInitial || v2FrameFinal;
-            if (!hadFiles) v2ClearAllFiles();
+            // Files/frames already cleared inside submission handlers
             v2.prompt.value = '';
             v2.charCounter.textContent = '0 / 2.000';
             updateV2GenerateState();
