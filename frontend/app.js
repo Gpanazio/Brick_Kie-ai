@@ -63,7 +63,7 @@ const MODEL_COST_ESTIMATES = {
     // ── Audio (ElevenLabs) ──
     'elevenlabs/text-to-speech-turbo-2-5': 6,   // 6 cr / 1000 chars
     'elevenlabs/text-to-dialogue-v3': 14,       // 14 cr / 1000 chars
-    'elevenlabs/sound-effect-v2': 5,            // 0.24 cr/s ≈ ~5 for typical
+    'elevenlabs/sound-effect-v2': 1.2,          // 0.24 cr/s × 5s default = 1.2
     'elevenlabs/speech-to-text': 3.5,            // 3.5 cr/min
     'elevenlabs/audio-isolation': 1,            // 0.2 cr/s
     // ── Music / Suno ──
