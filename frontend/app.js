@@ -32,13 +32,13 @@ const TOPAZ_VIDEO_ACCEPT = 'video/*,.mp4,.mov,.mkv,.avi,.webm';
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
     'nano-banana-2': 8,                   // 1K = 8, 2K = 12, 4K = 18
-    'google/nano-banana-edit': 4,          // image editing
+    'nano-banana-pro': 4,          // image editing
     'seedream/5-lite': 5.5,               // base UI key
     'seedream/5-lite-text-to-image': 5.5, // per image
     'seedream/5-lite-image-to-image': 5.5,  // 5.5 cr/image ($0.0275)
     'flux-2/pro-text-to-image': 5,        // 1K = 5, 2K = 7
 
-    'qwen/image-edit': 5.6,            // 5.6 cr/image ($0.028)
+    'qwen/text-to-image': 5.6,            // 5.6 cr/image ($0.028)
     'grok-imagine/text-to-image': 4,     // 4 cr/image
     'grok-imagine/image-to-image': 4,    // 4 cr/image
     'gpt4o-image': 22,                   // high=22, medium=4 cr/image
@@ -145,7 +145,7 @@ const MODEL_CONFIGS = {
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K', '4K'], default: '1K' },
         ]
     },
-    'google/nano-banana-edit': {
+    'nano-banana-pro': {
         params: [
             { key: 'image_size', label: 'Aspect Ratio', type: 'select', options: ['1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '5:4', '4:5', '21:9', 'auto'], default: '1:1' },
         ]
@@ -189,7 +189,7 @@ const MODEL_CONFIGS = {
         ]
     },
 
-    'qwen/image-edit': {
+    'qwen/text-to-image': {
         params: [
             { key: 'acceleration', label: 'Speed', type: 'select', options: ['none', 'regular', 'high'], default: 'none' },
             { key: 'num_images', label: 'Quantidade', type: 'select', options: ['1', '2', '3', '4'], default: '1' },
@@ -3793,9 +3793,6 @@ const v2Registry = {};
                 });
             }
             v2.btnGenerate.disabled = !hasAnyDialogue;
-        } else if (['qwen/image-edit', 'google/nano-banana-edit'].includes(v2Model?.model)) {
-            // image-edit models require both a prompt and an image
-            v2.btnGenerate.disabled = !(hasPrompt && hasFiles);
         } else {
             v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames);
         }
@@ -3857,17 +3854,25 @@ const v2Registry = {};
                 if (!uploadedUrlForPreview) uploadedUrlForPreview = finalUrl;
             }
             const urls = [];
-            if (initialUrl || finalUrl) {
+            if (initialUrl) {
                 urls.push(encodeURI(initialUrl));
             }
             if (finalUrl) {
+                if (!initialUrl) {
+                    urls.push(""); // Veo requires empty string if final frame is provided without initial
+                }
                 urls.push(encodeURI(finalUrl));
             }
-            if (urls.length > 0) extra.imageUrls = urls;
+            if (urls.length > 0) {
+                extra.imageUrls = urls;
+                extra.generationType = 'FIRST_AND_LAST_FRAMES_2_VIDEO';
+            }
 
             // Re-store URL for UI thumbnail
             extra._uploaded_url_override = uploadedUrlForPreview;
             btnSpan.textContent = 'Creating task...';
+        } else {
+            extra.generationType = 'TEXT_2_VIDEO';
         }
 
         const fd = new FormData();
