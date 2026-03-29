@@ -52,9 +52,9 @@ const MODEL_COST_ESTIMATES = {
 
     'topaz/video-upscale': 12,             // 12 cr/s
     // ── Video (costs vary by duration/resolution, showing default config) ──
-    'sora-2-pro-text-to-video': 35,       // standard-10s = 30, stable-10s = 35
-    'sora-2-pro-image-to-video': 35,      // standard-10s = 30, stable-10s = 35
-    'kling-3.0/video': 40,                // 40/s 1080p w/ audio, 27/s without
+    'sora-2-pro-text-to-video': 330,     // Pro High-10s=330, High-15s=630, Standard-10s=150, Standard-15s=270
+    'sora-2-pro-image-to-video': 150,     // Pro Standard-10s=150, Standard-15s=270, High-10s=330, High-15s=630
+    'kling-3.0/video': 135,               // 27 cr/s × 5s default (1080p+audio)
     'wan/2-6-text-to-video': 40,             // 5s 480p = 40
     'wan/2-6-image-to-video': 40,            // 5s 480p = 40
     'grok-imagine/text-to-video': 10,     // 6s 480p = 10, 10s 720p = 30
@@ -3432,59 +3432,102 @@ const v2Registry = {};
     if (vpBackdrop) vpBackdrop.addEventListener('click', () => document.getElementById('modal-voice-picker').classList.add('hidden'));
 
     function v2UpdateCost() {
-        const isVeo = currentCat === 'veo3';
-        const isKling = v2Model?.model === 'kling-3.0/video';
-        if (isVeo) {
-            const params = v2CollectModelParams();
+        const model = v2Model?.model;
+        if (!model) {
+            if (v2.creditsAmount) v2.creditsAmount.textContent = '—';
+            return;
+        }
+
+        const params = v2CollectModelParams();
+        let cost = null;
+
+        // ── Veo 3.1 (quality-dependent) ──
+        if (currentCat === 'veo3') {
             const quality = (params.quality || 'Fast').toLowerCase();
-            const base = (v2Model?.model || 'veo3/text-to-video').replace('-video', `-video-${quality}`);
-            const cost = getModelCost(base) || getModelCost(v2Model?.model);
-            if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
-        } else if (isKling) {
-            const params = v2CollectModelParams();
-            const isPro = params.mode === 'pro';
+            const base = model.replace('-video', `-video-${quality}`);
+            cost = getModelCost(base) || getModelCost(model);
+
+        // ── Kling 3.0 (resolution + audio + duration) ──
+        } else if (model === 'kling-3.0/video') {
             const hasSound = params.sound !== false;
-            // Per-second rates: pro+audio=40, pro-audio=27, std+audio=30, std-audio=20
-            const rate = isPro ? (hasSound ? 40 : 27) : (hasSound ? 30 : 20);
+            // KIE rates per second: 1080P+audio=27, 1080P-audio=18, 720P+audio=20, 720P-audio=14
+            const rate = hasSound ? 27 : 18; // default 1080P rates (pro mode)
             let dur = params.duration || 5;
             if (params.multi_shots && params.multi_prompt) {
                 dur = params.multi_prompt.reduce((sum, s) => sum + (s.duration || 5), 0);
             }
-            const cost = rate * dur;
-            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${cost} créditos`;
-        } else if (v2Model?.model?.startsWith('wan/')) {
-            const params = v2CollectModelParams();
+            cost = rate * dur;
+
+        // ── Sora 2 Pro (quality + duration) ──
+        } else if (model === 'sora-2-pro-text-to-video' || model === 'sora-2-pro-image-to-video') {
+            const quality = (params.size || 'standard').toLowerCase();
+            const dur = parseInt(params.n_frames) || 10;
+            // KIE: Pro Standard 10s=150, 15s=270; Pro High 10s=330, 15s=630
+            if (quality === 'high') {
+                cost = dur >= 15 ? 630 : 330;
+            } else {
+                cost = dur >= 15 ? 270 : 150;
+            }
+
+        // ── Wan 2.6 (resolution-dependent) ──
+        } else if (model.startsWith('wan/')) {
             const res = params.resolution || '720p';
-            // Wan 2.6 per-video costs (5s default): 720p=70, 1080p=104.5
-            const wanCost = res === '1080p' ? 104.5 : 70;
-            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${wanCost} créditos`;
-        } else if (v2Model?.model?.startsWith('grok-imagine/') && (v2Model.model.includes('video'))) {
-            const params = v2CollectModelParams();
+            // Wan 2.6: 480p~40, 720p=70, 1080p=104.5
+            cost = res === '1080p' ? 104.5 : res === '480p' ? 40 : 70;
+
+        // ── Grok video (resolution + duration) ──
+        } else if (model.startsWith('grok-imagine/') && model.includes('video')) {
             const res = params.resolution || '480p';
             const dur = parseInt(params.duration) || 6;
-            // Grok video: 480p 6s=10, 10s=20; 720p 6s=20, 10s=30
-            let grokCost;
+            // 480p 6s=10, 10s=20; 720p 6s=20, 10s=30
             if (res === '720p') {
-                grokCost = dur <= 6 ? 20 : 30;
+                cost = dur <= 6 ? 20 : 30;
             } else {
-                grokCost = dur <= 6 ? 10 : 20;
+                cost = dur <= 6 ? 10 : 20;
             }
-            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${grokCost} créditos`;
-        } else if (v2Model?.model === 'nano-banana-2') {
-            const params = v2CollectModelParams();
+
+        // ── Nano Banana 2 (resolution-dependent) ──
+        } else if (model === 'nano-banana-2') {
             const res = params.resolution || '1K';
-            // Nano Banana 2: 1K=8, 2K=12, 4K=18
-            const nb2Cost = res === '4K' ? 18 : res === '2K' ? 12 : 8;
-            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${nb2Cost} créditos`;
-        } else if (v2Model?.model === 'topaz/image-upscale') {
-            const params = v2CollectModelParams();
+            cost = res === '4K' ? 18 : res === '2K' ? 12 : 8;
+
+        // ── Topaz Image Upscale (factor-dependent) ──
+        } else if (model === 'topaz/image-upscale') {
             const factor = parseInt(params.upscale_factor) || 2;
-            // Topaz: 2K (factor 2) = 10, 4K (factor 4) = 20
-            const topazCost = factor >= 4 ? 20 : 10;
-            if (v2.creditsAmount) v2.creditsAmount.textContent = `~${topazCost} créditos`;
+            // KIE: 2x(2K)=10, 4x(4K)=20, 8x(8K)=40
+            cost = factor >= 8 ? 40 : factor >= 4 ? 20 : 10;
+
+        // ── Flux-2 Pro (resolution-dependent) ──
+        } else if (model === 'flux-2/pro-text-to-image') {
+            const res = params.resolution || '1K';
+            cost = res === '2K' ? 7 : 5;
+
+        // ── ElevenLabs Sound Effect V2 (duration-dependent) ──
+        } else if (model === 'elevenlabs/sound-effect-v2') {
+            const dur = parseFloat(params.duration_seconds) || 5;
+            cost = Math.round(0.24 * dur * 100) / 100; // 0.24 cr/s
+
+        // ── Hailuo 2.3 Pro (resolution + duration) ──
+        } else if (model === 'hailuo/2-3-image-to-video-pro') {
+            const res = (params.resolution || '768P').toUpperCase();
+            const dur = parseInt(params.duration) || 6;
+            // KIE Pro: 6s-768p=45, 6s-1080p=80, 10s-768p=90; Standard: 6s-768p=30, 6s-1080p=50, 10s-768p=50
+            if (res === '1080P') {
+                cost = dur >= 10 ? 80 : 80; // Pro 1080p
+            } else if (res === '768P') {
+                cost = dur >= 10 ? 90 : 45; // Pro 768p
+            } else {
+                cost = 30; // 480p standard
+            }
+
+        // ── Google Imagen 4 (no dynamic param but note tiers) ──
+        // ── Default: flat cost from MODEL_COST_ESTIMATES ──
         } else {
-            const cost = typeof getModelCost === 'function' ? getModelCost(v2Model?.model) : null;
-            if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
+            cost = getModelCost(model);
+        }
+
+        if (v2.creditsAmount) {
+            v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
         }
     }
 
