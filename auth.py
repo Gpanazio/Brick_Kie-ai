@@ -10,12 +10,13 @@ from typing import Optional
 
 import bcrypt
 import jwt
+import psycopg2
+import psycopg2.pool
+from contextlib import contextmanager
 from fastapi import APIRouter, Cookie, HTTPException, Request
 from fastapi.responses import JSONResponse
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
-
-from db import _conn
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,35 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 JWT_SECRET: str = os.environ.get("JWT_SECRET", "brick-kie-dev-secret-change-me")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
+
+# ─── Conexão com o banco do Kie-ai (contém master_users + kie_history) ───────
+_master_pool: psycopg2.pool.ThreadedConnectionPool | None = None
+
+def _get_master_pool() -> psycopg2.pool.ThreadedConnectionPool:
+    global _master_pool
+    if _master_pool is None:
+        url = os.environ.get("DATABASE_URL")
+        if not url:
+            raise RuntimeError("DATABASE_URL não configurada")
+        # Força SSL para Railway
+        if ("railway.net" in url or "railway.app" in url) and "sslmode" not in url:
+            sep = "&" if "?" in url else "?"
+            url = f"{url}{sep}sslmode=require"
+        _master_pool = psycopg2.pool.ThreadedConnectionPool(1, 5, url)
+        logger.info("[auth] DB pool criado")
+    return _master_pool
+
+@contextmanager
+def _master_conn():
+    pool = _get_master_pool()
+    conn = pool.getconn()
+    try:
+        yield conn
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        pool.putconn(conn)
 
 # ─── Paths that skip JWT auth ────────────────────────────────────────────────
 PUBLIC_PATHS: set[str] = {"/", "/login", "/favicon.ico", "/api/kie-callback"}
@@ -35,7 +65,7 @@ PUBLIC_PREFIXES: tuple[str, ...] = ("/static/", "/media/", "/api/auth/")
 
 def _get_user(username: str) -> Optional[dict]:
     """Busca usuário na tabela master_users pelo username."""
-    with _conn() as conn:
+    with _master_conn() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 "SELECT id, email, username, password_hash, role "
