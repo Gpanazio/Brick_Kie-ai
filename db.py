@@ -28,6 +28,13 @@ def _build_pool() -> psycopg2.pool.ThreadedConnectionPool:
     url = os.environ.get("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL environment variable is not set")
+
+    # Railway public proxy URLs require SSL — inject sslmode if not already present
+    needs_ssl = "railway.net" in url or "railway.app" in url
+    if needs_ssl and "sslmode" not in url:
+        sep = "&" if "?" in url else "?"
+        url = f"{url}{sep}sslmode=require"
+
     return psycopg2.pool.ThreadedConnectionPool(1, 10, url)
 
 
