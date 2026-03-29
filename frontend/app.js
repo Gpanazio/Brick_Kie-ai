@@ -937,12 +937,20 @@ const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'A
 
 // ==================== Auth Guard ====================
 
-// Interceptor global: redireciona para /login em qualquer 401 de API
+// Interceptor global: injeta credentials + redireciona em 401
 (function installAuthInterceptor() {
     const _origFetch = window.fetch.bind(window);
-    window.fetch = async function(...args) {
-        const response = await _origFetch(...args);
-        const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
+    window.fetch = async function(input, init = {}) {
+        const url = typeof input === 'string' ? input : (input?.url || '');
+
+        // Injeta credentials: 'same-origin' para todas as chamadas /api/
+        // Isso garante que o cookie JWT httpOnly seja enviado automaticamente
+        if (url.startsWith('/api/') || url.includes(window.location.host + '/api/')) {
+            init = { credentials: 'same-origin', ...init };
+        }
+
+        const response = await _origFetch(input, init);
+
         if (
             response.status === 401 &&
             url.includes('/api/') &&
