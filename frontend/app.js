@@ -37,17 +37,17 @@ const MODEL_COST_ESTIMATES = {
     'seedream/5-lite-text-to-image': 5.5, // per image
     'seedream/5-lite-image-to-image': 5.5,  // 5.5 cr/image ($0.0275)
     'flux-2/pro-text-to-image': 5,        // 1K = 5, 2K = 7
-    'google/imagen4': 10,                 // estimated
+    'google/imagen4': 8,                  // default=8, fast=4, ultra=12
 
-    'qwen/image-edit': 4,             // qwen image = 4
+    'qwen/image-edit': 5.6,            // 5.6 cr/image ($0.028)
     'grok-imagine/text-to-image': 4,     // 4 cr/image
     'grok-imagine/image-to-image': 4,    // 4 cr/image
-    'gpt4o-image': 30,                   // ~30 cr/image
-    'flux-kontext-pro': 10,              // ~10 cr/image
-    'flux-kontext-max': 20,              // ~20 cr/image
+    'gpt4o-image': 22,                   // high=22, medium=4 cr/image
+    'flux-kontext-pro': 5,               // 5.0 cr/image ($0.025)
+    'flux-kontext-max': 10,              // 10.0 cr/image ($0.05)
     // ── Image Tools ──
-    'recraft/remove-background': 10,
-    'recraft/crisp-upscale': 15,
+    'recraft/remove-background': 1,      // 1.0 cr/image
+    'recraft/crisp-upscale': 0.5,        // 0.5 cr/image ($0.0025)
     'topaz/image-upscale': 10,
 
     'topaz/video-upscale': 12,             // 12 cr/s
@@ -59,7 +59,7 @@ const MODEL_COST_ESTIMATES = {
     'wan/2-6-image-to-video': 40,            // 5s 480p = 40
     'grok-imagine/text-to-video': 10,     // 6s 480p = 10, 10s 720p = 30
     'grok-imagine/image-to-video': 10,    // 6s 480p = 10, 10s 720p = 30
-    'hailuo/2-3-image-to-video-pro': 30,  // 6s 768p = 30, 6s 1080p pro = 80
+    'hailuo/2-3-image-to-video-pro': 45,  // Pro-6s-768p=45, Pro-6s-1080p=80, Pro-10s-768p=90
     // ── Audio (ElevenLabs) ──
     'elevenlabs/text-to-speech-turbo-2-5': 6,   // 6 cr / 1000 chars
     'elevenlabs/text-to-dialogue-v3': 14,       // 14 cr / 1000 chars
@@ -68,15 +68,15 @@ const MODEL_COST_ESTIMATES = {
     'elevenlabs/audio-isolation': 1,            // 0.1 cr/s
     // ── Music / Suno ──
     'suno/generate-music': 12,            // mashup = 12
-    'suno/generate-lyrics': 1,            // 0.4 cr/request ≈ ~1
+    'suno/generate-lyrics': 0.4,          // 0.4 cr/request
     'suno/edit-audio': 12,                // extend/instrumental/vocals/separate
     'suno/utilities': 2,                  // music-video/convert-wav/get-lyrics
     // ── Veo 3.1 (Google) ──
     'veo3/text-to-video': 60,             // Base display cost 
-    'veo3/image-to-video': 80,            // Base display cost
+    'veo3/image-to-video': 60,            // Base display cost (fast=60)
     'veo3/text-to-video-fast': 60,        // 60 cr/video
     'veo3/text-to-video-quality': 250,    // 250 cr/video
-    'veo3/image-to-video-fast': 80,       // 80 cr/video
+    'veo3/image-to-video-fast': 60,       // 60 cr/video
     'veo3/image-to-video-quality': 250,   // 250 cr/video
     'veo3/extend-fast': 60,               // 60 cr/video
     'veo3/extend-quality': 250,           // 250 cr/video
