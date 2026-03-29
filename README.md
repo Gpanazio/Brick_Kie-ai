@@ -36,7 +36,8 @@ Este repositório foi extraído do monorepo `Brick_Marketing` onde o `kie-ai` vi
 - **Backend**: Python (FastAPI + Uvicorn)
 - **Frontend**: Vanilla JS + HTML + CSS
 - **Real-time**: SSE (Server-Sent Events)
-- **Histórico**: JSON file-based (`data/kie_history.json`)
+- **Histórico**: PostgreSQL (via `psycopg2` connection pool)
+- **Media Storage**: Railway Volume (`/history/media/`) com download automático
 - **API**: KIE.ai Market API
 
 ## Setup Local
@@ -63,7 +64,6 @@ python server.py
 ```bash
 source .venv/bin/activate
 pytest tests/ -v
-# 40 passed in ~0.25s
 ```
 
 ## Variáveis de Ambiente
@@ -71,10 +71,13 @@ pytest tests/ -v
 | Variável | Descrição | Default |
 |---|---|---|
 | `KIE_API_KEY` | Chave da API KIE.ai **(obrigatória)** | — |
+| `DATABASE_URL` | Connection string PostgreSQL **(obrigatória em produção)** | — |
 | `KIE_PORT` | Porta do servidor | `8420` |
 | `API_KEY` | Chave de autenticação do frontend | `brick-squad-2026` |
 | `KIE_CALLBACK_URL` | URL pública para webhooks da KIE (ex: `https://seu-app.up.railway.app/api/kie-callback`) | — |
 | `KIE_WEBHOOK_KEY` | HMAC key para verificar assinatura dos webhooks (opcional) | — |
+| `MEDIA_DIR` | Diretório para armazenar mídia baixada | `/history/media` |
+| `ROOT_PATH` | Subpath para reverse proxy (se aplicável) | `""` |
 
 ## Estrutura
 
@@ -82,7 +85,9 @@ pytest tests/ -v
 Brick_Kie-ai/
 ├── server.py              # FastAPI server standalone
 ├── kie_api.py             # KIE.ai API client
-├── requirements.txt       # Python deps (inclui pytest + httpx)
+├── db.py                  # PostgreSQL persistence layer (connection pool + CRUD)
+├── storage.py             # Media download & local serving (Railway volume)
+├── requirements.txt       # Python deps (inclui pytest + httpx + psycopg2)
 ├── Procfile               # web: python server.py
 ├── railway.toml           # Config de deploy
 ├── .env.example           # Template de variáveis
@@ -90,10 +95,9 @@ Brick_Kie-ai/
 │   ├── index.html         # HTML principal
 │   ├── app.js             # Lógica do frontend (SSE, modelos, upload)
 │   └── style-v2.css       # Estilos
-├── data/                  # Histórico em JSON (gitignored)
 ├── KIE_API_REFERENCE.md   # Referência completa da API KIE.ai
 └── tests/
-    └── test_server.py     # 40 testes pytest
+    └── test_server.py     # Testes pytest
 ```
 
 ## Deploy (Railway)
@@ -106,4 +110,4 @@ Brick_Kie-ai/
 3. Railway detecta o `Procfile` e o `railway.toml` automaticamente
 4. Deploy é iniciado via `python server.py`
 
-> **Nota:** O `data/` fica no container temporário por padrão. Para histórico persistente no Railway, configure um Volume montado em `/app/data`.
+> **Nota:** O histórico é persistido no PostgreSQL (Railway Postgres plugin). Para mídia local, configure um Volume montado em `/history/media` (definido por `MEDIA_DIR`).

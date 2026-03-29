@@ -593,7 +593,7 @@ GET https://api.kie.ai/api/v1/flux/kontext/record-info?taskId={taskId}
 
 The Market API provides access to dozens of AI models through **two unified endpoints**.
 
-### 16.1 Create Task
+### 15.1 Create Task
 ```
 POST https://api.kie.ai/api/v1/jobs/createTask
 ```
@@ -609,7 +609,7 @@ POST https://api.kie.ai/api/v1/jobs/createTask
 }
 ```
 
-### 16.2 Get Task Details
+### 15.2 Get Task Details
 ```
 GET https://api.kie.ai/api/v1/jobs/recordInfo?taskId={taskId}
 ```
@@ -948,7 +948,7 @@ POST https://api.kie.ai/api/v1/jobs/createTask
 
 ## Appendix: Python API Paths (from kie_api.py)
 
-These are the verified paths used in the project's existing API client at `/home/user/Brick_Marketing/kie-ai/kie_api.py`:
+These are the verified paths used in the project's API client at `kie_api.py`:
 
 ```python
 # Market

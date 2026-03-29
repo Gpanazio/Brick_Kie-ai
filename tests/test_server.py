@@ -6,7 +6,6 @@ Uses unittest.mock to avoid real HTTP calls to kie.ai.
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
 from unittest import mock
 
@@ -15,8 +14,26 @@ import pytest
 # Ensure kie-ai directory is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# We need to mock kie_api before importing server so it doesn't fail on missing env vars
-with mock.patch.dict(os.environ, {"KIE_API_KEY": "test-key-000"}):
+# We need to mock db (PostgreSQL) and kie_api before importing server
+with mock.patch.dict(os.environ, {"KIE_API_KEY": "test-key-000", "DATABASE_URL": "postgresql://test:test@localhost/test"}):
+    # Mock db module so it doesn't try to connect to PostgreSQL
+    mock_db = mock.MagicMock()
+    mock_db.upsert_entry = mock.MagicMock()
+    mock_db.load_history = mock.MagicMock(return_value=[])
+    mock_db.count_history = mock.MagicMock(return_value=0)
+    mock_db.delete_entry = mock.MagicMock()
+    mock_db.clear_history = mock.MagicMock()
+    mock_db.entry_exists = mock.MagicMock(return_value=False)
+    mock_db.update_local_urls = mock.MagicMock()
+    mock_db.entries_needing_backfill = mock.MagicMock(return_value=[])
+    sys.modules["db"] = mock_db
+
+    # Mock storage module
+    mock_storage = mock.MagicMock()
+    mock_storage.get_local_path = mock.MagicMock(return_value=None)
+    mock_storage.download_media = mock.MagicMock()
+    sys.modules["storage"] = mock_storage
+
     import server
     import kie_api
 
@@ -168,6 +185,26 @@ class TestExtractResultUrls:
         assert len(urls) == 1
 
 
+class TestExtractCallbackUrls:
+    def test_extracts_simple_url(self):
+        data = {"resultUrl": "https://example.com/file.png"}
+        urls = server._extract_callback_urls(data)
+        assert "https://example.com/file.png" in urls
+
+    def test_extracts_from_resultJson_string(self):
+        data = {"resultJson": json.dumps({"resultUrls": ["https://r.com/1.mp4", "https://r.com/2.mp4"]})}
+        urls = server._extract_callback_urls(data)
+        assert len(urls) == 2
+
+    def test_handles_non_dict(self):
+        assert server._extract_callback_urls("not a dict") == []
+
+    def test_deduplicates_preserving_order(self):
+        data = {"resultUrl": "https://a.com/1.png", "output": "https://a.com/1.png", "videoUrl": "https://b.com/2.mp4"}
+        urls = server._extract_callback_urls(data)
+        assert urls == ["https://a.com/1.png", "https://b.com/2.mp4"]
+
+
 class TestInferCat:
     def test_suno(self):
         assert server._infer_cat("suno/generate-music") == "music"
@@ -181,29 +218,17 @@ class TestInferCat:
     def test_tools(self):
         assert server._infer_cat("recraft/remove-background") == "tools"
 
+    def test_elevenlabs_audio(self):
+        assert server._infer_cat("elevenlabs/text-to-speech") == "audio"
 
-# ==================== History File Lock ====================
+    def test_topaz_tools(self):
+        assert server._infer_cat("topaz/video-upscale") == "tools"
 
+    def test_veo_video(self):
+        assert server._infer_cat("veo3_fast") == "video"
 
-class TestHistoryFileLock:
-    def test_save_and_load_roundtrip(self, tmp_path):
-        """Test that saving and loading history preserves data."""
-        with mock.patch.object(server, "HISTORY_DIR", tmp_path):
-            with mock.patch.object(server, "HISTORY_FILE", tmp_path / "test_history.json"):
-                with mock.patch.object(server, "HISTORY_LOCK", tmp_path / ".test_lock"):
-                    entries = [{"id": "t1", "model": "m1"}, {"id": "t2", "model": "m2"}]
-                    server._save_server_history(entries)
-                    loaded = server._load_server_history()
-                    assert len(loaded) == 2
-                    assert loaded[0]["id"] == "t1"
-
-    def test_load_corrupted_file(self, tmp_path):
-        """Test that corrupted history files are handled gracefully."""
-        history_file = tmp_path / "bad_history.json"
-        history_file.write_text("not valid json")
-        with mock.patch.object(server, "HISTORY_FILE", history_file):
-            result = server._load_server_history()
-            assert result == []
+    def test_hailuo_video(self):
+        assert server._infer_cat("hailuo/text-to-video") == "video"
 
 
 # ==================== FastAPI Endpoint Tests ====================
@@ -216,30 +241,45 @@ def client():
 
 
 class TestEndpointHistory:
-    def test_get_history_empty(self, client, tmp_path):
-        with mock.patch.object(server, "HISTORY_FILE", tmp_path / "empty.json"):
-            resp = client.get("/api/history")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["history"] == []
+    def test_get_history_empty(self, client):
+        mock_db.load_history.return_value = []
+        mock_db.count_history.return_value = 0
+        resp = client.get("/api/history")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["history"] == []
+        assert data["total"] == 0
 
-    def test_save_and_get_history(self, client, tmp_path):
-        hfile = tmp_path / "h.json"
-        hlock = tmp_path / ".h.lock"
-        with mock.patch.object(server, "HISTORY_DIR", tmp_path), \
-             mock.patch.object(server, "HISTORY_FILE", hfile), \
-             mock.patch.object(server, "HISTORY_LOCK", hlock):
-            # Save
-            entry = {"id": "task-123", "model": "test/model", "cat": "image", "urls": []}
-            resp = client.post("/api/history", data={"entry_json": json.dumps(entry)})
-            assert resp.status_code == 200
-            assert resp.json()["success"] is True
+    def test_save_history_entry(self, client):
+        mock_db.upsert_entry.reset_mock()
+        mock_db.count_history.return_value = 1
+        entry = {"id": "task-123", "model": "test/model", "cat": "image", "urls": []}
+        resp = client.post("/api/history", data={"entry_json": json.dumps(entry)})
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        mock_db.upsert_entry.assert_called_once()
 
-            # Get
-            resp = client.get("/api/history")
-            assert resp.status_code == 200
-            assert len(resp.json()["history"]) == 1
-            assert resp.json()["history"][0]["id"] == "task-123"
+    def test_save_and_get_history(self, client):
+        entry = {"id": "task-456", "model": "test/model", "cat": "image", "urls": [], "state": "success"}
+        # Save
+        mock_db.count_history.return_value = 1
+        resp = client.post("/api/history", data={"entry_json": json.dumps(entry)})
+        assert resp.status_code == 200
+
+        # Get — mock returns the saved entry
+        mock_db.load_history.return_value = [entry]
+        mock_db.count_history.return_value = 1
+        resp = client.get("/api/history")
+        assert resp.status_code == 200
+        assert len(resp.json()["history"]) == 1
+        assert resp.json()["history"][0]["id"] == "task-456"
+
+    def test_get_history_with_category_filter(self, client):
+        mock_db.load_history.return_value = [{"id": "t1", "cat": "video"}]
+        mock_db.count_history.return_value = 1
+        resp = client.get("/api/history?cat=video")
+        assert resp.status_code == 200
+        mock_db.load_history.assert_called_with(cat="video", limit=100)
 
     def test_save_rejects_invalid_json(self, client):
         resp = client.post("/api/history", data={"entry_json": "not-json"})
@@ -249,18 +289,26 @@ class TestEndpointHistory:
         resp = client.post("/api/history", data={"entry_json": json.dumps({"model": "test"})})
         assert resp.status_code == 400
 
-    def test_delete_history_entry(self, client, tmp_path):
-        hfile = tmp_path / "h.json"
-        hlock = tmp_path / ".h.lock"
-        hfile.write_text(json.dumps([{"id": "t1"}, {"id": "t2"}]))
-        with mock.patch.object(server, "HISTORY_DIR", tmp_path), \
-             mock.patch.object(server, "HISTORY_FILE", hfile), \
-             mock.patch.object(server, "HISTORY_LOCK", hlock):
-            resp = client.delete("/api/history/t1")
-            assert resp.status_code == 200
-            loaded = json.loads(hfile.read_text())
-            assert len(loaded) == 1
-            assert loaded[0]["id"] == "t2"
+    def test_delete_history_entry(self, client):
+        mock_db.delete_entry.reset_mock()
+        mock_db.count_history.return_value = 0
+        resp = client.delete("/api/history/t1")
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        mock_db.delete_entry.assert_called_once_with("t1")
+
+    def test_clear_history(self, client):
+        mock_db.clear_history.reset_mock()
+        resp = client.delete("/api/history")
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        mock_db.clear_history.assert_called_once()
+
+    def test_clear_history_with_category(self, client):
+        mock_db.clear_history.reset_mock()
+        resp = client.delete("/api/history?cat=image")
+        assert resp.status_code == 200
+        mock_db.clear_history.assert_called_once_with(cat="image")
 
 
 class TestEndpointCredits:
@@ -274,3 +322,27 @@ class TestEndpointCredits:
         with mock.patch.object(kie_api, "credits", side_effect=ValueError("no key")):
             resp = client.get("/api/credits")
             assert resp.status_code == 503
+
+
+class TestEndpointConfig:
+    def test_config_returns_api_key(self, client):
+        resp = client.get("/api/config")
+        assert resp.status_code == 200
+        assert "apiKey" in resp.json()
+
+
+
+
+class TestEndpointStatic:
+    def test_index_returns_html(self, client):
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers["content-type"]
+
+    def test_favicon_returns_204(self, client):
+        resp = client.get("/favicon.ico")
+        assert resp.status_code == 204
+
+    def test_static_404_for_missing_file(self, client):
+        resp = client.get("/static/nonexistent.js")
+        assert resp.status_code == 404

@@ -213,7 +213,7 @@ const MODEL_CONFIGS = {
     'recraft/crisp-upscale': { params: [] },
     'topaz/image-upscale': {
         params: [
-            { key: 'upscale_factor', label: 'Fator de Upscale', type: 'select', options: ['2', '4'], default: '2' },
+            { key: 'upscale_factor', label: 'Fator de Upscale', type: 'select', options: ['1', '2', '4', '8'], default: '2' },
         ]
     },
 
