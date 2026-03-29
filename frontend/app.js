@@ -3442,7 +3442,7 @@ const v2Registry = {};
         let cost = null;
 
         // ── Veo 3.1 (quality-dependent) ──
-        if (currentCat === 'veo3') {
+        if (model.startsWith('veo3/')) {
             const quality = (params.quality || 'Fast').toLowerCase();
             const base = model.replace('-video', `-video-${quality}`);
             cost = getModelCost(base) || getModelCost(model);
@@ -3791,6 +3791,9 @@ const v2Registry = {};
         const hasFiles = v2Files.length > 0;
         const hasFrames = v2FrameInitial !== null || v2FrameFinal !== null;
 
+        // Refresh credit estimate whenever generate state changes (file added/removed, etc.)
+        v2UpdateCost();
+
         if (v2Model?.model === 'elevenlabs/text-to-dialogue-v3') {
             const diagList = document.getElementById('v2-dialogue-list');
             let hasAnyDialogue = false;
@@ -4034,7 +4037,7 @@ const v2Registry = {};
 
             const modelParams = v2CollectModelParams();
 
-            if (currentCat === 'veo3') {
+            if (v2Model?.model?.startsWith('veo3/')) {
                 await _handleVeo3Submission(prompt, btnSpan);
             } else {
                 await _handleStandardSubmission(prompt, btnSpan, modelParams);
