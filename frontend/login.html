@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KIE AI — Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #000000;
+            --surface: #0d0d0d;
+            --surface-2: #141414;
+            --border: #1e1e1e;
+            --border-hover: #2e2e2e;
+            --accent: #DC2626;
+            --accent-dim: rgba(220, 38, 38, 0.08);
+            --accent-glow: rgba(220, 38, 38, 0.3);
+            --text: #ffffff;
+            --text-dim: #888;
+            --text-muted: #444;
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'Inter', -apple-system, sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ── Background ambient ── */
+        .bg-glow {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(120px);
+        }
+        .bg-glow-1 {
+            width: 600px; height: 600px;
+            background: rgba(220, 38, 38, 0.06);
+            top: -150px; left: -150px;
+            animation: pulse-glow 12s ease-in-out infinite;
+        }
+        .bg-glow-2 {
+            width: 400px; height: 400px;
+            background: rgba(41, 121, 255, 0.03);
+            bottom: -100px; right: -100px;
+            animation: pulse-glow 18s ease-in-out infinite reverse;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50%       { opacity: 1;   transform: scale(1.08); }
+        }
+
+        /* ── Scan lines ── */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(255,255,255,0.012) 2px,
+                rgba(255,255,255,0.012) 4px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* ── Card ── */
+        .login-wrap {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 420px;
+            padding: 16px;
+        }
+
+        .login-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 48px 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Top accent line */
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0.6;
+        }
+
+        /* ── Logo ── */
+        .logo-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .logo-icon {
+            width: 56px; height: 56px;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--accent);
+            filter: blur(20px);
+            opacity: 0.5;
+            z-index: -1;
+        }
+        .logo-icon svg {
+            width: 28px; height: 28px;
+            color: #fff;
+        }
+
+        .logo-title {
+            font-family: var(--mono);
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            color: #fff;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .logo-divider {
+            width: 32px; height: 2px;
+            background: var(--accent);
+            margin: 8px auto;
+        }
+
+        .logo-sub {
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 0.35em;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* ── Form ── */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            height: 48px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            padding: 0 16px;
+            outline: none;
+            transition: border-color 0.15s, background 0.15s;
+            -webkit-appearance: none;
+            border-radius: 0;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: rgba(220, 38, 38, 0.5);
+            background: #111;
+        }
+
+        input::placeholder {
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Error ── */
+        .error-box {
+            display: none;
+            background: rgba(220, 38, 38, 0.08);
+            border-left: 2px solid var(--accent);
+            padding: 12px 14px;
+            margin-bottom: 20px;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #f87171;
+        }
+        .error-box.visible { display: block; }
+
+        /* ── Submit Button ── */
+        .btn-login {
+            width: 100%;
+            height: 48px;
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: opacity 0.15s, transform 0.1s;
+            margin-top: 8px;
+            border-radius: 0;
+        }
+
+        .btn-login:hover { opacity: 0.9; }
+        .btn-login:active { transform: scale(0.99); }
+        .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-login .spinner {
+            display: none;
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .btn-login.loading .btn-text { opacity: 0; }
+        .btn-login.loading .spinner { display: block; }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* ── Footer ── */
+        .login-footer {
+            margin-top: 36px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .login-footer p {
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 0.3em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            line-height: 1.7;
+        }
+
+        .login-footer span {
+            color: var(--text-dim);
+        }
+
+        /* ── Fade in ── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .login-card {
+            animation: fadeUp 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <div class="login-wrap">
+        <div class="login-card">
+            <div class="logo-block">
+                <div class="logo-icon">
+                    <!-- Brick mark / play icon -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                    </svg>
+                </div>
+                <div class="logo-title">KIE AI</div>
+                <div class="logo-divider"></div>
+                <div class="logo-sub">War Room — Acesso Restrito</div>
+            </div>
+
+            <form id="login-form" autocomplete="off">
+                <div class="form-group">
+                    <label for="username">Usuário</label>
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="SEU USUÁRIO"
+                        autocomplete="username"
+                        required
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="••••••••"
+                        autocomplete="current-password"
+                        required
+                    />
+                </div>
+
+                <div class="error-box" id="error-msg"></div>
+
+                <button type="submit" class="btn-login" id="btn-submit">
+                    <span class="btn-text">Entrar na Plataforma</span>
+                    <div class="spinner"></div>
+                </button>
+            </form>
+
+            <div class="login-footer">
+                <p>Acesso exclusivo para equipe <span>Brick</span> e clientes autorizados</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Se já tem sessão válida, redireciona direto
+        (async function checkExistingSession() {
+            try {
+                const r = await fetch('/api/auth/verify');
+                if (r.ok) {
+                    const d = await r.json();
+                    if (d.valid) { window.location.replace('/'); }
+                }
+            } catch (e) { /* não logado — mostra form */ }
+        })();
+
+        const form    = document.getElementById('login-form');
+        const btnSub  = document.getElementById('btn-submit');
+        const errBox  = document.getElementById('error-msg');
+
+        function showError(msg) {
+            errBox.textContent = msg;
+            errBox.classList.add('visible');
+        }
+        function hideError() {
+            errBox.classList.remove('visible');
+        }
+        function setLoading(v) {
+            btnSub.disabled = v;
+            btnSub.classList.toggle('loading', v);
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+            setLoading(true);
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await res.json().catch(() => ({}));
+
+                if (res.ok) {
+                    window.location.replace('/');
+                } else {
+                    showError(data.detail || data.error || 'Credenciais inválidas');
+                    setLoading(false);
+                }
+            } catch (err) {
+                showError('Erro de conexão com o servidor');
+                setLoading(false);
+            }
+        });
+
+        // Limpa erro ao digitar
+        document.getElementById('username').addEventListener('input', hideError);
+        document.getElementById('password').addEventListener('input', hideError);
+    </script>
+</body>
+</html>

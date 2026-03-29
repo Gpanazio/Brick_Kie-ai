@@ -25,6 +25,8 @@ load_dotenv()
 import kie_api
 import db
 import storage
+import auth as auth_module
+from auth import is_protected, extract_token, decode_token
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -107,6 +109,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Auth router ──
+app.include_router(auth_module.router)
+
+
+# ── JWT Auth Middleware ──
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class JWTAuthMiddleware(BaseHTTPMiddleware):
+    """Protege todas as rotas /api/* (exceto /api/auth/* e /api/kie-callback)."""
+    async def dispatch(self, request: Request, call_next):
+        if is_protected(request.url.path):
+            token = extract_token(request)
+            if not token:
+                return JSONResponse(
+                    {"error": "Autenticação necessária"},
+                    status_code=401,
+                )
+            try:
+                decode_token(token)
+            except HTTPException as e:
+                return JSONResponse({"error": e.detail}, status_code=e.status_code)
+        return await call_next(request)
+
+app.add_middleware(JWTAuthMiddleware)
 
 
 # ==================== SSE (Server-Sent Events) ====================
@@ -277,6 +304,16 @@ def _extract_callback_urls(data: dict) -> list:
 @app.get("/", response_class=FileResponse)
 async def serve_index():
     response = FileResponse(FRONTEND_DIR / "index.html", media_type="text/html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+@app.get("/login", response_class=FileResponse)
+async def serve_login():
+    """Serve a página de login."""
+    response = FileResponse(FRONTEND_DIR / "login.html", media_type="text/html")
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"

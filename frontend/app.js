@@ -935,7 +935,52 @@ const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'A
 
 // ==================== Init ====================
 
-document.addEventListener('DOMContentLoaded', () => {
+// ==================== Auth Guard ====================
+
+// Interceptor global: redireciona para /login em qualquer 401 de API
+(function installAuthInterceptor() {
+    const _origFetch = window.fetch.bind(window);
+    window.fetch = async function(...args) {
+        const response = await _origFetch(...args);
+        const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
+        if (
+            response.status === 401 &&
+            url.includes('/api/') &&
+            !url.includes('/api/auth/')
+        ) {
+            console.warn('[auth] 401 — redirecionando para login');
+            window.location.replace('/login');
+        }
+        return response;
+    };
+})();
+
+async function initAuth() {
+    try {
+        const r = await fetch('/api/auth/verify');
+        if (!r.ok) {
+            window.location.replace('/login');
+            return false;
+        }
+        const d = await r.json();
+        if (!d.valid) {
+            window.location.replace('/login');
+            return false;
+        }
+        // Guarda user no window para componentes que precisem
+        window._kieUser = d.user;
+        return true;
+    } catch (e) {
+        console.error('[auth] Falha ao verificar sessão:', e);
+        window.location.replace('/login');
+        return false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const authenticated = await initAuth();
+    if (!authenticated) return; // redireciona para /login
+
     initApiKey(); // fetch API key early so history requests are authenticated
     initLobby();
     initModelPickerModal();
