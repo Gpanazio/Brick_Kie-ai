@@ -37,7 +37,6 @@ const MODEL_COST_ESTIMATES = {
     'seedream/5-lite-text-to-image': 5.5, // per image
     'seedream/5-lite-image-to-image': 5.5,  // 5.5 cr/image ($0.0275)
     'flux-2/pro-text-to-image': 5,        // 1K = 5, 2K = 7
-    'google/imagen4': 8,                  // default=8, fast=4, ultra=12
 
     'qwen/image-edit': 5.6,            // 5.6 cr/image ($0.028)
     'grok-imagine/text-to-image': 4,     // 4 cr/image
@@ -180,19 +179,13 @@ const MODEL_CONFIGS = {
     'seedream/5-lite': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], default: '1:1' },
+            { key: 'quality', label: 'Quality', type: 'select', options: ['basic', 'high'], default: 'basic' },
         ]
     },
     'flux-2/pro-text-to-image': {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['1K', '2K'], default: '1K' },
-        ]
-    },
-    'google/imagen4': {
-        params: [
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'], default: '1:1' },
-            { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
-            { key: 'seed', label: 'Seed', type: 'text', default: '' },
         ]
     },
 
@@ -244,11 +237,8 @@ const MODEL_CONFIGS = {
     },
     'wan/2-6-text-to-video': {
         params: [
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p', '1080p'], default: '720p' },
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '4:3', '3:4'], default: '16:9' },
-            { key: 'enable_prompt_expansion', label: 'Expand Prompt', type: 'bool', default: true },
-            { key: 'seed', label: 'Seed', type: 'number', default: 0, min: 0, max: 99999, step: 1 },
-            { key: 'acceleration', label: 'Aceleração', type: 'select', options: ['none'], default: 'none' },
+            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['5', '10', '15'], default: '5' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
         ]
     },
     'grok-imagine/text-to-video': {
@@ -1380,7 +1370,8 @@ function resolveVeoModelByInput(model, hasImage) {
 
 function resolveSeedreamModel(model, extra, hasFile) {
     if (model === 'seedream/5-lite') {
-        extra.quality = 'high';
+        // Preserve user-selected quality (default: 'basic'); do not override.
+        if (!extra.quality) extra.quality = 'basic';
         return hasFile ? 'seedream/5-lite-image-to-image' : 'seedream/5-lite-text-to-image';
     }
     return model;
@@ -2864,7 +2855,6 @@ const v2Registry = {};
             'flux-kontext-pro': 1,              // single inputImage
             'flux-kontext-max': 1,              // single inputImage
             'flux-2/pro-text-to-image': 0,      // text only
-            'google/imagen4': 0,                // text only
             'kling-3.0/video': 2,              // first + last frame
         };
         const modelKey = data.model || '';
@@ -3472,8 +3462,8 @@ const v2Registry = {};
         // ── Wan 2.6 (resolution-dependent) ──
         } else if (model.startsWith('wan/')) {
             const res = params.resolution || '720p';
-            // Wan 2.6: 480p~40, 720p=70, 1080p=104.5
-            cost = res === '1080p' ? 104.5 : res === '480p' ? 40 : 70;
+            // Wan 2.6: 720p=70, 1080p=104.5
+            cost = res === '1080p' ? 104.5 : 70;
 
         // ── Grok video (resolution + duration) ──
         } else if (model.startsWith('grok-imagine/') && model.includes('video')) {
