@@ -245,14 +245,15 @@ const MODEL_CONFIGS = {
         params: [
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '2:3', '3:2', '4:3', '3:4'], default: '16:9' },
             { key: 'mode', label: 'Modo', type: 'select', options: ['fun', 'normal', 'spicy'], default: 'normal' },
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['6', '10'], default: '6' },
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 6, min: 6, max: 30, step: 1 },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '480p' },
         ]
     },
     'grok-imagine/image-to-video': {
         params: [
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['1:1', '16:9', '9:16', '2:3', '3:2', '4:3', '3:4'], default: '16:9', hint: 'Só em modo multi-imagem' },
             { key: 'mode', label: 'Modo', type: 'select', options: ['fun', 'normal', 'spicy'], default: 'normal' },
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['6', '10'], default: '6' },
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 6, min: 6, max: 30, step: 1 },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '480p' },
         ]
     },
@@ -2921,16 +2922,18 @@ const v2Registry = {};
             'gpt4o-image': 5,                   // up to 5 image URLs
             'qwen/image-edit': 1,               // single image_url
             'grok-imagine/text-to-image': 1,    // max one per request
+            'grok-imagine/text-to-video': 7,    // up to 7 images, ref with @image(n)
             'flux-kontext-pro': 1,              // single inputImage
             'flux-kontext-max': 1,              // single inputImage
             'flux-2/pro-text-to-image': 0,      // text only
             'kling-3.0/video': 2,              // first + last frame
         };
         const modelKey = data.model || '';
-        if (isVideo || isAudio) {
-            v2MaxFiles = 1;
-        } else if (modelKey in MODEL_MAX_FILES) {
+        // Check per-model override first, then fall back to category defaults
+        if (modelKey in MODEL_MAX_FILES) {
             v2MaxFiles = MODEL_MAX_FILES[modelKey];
+        } else if (isVideo || isAudio) {
+            v2MaxFiles = 1;
         } else {
             v2MaxFiles = 1; // safe default
         }
