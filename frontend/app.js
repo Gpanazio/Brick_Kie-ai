@@ -691,6 +691,10 @@ const HISTORY_MAX = 500;
 // In-memory cache — populated from server on init, updated locally on each new entry
 let _historyCache = null; // null = not yet loaded from server
 
+// Tombstone set: IDs deleted during this session.
+// Prevents deleted items from reappearing via async server fetches or SSE callbacks.
+const _deletedIds = new Set();
+
 // API key for authenticated history requests (fetched from server config on init)
 let _kieApiKey = null;
 
@@ -753,7 +757,7 @@ async function syncHistoryFromServer() {
     fetch(`${API}/api/history?limit=${HISTORY_MAX}`, { headers: _kieAuthHeaders() })
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(json => {
-            const serverHistory = json.history || [];
+            const serverHistory = (json.history || []).filter(h => !_deletedIds.has(h.id));
             serverHistory.forEach(h => _migrateHistoryEntry(h));
             _historyCache = serverHistory.slice(0, HISTORY_MAX);
             renderHistoryGallery();
@@ -838,6 +842,12 @@ function _extractResultUrls(data) {
 }
 
 function addToHistory(task) {
+    // Never re-add an item the user explicitly deleted during this session
+    if (_deletedIds.has(task.id)) {
+        console.log(`[history] Skipping addToHistory for deleted task ${task.id}`);
+        return;
+    }
+
     const data = task.data?.data || {};
     // Collect URLs
     const urls = _extractResultUrls(data);
@@ -1880,9 +1890,12 @@ function initHistory() {
     if (els.btnClearHistory) {
         els.btnClearHistory.addEventListener('click', async () => {
             if (!confirm('Limpar histórico desta categoria?')) return;
-            // Delete from server first (await to prevent reappearance on reload)
+            // Mark all items of this category as deleted before server call
+            loadHistory().filter(h => h.cat === currentCat).forEach(h => _deletedIds.add(h.id));
+            // Delete from server (await to prevent reappearance on reload)
             try {
-                await fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE', headers: _kieAuthHeaders() });
+                const resp = await fetch(`${API}/api/history?cat=${encodeURIComponent(currentCat)}`, { method: 'DELETE', headers: _kieAuthHeaders() });
+                if (!resp.ok) console.error('[history] Server clear returned', resp.status);
             } catch (err) {
                 console.warn('[history] Server clear failed:', err.message);
             }
@@ -2340,9 +2353,12 @@ function openHistoryLightbox(entry) {
 
     // Delete handler
     overlay.querySelector('.lightbox-delete')?.addEventListener('click', async () => {
-        // Delete from server first (await to prevent reappearance)
+        // Mark as deleted FIRST — blocks all async re-insertion paths
+        _deletedIds.add(entry.id);
+        // Delete from server (await + verify)
         try {
-            await fetch(`${API}/api/history/${encodeURIComponent(entry.id)}`, { method: 'DELETE', headers: _kieAuthHeaders() });
+            const resp = await fetch(`${API}/api/history/${encodeURIComponent(entry.id)}`, { method: 'DELETE', headers: _kieAuthHeaders() });
+            if (!resp.ok) console.error('[history] Server delete returned', resp.status);
         } catch (err) {
             console.warn('[history] Server delete failed:', err.message);
         }
@@ -3655,23 +3671,46 @@ const v2Registry = {};
         const grid = type === 'initial' ? v2.frameInitialGrid : v2.frameFinalGrid;
         const file = type === 'initial' ? v2FrameInitial : v2FrameFinal;
         const zone = type === 'initial' ? v2.frameInitialZone : v2.frameFinalZone;
+        const dropzone = zone.closest('.v2-frame-dropzone');
 
         grid.innerHTML = '';
         if (!file) {
             zone.classList.remove('v2-upload-full', 'v2-frame-has-file');
+            // Empty zone still accepts drops (move frame here)
+            if (dropzone) dropzone.classList.remove('v2-frame-dragging');
             return;
         }
 
         zone.classList.add('v2-upload-full', 'v2-frame-has-file');
 
         const card = document.createElement('div');
-        card.className = 'v2-file-card';
-        card.style.width = '100%'; // Full width in flex container
+        card.className = 'v2-file-card v2-frame-card';
+        card.style.width = '100%';
+
+        // ── Drag: make the card draggable ──
+        card.draggable = true;
+        card.dataset.frameType = type;
+        card.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('text/plain', type);
+            e.dataTransfer.effectAllowed = 'move';
+            card.classList.add('v2-frame-drag-source');
+            // Mark both dropzones as potential targets
+            document.querySelectorAll('.v2-frame-dropzone').forEach(dz => {
+                dz.classList.add('v2-frame-drop-target');
+            });
+        });
+        card.addEventListener('dragend', () => {
+            card.classList.remove('v2-frame-drag-source');
+            document.querySelectorAll('.v2-frame-dropzone').forEach(dz => {
+                dz.classList.remove('v2-frame-drop-target', 'v2-frame-drop-hover');
+            });
+        });
 
         const img = document.createElement('img');
         const objUrl = URL.createObjectURL(file);
         img.src = objUrl;
         img.alt = file.name;
+        img.draggable = false; // prevent native image drag
 
         const removeBtn = document.createElement('button');
         removeBtn.className = 'v2-file-card-remove';
@@ -3690,6 +3729,51 @@ const v2Registry = {};
         card.appendChild(removeBtn);
         grid.appendChild(card);
     }
+
+    // ── Drag-and-drop swap between Initial ↔ Final frame slots ──
+    function _setupFrameSwapDropzone(dropzone, targetType) {
+        // These events cover both the empty upload zone AND the filled grid
+        dropzone.addEventListener('dragover', e => {
+            const sourceType = e.dataTransfer.types.includes('text/plain') ? true : false;
+            if (!sourceType) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            dropzone.classList.add('v2-frame-drop-hover');
+        });
+        dropzone.addEventListener('dragleave', e => {
+            // Only remove hover if actually leaving the dropzone (not entering a child)
+            if (!dropzone.contains(e.relatedTarget)) {
+                dropzone.classList.remove('v2-frame-drop-hover');
+            }
+        });
+        dropzone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropzone.classList.remove('v2-frame-drop-hover');
+            document.querySelectorAll('.v2-frame-dropzone').forEach(dz => {
+                dz.classList.remove('v2-frame-drop-target', 'v2-frame-drop-hover');
+            });
+
+            const sourceType = e.dataTransfer.getData('text/plain');
+            if (!sourceType || sourceType === targetType) return; // dropped on itself
+
+            // Swap the file references
+            const tempInitial = v2FrameInitial;
+            const tempFinal = v2FrameFinal;
+            v2FrameInitial = tempFinal;
+            v2FrameFinal = tempInitial;
+
+            // Re-render both grids
+            v2RenderFrameGrid('initial');
+            v2RenderFrameGrid('final');
+            updateV2GenerateState();
+        });
+    }
+
+    // Attach swap drop targets to both frame dropzone wrappers
+    const _frameInitialDropzone = v2.frameInitialZone?.closest('.v2-frame-dropzone');
+    const _frameFinalDropzone = v2.frameFinalZone?.closest('.v2-frame-dropzone');
+    if (_frameInitialDropzone) _setupFrameSwapDropzone(_frameInitialDropzone, 'initial');
+    if (_frameFinalDropzone) _setupFrameSwapDropzone(_frameFinalDropzone, 'final');
 
     // Ctrl+V paste image in v2 prompt → add as reference image
     setupPasteImageHandler(
@@ -4157,7 +4241,7 @@ const v2Registry = {};
         item.appendChild(dismissBtn);
     }
 
-    function addV2GalleryItem(elementId, state, mediaUrl, baseTaskId, coverUrl, taskModel, failMsg) {
+    function addV2GalleryItem(elementId, state, mediaUrl, baseTaskId, coverUrl, taskModel, failMsg, batch) {
         v2.galleryEmpty.style.display = 'none';
 
         const item = document.createElement('div');
@@ -4192,9 +4276,12 @@ const v2Registry = {};
             actionsBar.querySelector('.v2-item-del').addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const bid = e.currentTarget.dataset.baseId;
-                // Delete from server first (await to prevent reappearance on reload)
+                // Mark as deleted FIRST — blocks all async re-insertion paths
+                _deletedIds.add(bid);
+                // Delete from server (await + verify)
                 try {
-                    await fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() });
+                    const resp = await fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() });
+                    if (!resp.ok) console.error('[history] Server delete returned', resp.status);
                 } catch (err) {
                     console.warn('[history] Server delete failed:', err.message);
                 }
@@ -4262,7 +4349,12 @@ const v2Registry = {};
             }
         });
 
-        v2.gallery.insertBefore(item, v2.gallery.firstChild);
+        // When batch=true, append to end (caller controls order); otherwise prepend (single new item)
+        if (batch) {
+            v2.gallery.appendChild(item);
+        } else {
+            v2.gallery.insertBefore(item, v2.gallery.firstChild);
+        }
         updateV2GalleryCount();
     }
 
@@ -4349,7 +4441,8 @@ const v2Registry = {};
             const resp = await fetch(`${API}/api/history?cat=${encodeURIComponent(cat)}&limit=100`, { headers: _kieAuthHeaders() });
             if (!resp.ok) return [];
             const json = await resp.json();
-            return json.history || [];
+            // Filter out any items that were deleted during this session
+            return (json.history || []).filter(h => !_deletedIds.has(h.id));
         } catch (e) { console.warn('[v2] Failed to fetch server history:', e.message); return []; }
     }
 
@@ -4371,7 +4464,12 @@ const v2Registry = {};
             const MULTI_MODEL_CATS_SRV = ['image', 'tools', 'audio', 'video'];
             const amNorm = v2Model?.model ? modelFamily(v2Model.model) : null;
 
-            serverItems.forEach(task => {
+            // Sort server items newest-first before inserting
+            const sortedItems = serverItems.slice().sort((a, b) =>
+                (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0)
+            );
+
+            sortedItems.forEach(task => {
                 if (existingIds.has(task.id)) return;
                 // Filter by model family for shared categories
                 if (amNorm && MULTI_MODEL_CATS_SRV.includes(currentCat)) {
@@ -4383,7 +4481,7 @@ const v2Registry = {};
                     const coverU = task.coverUrl || null;
                     const maxUrls = (task.model || '').startsWith('suno/') ? 1 : task.urls.length;
                     task.urls.slice(0, maxUrls).forEach((url, i) => {
-                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, task.id, coverU, task.model);
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, task.id, coverU, task.model, null, true);
                     });
                 }
             });
@@ -4474,6 +4572,13 @@ const v2Registry = {};
             return true;
         });
 
+        // Sort deduped newest-first by timestamp so gallery order is correct
+        deduped.sort((a, b) => {
+            const tsA = Number(a.timestamp || a.data?.data?.createTime || 0) || 0;
+            const tsB = Number(b.timestamp || b.data?.data?.createTime || 0) || 0;
+            return tsB - tsA;
+        });
+
         deduped.forEach(task => {
             // Ensure tracked
             // Only track active (processing) tasks for MutationObserver — history items don't need watching
@@ -4494,15 +4599,15 @@ const v2Registry = {};
                     const coverU = data2.response?.sunoData?.[0]?.image_large_url || data2.response?.sunoData?.[0]?.imageLargeUrl || data2.response?.sunoData?.[0]?.imageUrl || data2.response?.sunoData?.[0]?.image_url || task.coverUrl || null;
                     const maxUrls = (task.model || '').startsWith('suno/') ? 1 : urls.length;
                     urls.slice(0, maxUrls).forEach((url, i) => {
-                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, task.id, coverU, task.model);
+                        addV2GalleryItem(`${task.id}-${i}`, 'success', url, task.id, coverU, task.model, null, true);
                     });
                 }
             } else if (task.state === 'fail') {
                 const errorData = task.data?.data || {};
                 const fm = errorData.failMsg || errorData.failReason || errorData.errorMessage || '';
-                addV2GalleryItem(task.id, 'failed', null, null, null, null, fm);
+                addV2GalleryItem(task.id, 'failed', null, null, null, null, fm, true);
             } else {
-                addV2GalleryItem(task.id, 'processing');
+                addV2GalleryItem(task.id, 'processing', null, null, null, null, null, true);
             }
         });
         sessionStorage.setItem('v2_tasks', JSON.stringify(v2Tasks));

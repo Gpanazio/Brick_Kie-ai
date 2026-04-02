@@ -81,6 +81,13 @@ def _init_schema() -> None:
                     created_at  TIMESTAMPTZ DEFAULT NOW()
                 )
             """)
+            # Tombstone table: prevents webhook callbacks from re-inserting deleted entries
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS kie_history_deleted (
+                    id          TEXT PRIMARY KEY,
+                    deleted_at  TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
             # Migrations for existing tables
             cur.execute("""
                 ALTER TABLE kie_history
@@ -98,7 +105,13 @@ def _init_schema() -> None:
 
 
 def upsert_entry(entry: dict) -> None:
-    """Insert or update a history entry (keyed by id)."""
+    """Insert or update a history entry (keyed by id).
+    Silently skips entries that have been explicitly deleted (tombstoned)."""
+    entry_id = entry.get("id")
+    if entry_id and is_deleted(entry_id):
+        logger.info("[db] Skipping upsert for tombstoned entry %s", entry_id)
+        return
+
     # Collect extra fields into meta blob (inputFileUrl, extraParams, coverUrl, etc.)
     core_keys = {"id", "model", "state", "cat", "urls", "prompt", "timestamp"}
     meta = {k: v for k, v in entry.items() if k not in core_keys and v is not None}
@@ -200,22 +213,54 @@ def count_history(cat: str | None = None) -> int:
 
 
 def delete_entry(entry_id: str) -> None:
-    """Delete a single history entry by id."""
+    """Delete a single history entry by id and create a tombstone."""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM kie_history WHERE id = %s", (entry_id,))
+            # Insert tombstone to prevent webhook callbacks from re-inserting
+            cur.execute(
+                "INSERT INTO kie_history_deleted (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
+                (entry_id,),
+            )
         conn.commit()
 
 
 def clear_history(cat: str | None = None) -> None:
-    """Delete all (or category-filtered) history entries."""
+    """Delete all (or category-filtered) history entries and tombstone them."""
     with _conn() as conn:
         with conn.cursor() as cur:
+            # Collect IDs to tombstone before deleting
+            if cat:
+                cur.execute("SELECT id FROM kie_history WHERE cat = %s", (cat,))
+            else:
+                cur.execute("SELECT id FROM kie_history")
+            ids_to_delete = [row[0] for row in cur.fetchall()]
+
             if cat:
                 cur.execute("DELETE FROM kie_history WHERE cat = %s", (cat,))
             else:
                 cur.execute("DELETE FROM kie_history")
+
+            # Insert tombstones
+            if ids_to_delete:
+                from psycopg2.extras import execute_values
+                execute_values(
+                    cur,
+                    "INSERT INTO kie_history_deleted (id) VALUES %s ON CONFLICT (id) DO NOTHING",
+                    [(id_,) for id_ in ids_to_delete],
+                )
         conn.commit()
+
+
+def is_deleted(entry_id: str) -> bool:
+    """Check if an entry has been explicitly deleted (has a tombstone)."""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM kie_history_deleted WHERE id = %s LIMIT 1",
+                (entry_id,),
+            )
+            return cur.fetchone() is not None
 
 
 def entry_exists(entry_id: str) -> bool:

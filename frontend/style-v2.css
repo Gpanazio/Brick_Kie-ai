@@ -4613,6 +4613,59 @@ body {
     background: rgba(0, 0, 0, 0.3);
 }
 
+/* ── Frame Drag-and-Drop Swap ── */
+.v2-frame-card {
+    cursor: grab;
+}
+
+.v2-frame-card:active {
+    cursor: grabbing;
+}
+
+.v2-frame-drag-source {
+    opacity: 0.4;
+    transform: scale(0.95);
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+/* Both dropzones light up when a frame is being dragged */
+.v2-frame-dropzone.v2-frame-drop-target {
+    position: relative;
+}
+
+.v2-frame-dropzone.v2-frame-drop-target::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px dashed rgba(220, 38, 38, 0.25);
+    border-radius: 10px;
+    pointer-events: none;
+    z-index: 5;
+    animation: v2-frame-target-pulse 1.5s ease-in-out infinite;
+}
+
+/* Active hover on the receiving dropzone */
+.v2-frame-dropzone.v2-frame-drop-hover {
+    background: rgba(220, 38, 38, 0.06);
+    border-radius: 10px;
+    transition: background 0.2s;
+}
+
+.v2-frame-dropzone.v2-frame-drop-hover::after {
+    border-color: rgba(220, 38, 38, 0.6);
+    box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.08);
+    animation: none;
+}
+
+@keyframes v2-frame-target-pulse {
+    0%, 100% {
+        border-color: rgba(220, 38, 38, 0.15);
+    }
+    50% {
+        border-color: rgba(220, 38, 38, 0.4);
+    }
+}
+
 /* ── Upload zone: uploading state ── */
 .v2-upload-zone.uploading {
     pointer-events: none;
