@@ -4750,6 +4750,19 @@ body {
     border-radius: 4px;
 }
 
+.v2-file-card-name {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    right: 4px;
+    font-size: 8px;
+    color: #ccc;
+    font-family: var(--mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* ── Upload zone: full state ── */
 .v2-upload-zone.v2-upload-full {
     padding: 10px;

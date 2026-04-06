@@ -18,7 +18,7 @@ Generate dynamic videos with the Seedance 2 model by ByteDance. Supports three i
 - **Max images per request:** 9
 
 ### Videos (reference_video_urls)
-- **Accepted formats:** MP4, QuickTime (MOV), MKV
+- **Accepted formats:** MP4, QuickTime (MOV), MKV, WebM
 - **Max file size:** 10MB per video
 - **Max videos per request:** 3
 - **Total video duration:** ≤ 15 seconds combined
@@ -69,13 +69,13 @@ Content-Type: application/json
 | input.prompt | string | No | Text prompt/description (max 5000 chars) |
 | input.reference_image_urls | array | No | Reference image URLs (max 9; JPEG, PNG, WebP; max 10MB each) |
 | input.reference_video_urls | array | No | Reference video URLs (max 3; MP4, MOV, MKV; max 10MB each; total ≤ 15s) |
-| input.reference_audio_urls | array | No | Reference audio URLs (MPEG, WAV, AAC, OGG; max 10MB each) |
+| input.reference_audio_urls | array | No | Reference audio URLs (MPEG, WAV, AAC, OGG; max 10MB each). *API-only; not exposed in the frontend UI.* |
 | input.generate_audio | boolean | No | Generate AI audio synced with video (default: `true`) |
 | input.return_last_frame | boolean | No | Return last frame as image (default: `false`) |
 | input.resolution | string | No | Output resolution: `480p`, `720p` (default: `720p`) |
 | input.aspect_ratio | string | No | Aspect ratio: `16:9`, `4:3`, `1:1`, `3:4`, `9:16`, `21:9` (default: `16:9`) |
 | input.duration | number | No | Video duration in seconds: 4–15 (default: `15`) |
-| input.web_search | boolean | No | Use online search (default: `false`) |
+| input.web_search | boolean | No | Use online search (default: `false`). *API-only; not exposed in the frontend UI.* |
 
 ### Response
 
@@ -106,6 +106,8 @@ After submitting a task, use the unified query endpoint to check progress and re
 
 **Cost formula (with video input):** `(input video duration + output duration) × rate`
 
+**Cost formula (without video input):** `output duration × rate`
+
 ## Error Codes
 
 | Code | Description |
@@ -118,3 +120,4 @@ After submitting a task, use the unified query endpoint to check progress and re
 | 422 | Validation Error – request parameters failed validation |
 | 429 | Rate Limited |
 | 500 | Server Error |
+
