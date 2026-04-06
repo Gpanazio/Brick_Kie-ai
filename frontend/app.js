@@ -571,6 +571,7 @@ const MODEL_CONFIGS = {
     'bytedance/seedance-2-frames': { params: SEEDANCE_2_PARAMS },
     'bytedance/seedance-2-multi':  { params: SEEDANCE_2_PARAMS },
     'bytedance/seedance-2-video':  { params: SEEDANCE_2_PARAMS },
+    'bytedance/seedance-2-fast':   { params: SEEDANCE_2_PARAMS },
 
     // ──── VEO 3.1 (Google) ────
     'veo3/text-to-video': {
@@ -1345,6 +1346,7 @@ function _openSeedance2Picker() {
                 frames: 'bytedance/seedance-2-frames',
                 multi: 'bytedance/seedance-2-multi',
                 video: 'bytedance/seedance-2-video',
+                fast:  'bytedance/seedance-2-fast',
             };
             const modelId = modelMap[wf];
             if (!modelId) return;
@@ -3701,14 +3703,19 @@ const v2Registry = {};
             const res = params.resolution || '720p';
             const dur = params.duration || 15;
             const hasVideo = v2VideoFiles.length > 0;
+            const isFast = model.includes('fast');
 
             if (res === '480p') {
-                const rate = hasVideo ? 11.5 : 19;
+                const rate = isFast 
+                    ? (hasVideo ? 8 : 15.5) 
+                    : (hasVideo ? 11.5 : 19);
                 const totalInputDur = v2VideoDurations.reduce((a, b) => a + b, 0);
                 cost = hasVideo ? (totalInputDur + dur) * rate : dur * rate;
             } else {
                 // 720p
-                const rate = hasVideo ? 25 : 41;
+                const rate = isFast 
+                    ? (hasVideo ? 20 : 33) 
+                    : (hasVideo ? 25 : 41);
                 const totalInputDur = v2VideoDurations.reduce((a, b) => a + b, 0);
                 cost = hasVideo ? (totalInputDur + dur) * rate : dur * rate;
             }
