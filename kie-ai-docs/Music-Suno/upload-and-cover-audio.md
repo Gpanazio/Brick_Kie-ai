@@ -20,7 +20,7 @@ Cover an audio track by transforming it into a new style while keeping the origi
   "title": "Peaceful Piano Meditation",
   "customMode": true,
   "instrumental": false,
-  "model": "V5",
+  "model": "V5_5",
   "callBackUrl": "https://api.example.com/callback"
 }
 ```
@@ -35,7 +35,7 @@ Cover an audio track by transforming it into a new style while keeping the origi
 | title | string | Yes* | Track title (*required in custom mode) |
 | customMode | boolean | Yes | Enable custom mode |
 | instrumental | boolean | Yes | Generate without vocals |
-| model | string | Yes | AI model (V4, V4_5, V4_5PLUS, V4_5ALL, V5) |
+| model | string | Yes | AI model (V4, V4_5, V4_5PLUS, V4_5ALL, V5, V5_5) |
 | callBackUrl | string | Yes | Callback URL |
 | vocalGender | string | No | Vocal gender (m/f) |
 | styleWeight | number | No | Style adherence (0-1) |
@@ -46,6 +46,7 @@ Cover an audio track by transforming it into a new style while keeping the origi
 
 | Model | prompt | style | title |
 |-------|--------|-------|-------|
+| V5_5 | 5000 | 1000 | 100 |
 | V5 | 5000 | 1000 | 100 |
 | V4_5PLUS/V4_5 | 5000 | 1000 | 100 |
 | V4_5ALL | 5000 | 1000 | 80 |

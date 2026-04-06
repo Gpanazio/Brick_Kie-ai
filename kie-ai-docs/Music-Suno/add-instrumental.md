@@ -19,7 +19,7 @@ Generate musical accompaniment for an uploaded audio file. Perfect for singers o
   "negativeTags": "heavy metal, fast drums",
   "tags": "relaxing, piano, soothing",
   "vocalGender": "m",
-  "model": "V5",
+  "model": "V5_5",
   "callBackUrl": "https://example.com/callback"
 }
 ```
@@ -36,7 +36,7 @@ Generate musical accompaniment for an uploaded audio file. Perfect for singers o
 | styleWeight | number | No | Style adherence (0-1) |
 | weirdnessConstraint | number | No | Creativity level (0-1) |
 | audioWeight | number | No | Audio weight (0-1) |
-| model | string | No | AI model (V4_5PLUS, V5) |
+| model | string | No | AI model (V4_5PLUS, V5, V5_5) |
 | callBackUrl | string | Yes | Callback URL |
 
 ### Response

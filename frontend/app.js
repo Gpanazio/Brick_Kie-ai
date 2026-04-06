@@ -525,7 +525,7 @@ const MODEL_CONFIGS = {
     'suno/generate-music': {
         params: [
             { key: 'suno_mode', label: 'Modo', type: 'select', options: ['Música', 'Letra'], default: 'Música' },
-            { key: 'model', label: 'Modelo Suno', type: 'select', options: ['V3_5', 'V4', 'V4_5', 'V4_5PLUS', 'V5'], default: 'V4_5' },
+{ key: 'model', label: 'Modelo Suno', type: 'select', options: ['V4', 'V4_5', 'V4_5PLUS', 'V4_5ALL', 'V5', 'V5_5'], default: 'V5_5' },
             { key: 'custom_mode', label: 'Modo Avançado', type: 'bool', default: false },
             { key: 'style', label: 'Estilo Musical', type: 'text', default: '' },
             { key: 'title', label: 'Título', type: 'text', default: '' },

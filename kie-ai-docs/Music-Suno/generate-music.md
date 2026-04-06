@@ -29,7 +29,7 @@ Generate music with or without lyrics using Suno's AI music generation models.
   "title": "Peaceful Piano Meditation",
   "customMode": true,
   "instrumental": false,
-  "model": "V5",
+  "model": "V5_5",
   "callBackUrl": "https://api.example.com/callback"
 }
 ```
@@ -43,7 +43,7 @@ Generate music with or without lyrics using Suno's AI music generation models.
 | title | string | Yes (custom) | Track title (max 80 chars) |
 | customMode | boolean | Yes | Enable advanced customization |
 | instrumental | boolean | Yes | Generate without lyrics |
-| model | string | Yes | AI model (V4, V4_5, V4_5PLUS, V4_5ALL, V5) |
+| model | string | Yes | AI model (V4, V4_5, V4_5PLUS, V4_5ALL, V5, V5_5) |
 | callBackUrl | string | Yes | Callback URL |
 | negativeTags | string | No | Styles to exclude |
 | vocalGender | string | No | Vocal gender (m/f) |
