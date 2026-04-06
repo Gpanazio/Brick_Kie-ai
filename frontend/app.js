@@ -2896,6 +2896,7 @@ const v2Registry = {};
     let v2FrameInitial = null; // File object for Initial Frame
     let v2FrameFinal = null;   // File object for Final Frame
     let v2VideoFiles = [];     // Array of File objects for video references (Seedance 2.0)
+    let v2VideoDurations = []; // Measured durations of v2VideoFiles
     let v2MaxVideoFiles = 3;   // Max video references
     let v2Settings = { ...DEFAULT_V2_SETTINGS };
     let v2Tasks = JSON.parse(sessionStorage.getItem('v2_tasks') || '[]'); // Track tasks spawned from V2 workspace
@@ -3703,13 +3704,13 @@ const v2Registry = {};
 
             if (res === '480p') {
                 const rate = hasVideo ? 11.5 : 19;
-                // Formula: (input_dur + output_dur) * rate if video input exists
-                // We use a safe estimate of 5s for input video if not explicitly measured
-                cost = hasVideo ? (5 + dur) * rate : dur * rate;
+                const totalInputDur = v2VideoDurations.reduce((a, b) => a + b, 0);
+                cost = hasVideo ? (totalInputDur + dur) * rate : dur * rate;
             } else {
                 // 720p
                 const rate = hasVideo ? 25 : 41;
-                cost = hasVideo ? (5 + dur) * rate : dur * rate;
+                const totalInputDur = v2VideoDurations.reduce((a, b) => a + b, 0);
+                cost = hasVideo ? (totalInputDur + dur) * rate : dur * rate;
             }
 
         // ── Google Imagen 4 (no dynamic param but note tiers) ──
@@ -4029,6 +4030,7 @@ const v2Registry = {};
         v2FrameInitial = null;
         v2FrameFinal = null;
         v2VideoFiles = [];
+        v2VideoDurations = [];
         v2.fileInput.value = '';
         if (v2.frameInitialInput) v2.frameInitialInput.value = '';
         if (v2.frameFinalInput) v2.frameFinalInput.value = '';
@@ -4041,7 +4043,7 @@ const v2Registry = {};
     }
 
     // ── Video Reference Upload (Seedance 2.0) ──
-    function v2AddVideoFiles(newFiles) {
+    async function v2AddVideoFiles(newFiles) {
         const accepted = newFiles.filter(f =>
             f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|webm)$/i)
         );
@@ -4060,9 +4062,32 @@ const v2Registry = {};
             toast(`Máximo de ${v2MaxVideoFiles} vídeos atingido`, 'error');
             return;
         }
-        v2VideoFiles.push(...accepted.slice(0, remaining));
+        const toAdd = accepted.slice(0, remaining);
+        v2VideoFiles.push(...toAdd);
+
+        // Measure and store durations (needed for accurate pricing)
+        const durPromises = toAdd.map(f => _v2GetVideoDuration(f));
+        const durations = await Promise.all(durPromises);
+        v2VideoDurations.push(...durations);
+
         v2RenderVideoFilesGrid();
         updateV2GenerateState();
+    }
+
+    function _v2GetVideoDuration(file) {
+        return new Promise(resolve => {
+            const vid = document.createElement('video');
+            vid.preload = 'metadata';
+            vid.onloadedmetadata = () => {
+                window.URL.revokeObjectURL(vid.src);
+                resolve(vid.duration || 0);
+            };
+            vid.onerror = () => {
+                window.URL.revokeObjectURL(vid.src);
+                resolve(0);
+            };
+            vid.src = window.URL.createObjectURL(file);
+        });
     }
 
     function v2RenderVideoFilesGrid() {
@@ -4099,6 +4124,7 @@ const v2Registry = {};
             removeBtn.addEventListener('click', e => {
                 e.stopPropagation();
                 v2VideoFiles.splice(index, 1);
+                v2VideoDurations.splice(index, 1);
                 URL.revokeObjectURL(objUrl);
                 v2RenderVideoFilesGrid();
                 updateV2GenerateState();
