@@ -51,7 +51,7 @@ Content-Type: application/json
 | `input.mode` | string | No | Generation mode: `fun` (creative/playful), `normal` (balanced), `spicy` (dynamic/intense). Spicy not available for external images. Default: `normal`. |
 | `input.duration` | string | No | Duration in seconds (6-30, step 1). |
 | `input.resolution` | string | No | Resolution: `480p`, `720p`. Default: `480p`. |
-| `input.aspect_ratio` | string | No | Aspect ratio: `2:3`, `3:2`, `1:1`, `16:9`, `9:16`. Only applies to multi-image mode. In single-image mode, video dimensions follow the image dimensions. Default: `16:9`. |
+| `input.aspect_ratio` | string | No | Aspect ratio: `2:3`, `3:2`, `1:1`, `16:9`, `9:16`, `4:3`, `3:4`. Only applies to multi-image mode. In single-image mode, video dimensions follow the image dimensions. Default: `16:9`. |
 
 *Either `image_urls` or `task_id` is required. Do not use both simultaneously.
 
