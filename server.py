@@ -1032,7 +1032,7 @@ def _infer_cat(model: str) -> str:
     if "suno" in m: return "music"
     if "elevenlabs" in m: return "audio"
     if "topaz" in m or "crisp" in m or "recraft" in m: return "tools"
-    if any(x in m for x in ["video", "kling", "wan", "hailuo", "sora", "veo"]): return "video"
+    if any(x in m for x in ["video", "kling", "wan", "hailuo", "sora", "veo", "seedance"]): return "video"
     return "image"
 
 

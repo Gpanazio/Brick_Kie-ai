@@ -136,6 +136,23 @@
                     <div class="lobby-card-glow"></div>
                 </button>
 
+                <!-- SEEDANCE 2.0 — EXCLUSIVE CARD -->
+                <button class="lobby-card lobby-card-featured" data-lobby-cat="seedance2" id="lobby-seedance2">
+                    <div class="lobby-card-featured-bg"></div>
+                    <div class="lobby-card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                            <path d="M2 17l10 5 10-5" />
+                            <path d="M2 12l10 5 10-5" />
+                        </svg>
+                    </div>
+                    <div class="lobby-card-body">
+                        <span class="lobby-card-title">Seedance 2.0 <span class="lobby-card-new-badge">NEW</span></span>
+                        <span class="lobby-card-desc">ByteDance — Frames, Multi Reference, Video Reference</span>
+                    </div>
+                    <div class="lobby-card-count">3 workflows</div>
+                    <div class="lobby-card-glow"></div>
+                </button>
 
             </div>
 
@@ -479,6 +496,23 @@
             data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M6 6h12v12H6z&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;/><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; fill=&quot;currentColor&quot;/></svg>"
             data-shortcut="recraft-rmbg" data-color="mc-green" data-prompt="false"
             data-desc="Remoção limpa de fundos usando IA avançada."></div>
+
+        <!-- SEEDANCE 2.0 -->
+        <div data-cat="seedance2" data-model="bytedance/seedance-2-frames" data-name="Seedance 2.0 — Frames" data-provider="ByteDance"
+            data-input="mix" data-field="reference_image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M19 12h-3c-1.1 0-2-.9-2-2V7c0-1.1-.9-2-2-2S10 5.9 10 7v3c0 1.1-.9 2-2 2H5c-1.1 0-2 .9-2 2s.9 2 2 2h3c1.1 0 2 .9 2 2v3c0 1.1.9 2 2 2s2-.9 2-2v-3c0-1.1.9-2 2-2h3c1.1 0 2-.9 2-2s-.9-2-2-2z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-bytedance" data-prompt="true"
+            data-desc="Frame inicial + final para controlar início e fim do vídeo."></div>
+        <div data-cat="seedance2" data-model="bytedance/seedance-2-multi" data-name="Seedance 2.0 — Multi Reference" data-provider="ByteDance"
+            data-input="mix" data-field="reference_image_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M19 12h-3c-1.1 0-2-.9-2-2V7c0-1.1-.9-2-2-2S10 5.9 10 7v3c0 1.1-.9 2-2 2H5c-1.1 0-2 .9-2 2s.9 2 2 2h3c1.1 0 2 .9 2 2v3c0 1.1.9 2 2 2s2-.9 2-2v-3c0-1.1.9-2 2-2h3c1.1 0 2-.9 2-2s-.9-2-2-2z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-bytedance" data-prompt="true"
+            data-desc="Até 9 imagens de referência para personagens e cenas."></div>
+        <div data-cat="seedance2" data-model="bytedance/seedance-2-video" data-name="Seedance 2.0 — Video Reference" data-provider="ByteDance"
+            data-input="mix" data-field="reference_video_urls"
+            data-icon="<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; class=&quot;brand-logo-svg&quot;><path d=&quot;M19 12h-3c-1.1 0-2-.9-2-2V7c0-1.1-.9-2-2-2S10 5.9 10 7v3c0 1.1-.9 2-2 2H5c-1.1 0-2 .9-2 2s.9 2 2 2h3c1.1 0 2 .9 2 2v3c0 1.1.9 2 2 2s2-.9 2-2v-3c0-1.1.9-2 2-2h3c1.1 0 2-.9 2-2s-.9-2-2-2z&quot; fill=&quot;currentColor&quot;/></svg>"
+            data-color="mc-bytedance" data-prompt="true"
+            data-desc="Até 3 vídeos de referência (total ≤ 15s) para motion reference."></div>
     </template>
 
     <!-- ====== NANO BANANA V2 — WORKSPACE OVERLAY ====== -->
@@ -619,6 +653,25 @@
                     </div>
                 </div>
 
+                <!-- Video Reference Upload (Seedance 2.0) -->
+                <div class="v2-form-group hidden" id="v2-group-upload-videos">
+                    <div class="v2-label-row">
+                        <label class="v2-label" id="v2-upload-video-label">Vídeos de referência <span class="v2-label-hint">— até 3 vídeos, total ≤ 15s</span></label>
+                        <span class="v2-file-counter" id="v2-video-counter">0 / 3</span>
+                    </div>
+                    <div class="v2-upload-zone" id="v2-upload-zone-video">
+                        <input type="file" id="v2-file-input-video" accept="video/mp4,video/quicktime,video/x-matroska" multiple hidden>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polygon points="23 7 16 12 23 17 23 7" />
+                            <rect x="1" y="5" width="15" height="14" rx="2" />
+                        </svg>
+                        <span>Arraste ou clique para enviar vídeos</span>
+                        <span class="v2-upload-hint">MP4, MOV, MKV — máx. 10MB cada</span>
+                    </div>
+                    <div class="v2-files-grid" id="v2-files-grid-video">
+                        <!-- Video thumbnails injected by JS -->
+                    </div>
+                </div>
 
                 <!-- ── Settings & Credits (Moved from right) ── -->
                 <div class="v2-settings-header" style="margin-top: 8px;">
@@ -694,6 +747,74 @@
             <div class="voice-picker-grid" id="voice-picker-grid"
                 style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 16px; overflow-y: auto; max-height: 400px;">
                 <!-- Voices injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== SEEDANCE 2.0 WORKFLOW PICKER MODAL ====== -->
+    <div id="modal-seedance2-picker" class="model-picker-modal hidden">
+        <div class="mpm-backdrop" id="seedance2-backdrop"></div>
+        <div class="mpm-panel" style="max-width: 720px;">
+            <div class="mpm-header">
+                <div>
+                    <div class="mpm-title">Seedance 2.0</div>
+                    <div class="mpm-subtitle">Escolha o workflow de geração</div>
+                </div>
+                <button class="mpm-close" id="seedance2-close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="seedance2-picker-grid" id="seedance2-picker-grid">
+                <!-- Frames -->
+                <button class="seedance2-wf-card" data-seedance-wf="frames">
+                    <div class="seedance2-wf-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="2" y="3" width="8" height="18" rx="1" />
+                            <rect x="14" y="3" width="8" height="18" rx="1" />
+                            <path d="M10 12h4" stroke-dasharray="2 2" />
+                        </svg>
+                    </div>
+                    <div class="seedance2-wf-body">
+                        <span class="seedance2-wf-title">Frames</span>
+                        <span class="seedance2-wf-desc">Escolha o frame inicial e final do vídeo</span>
+                    </div>
+                    <div class="seedance2-wf-tag">2 imagens</div>
+                </button>
+                <!-- Multi Reference -->
+                <button class="seedance2-wf-card" data-seedance-wf="multi">
+                    <div class="seedance2-wf-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="1" y="4" width="7" height="7" rx="1" />
+                            <rect x="9" y="4" width="7" height="7" rx="1" />
+                            <rect x="17" y="4" width="6" height="7" rx="1" />
+                            <rect x="1" y="13" width="7" height="7" rx="1" />
+                            <rect x="9" y="13" width="7" height="7" rx="1" />
+                            <rect x="17" y="13" width="6" height="7" rx="1" />
+                        </svg>
+                    </div>
+                    <div class="seedance2-wf-body">
+                        <span class="seedance2-wf-title">Multi Reference</span>
+                        <span class="seedance2-wf-desc">Até 9 fotos de referência para personagens e cenas</span>
+                    </div>
+                    <div class="seedance2-wf-tag">até 9 fotos</div>
+                </button>
+                <!-- Video Reference -->
+                <button class="seedance2-wf-card" data-seedance-wf="video">
+                    <div class="seedance2-wf-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polygon points="23 7 16 12 23 17 23 7" />
+                            <rect x="1" y="5" width="15" height="14" rx="2" />
+                        </svg>
+                    </div>
+                    <div class="seedance2-wf-body">
+                        <span class="seedance2-wf-title">Video Reference</span>
+                        <span class="seedance2-wf-desc">Até 3 vídeos de referência (total ≤ 15 segundos)</span>
+                    </div>
+                    <div class="seedance2-wf-tag">até 3 vídeos</div>
+                </button>
             </div>
         </div>
     </div>
