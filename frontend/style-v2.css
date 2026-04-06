@@ -413,6 +413,181 @@ body {
     border-color: rgba(220, 38, 38, 0.3);
 }
 
+/* ── Seedance 2.0 Featured Card ── */
+.lobby-card-featured {
+    grid-column: span 3;
+    flex-direction: row;
+    align-items: center;
+    padding: 24px 28px;
+    background: linear-gradient(135deg, rgba(88, 28, 235, 0.08) 0%, rgba(15, 15, 15, 0.9) 40%, rgba(37, 99, 235, 0.06) 100%);
+    border: 1px solid rgba(88, 28, 235, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.lobby-card-featured::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), rgba(59, 130, 246, 0.5), transparent);
+}
+
+.lobby-card-featured-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 80% 50%, rgba(88, 28, 235, 0.06) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.lobby-card-featured:hover {
+    border-color: rgba(139, 92, 246, 0.45);
+    background: linear-gradient(135deg, rgba(88, 28, 235, 0.12) 0%, rgba(20, 20, 20, 0.95) 40%, rgba(37, 99, 235, 0.08) 100%);
+    box-shadow: 0 8px 32px rgba(88, 28, 235, 0.15), 0 0 0 1px rgba(139, 92, 246, 0.1);
+}
+
+.lobby-card-featured:hover .lobby-card-icon svg {
+    color: #8b5cf6;
+    filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.4));
+}
+
+.lobby-card-featured:hover .lobby-card-count {
+    color: #8b5cf6;
+    border-color: rgba(139, 92, 246, 0.35);
+}
+
+.lobby-card-featured .lobby-card-glow {
+    background: radial-gradient(ellipse, rgba(139, 92, 246, 0.2), transparent 70%);
+}
+
+.lobby-card-featured .lobby-card-body {
+    flex: 1;
+}
+
+.lobby-card-new-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #fff;
+    background: linear-gradient(135deg, #7c3aed, #3b82f6);
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-left: 8px;
+    vertical-align: middle;
+    animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* ── Seedance 2.0 Workflow Picker Modal ── */
+.seedance2-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 20px 24px 28px;
+}
+
+.seedance2-wf-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px 20px;
+    background: rgba(18, 18, 18, 0.6);
+    border: 1px solid rgba(139, 92, 246, 0.1);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+}
+
+.seedance2-wf-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 100%, rgba(139, 92, 246, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.seedance2-wf-card:hover {
+    border-color: rgba(139, 92, 246, 0.35);
+    background: rgba(24, 24, 24, 0.8);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.08);
+}
+
+.seedance2-wf-card:hover::before {
+    opacity: 1;
+}
+
+.seedance2-wf-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.seedance2-wf-icon svg {
+    width: 32px;
+    height: 32px;
+    color: var(--text-dim);
+    transition: color 0.2s, filter 0.2s;
+}
+
+.seedance2-wf-card:hover .seedance2-wf-icon svg {
+    color: #8b5cf6;
+    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.4));
+}
+
+.seedance2-wf-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.seedance2-wf-title {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.seedance2-wf-desc {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+}
+
+.seedance2-wf-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    white-space: nowrap;
+    align-self: flex-start;
+    transition: all 0.2s;
+}
+
+.seedance2-wf-card:hover .seedance2-wf-tag {
+    color: #8b5cf6;
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
 /* ── Lobby Divider & Slim Card ── */
 .lobby-divider {
     margin-top: 48px;

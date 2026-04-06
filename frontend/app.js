@@ -21,7 +21,7 @@ window.handleExpiredMedia = function(el) {
 // 'cost' is the estimated credits per generation (from KIE API docs)
 
 // Shared category constants
-const VIDEO_CATS = ['video'];
+const VIDEO_CATS = ['video', 'seedance2'];
 
 // Topaz video upscale model identifier and accepted MIME types
 const TOPAZ_VIDEO_UPSCALE_MODEL = 'topaz/video-upscale';
@@ -59,6 +59,11 @@ const MODEL_COST_ESTIMATES = {
     'grok-imagine/text-to-video': 10,     // 6s 480p = 10, 10s 720p = 30
     'grok-imagine/image-to-video': 10,    // 6s 480p = 10, 10s 720p = 30
     'hailuo/2-3-image-to-video-pro': 45,  // Pro-6s-768p=45, Pro-6s-1080p=80, Pro-10s-768p=90
+    // ── Seedance 2.0 (ByteDance) ──
+    'bytedance/seedance-2': 375,           // 720p no-video-input: 25 cr/s × 15s default
+    'bytedance/seedance-2-frames': 375,
+    'bytedance/seedance-2-multi': 375,
+    'bytedance/seedance-2-video': 375,
     // ── Audio (ElevenLabs) ──
     'elevenlabs/text-to-speech-turbo-2-5': 6,   // 6 cr / 1000 chars
     'elevenlabs/text-to-dialogue-v3': 14,       // 14 cr / 1000 chars
@@ -551,6 +556,35 @@ const MODEL_CONFIGS = {
         ]
     },
 
+    // ──── SEEDANCE 2.0 (ByteDance) ────
+    'bytedance/seedance-2-frames': {
+        params: [
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 10, min: 4, max: 15, step: 1 },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'], default: '16:9' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
+            { key: 'generate_audio', label: 'Gerar Áudio', type: 'bool', default: true },
+            { key: 'return_last_frame', label: 'Retornar Último Frame', type: 'bool', default: false },
+        ]
+    },
+    'bytedance/seedance-2-multi': {
+        params: [
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 10, min: 4, max: 15, step: 1 },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'], default: '16:9' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
+            { key: 'generate_audio', label: 'Gerar Áudio', type: 'bool', default: true },
+            { key: 'return_last_frame', label: 'Retornar Último Frame', type: 'bool', default: false },
+        ]
+    },
+    'bytedance/seedance-2-video': {
+        params: [
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 10, min: 4, max: 15, step: 1 },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'], default: '16:9' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
+            { key: 'generate_audio', label: 'Gerar Áudio', type: 'bool', default: true },
+            { key: 'return_last_frame', label: 'Retornar Último Frame', type: 'bool', default: false },
+        ]
+    },
+
     // ──── VEO 3.1 (Google) ────
     'veo3/text-to-video': {
         params: [
@@ -942,7 +976,7 @@ const els = {
 };
 
 // Category labels
-const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale' };
+const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale', seedance2: 'Seedance 2.0' };
 
 // ==================== Init ====================
 
@@ -1236,6 +1270,12 @@ function enterWorkspace(cat) {
         return;
     }
 
+    // Seedance 2.0 → open workflow picker modal instead of model picker
+    if (cat === 'seedance2') {
+        setTimeout(() => _openSeedance2Picker(), 50);
+        return;
+    }
+
     // Restore previously selected model (F5 / Ctrl+R)
     let savedModel;
     try { savedModel = sessionStorage.getItem('kie-workspace-model'); } catch (e) { /* ignore */ }
@@ -1267,6 +1307,7 @@ function exitWorkspace() {
     currentCat = '';
     _currentCatItems = [];
     closeModelPickerModal();
+    _closeSeedance2Picker();
     stopAllPolling();
     // Hide V2 workspace if open
     if (typeof window._v2HideWorkspace === 'function') window._v2HideWorkspace();
@@ -1276,6 +1317,60 @@ function exitWorkspace() {
         sessionStorage.removeItem('kie-workspace-model');
     } catch (e) { console.warn('Could not clear workspace from sessionStorage:', e); }
 }
+
+// ==================== Seedance 2.0 Workflow Picker ====================
+
+function _openSeedance2Picker() {
+    const modal = document.getElementById('modal-seedance2-picker');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    // Wire close handlers
+    const backdrop = document.getElementById('seedance2-backdrop');
+    const closeBtn = document.getElementById('seedance2-close');
+    if (backdrop) backdrop.onclick = () => { _closeSeedance2Picker(); if (!selectedModel) exitWorkspace(); };
+    if (closeBtn) closeBtn.onclick = () => { _closeSeedance2Picker(); if (!selectedModel) exitWorkspace(); };
+
+    // Wire workflow cards
+    modal.querySelectorAll('.seedance2-wf-card').forEach(card => {
+        card.onclick = () => {
+            const wf = card.dataset.seedanceWf;
+            const modelMap = {
+                frames: 'bytedance/seedance-2-frames',
+                multi: 'bytedance/seedance-2-multi',
+                video: 'bytedance/seedance-2-video',
+            };
+            const modelId = modelMap[wf];
+            if (!modelId) return;
+
+            const tpl = document.getElementById('tpl-models');
+            const tplItem = tpl?.content.querySelector(`[data-model="${CSS.escape(modelId)}"]`);
+            if (tplItem) {
+                selectModelFromData(tplItem.dataset);
+                _closeSeedance2Picker();
+                if (typeof window._v2ShowWorkspace === 'function') {
+                    window._v2ShowWorkspace({ ...tplItem.dataset });
+                }
+            }
+        };
+    });
+}
+
+function _closeSeedance2Picker() {
+    const modal = document.getElementById('modal-seedance2-picker');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Escape key for Seedance2 picker
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('modal-seedance2-picker');
+        if (modal && !modal.classList.contains('hidden')) {
+            _closeSeedance2Picker();
+            if (!selectedModel) exitWorkspace();
+        }
+    }
+});
 
 // ==================== Model Picker Modal ====================
 
@@ -2789,6 +2884,13 @@ const v2Registry = {};
         galleryCount: document.getElementById('v2-gallery-count'),
         dynamicParams: document.getElementById('v2-dynamic-params'),
         creditsAmount: document.getElementById('v2-credits'),
+
+        // Video reference (Seedance 2.0)
+        uploadVideoGroup: document.getElementById('v2-group-upload-videos'),
+        uploadVideoZone: document.getElementById('v2-upload-zone-video'),
+        videoFileInput: document.getElementById('v2-file-input-video'),
+        videoFilesGrid: document.getElementById('v2-files-grid-video'),
+        videoCounter: document.getElementById('v2-video-counter'),
     };
 
     // ── State ──
@@ -2796,6 +2898,8 @@ const v2Registry = {};
     let v2Files = []; // Array of File objects
     let v2FrameInitial = null; // File object for Initial Frame
     let v2FrameFinal = null;   // File object for Final Frame
+    let v2VideoFiles = [];     // Array of File objects for video references (Seedance 2.0)
+    let v2MaxVideoFiles = 3;   // Max video references
     let v2Settings = { ...DEFAULT_V2_SETTINGS };
     let v2Tasks = JSON.parse(sessionStorage.getItem('v2_tasks') || '[]'); // Track tasks spawned from V2 workspace
 
@@ -2884,10 +2988,18 @@ const v2Registry = {};
         const uploadGroup = document.getElementById('v2-group-upload');
         const uploadFramesGroup = v2.uploadFramesGroup;
 
-        const isFramesModel = (data.model && (data.model.startsWith('veo3/') || data.model.includes('kling-3.0/video')));
+        // Seedance 2.0 workflow detection
+        const isSeedanceFrames = data.model === 'bytedance/seedance-2-frames';
+        const isSeedanceMulti = data.model === 'bytedance/seedance-2-multi';
+        const isSeedanceVideo = data.model === 'bytedance/seedance-2-video';
+        const isSeedance = isSeedanceFrames || isSeedanceMulti || isSeedanceVideo;
 
+        const isFramesModel = (data.model && (data.model.startsWith('veo3/') || data.model.includes('kling-3.0/video') || isSeedanceFrames));
+
+        // Show/hide upload zones based on workflow
         if (uploadFramesGroup) uploadFramesGroup.classList.toggle('hidden', !(needsFile && isFramesModel));
-        if (uploadGroup) uploadGroup.classList.toggle('hidden', !(needsFile && !isFramesModel));
+        if (uploadGroup) uploadGroup.classList.toggle('hidden', !(needsFile && !isFramesModel && !isSeedanceVideo));
+        if (v2.uploadVideoGroup) v2.uploadVideoGroup.classList.toggle('hidden', !isSeedanceVideo);
 
         // ── Update file input accept for video models ──
         if (v2.fileInput) {
@@ -2927,6 +3039,9 @@ const v2Registry = {};
             'flux-kontext-max': 1,              // single inputImage
             'flux-2/pro-text-to-image': 0,      // text only
             'kling-3.0/video': 2,              // first + last frame
+            'bytedance/seedance-2-frames': 2,  // initial + final frame
+            'bytedance/seedance-2-multi': 9,   // up to 9 reference images
+            'bytedance/seedance-2-video': 0,   // video refs use separate v2VideoFiles array
         };
         const modelKey = data.model || '';
         // Check per-model override first, then fall back to category defaults
@@ -3898,13 +4013,108 @@ const v2Registry = {};
         v2Files = [];
         v2FrameInitial = null;
         v2FrameFinal = null;
+        v2VideoFiles = [];
         v2.fileInput.value = '';
         if (v2.frameInitialInput) v2.frameInitialInput.value = '';
         if (v2.frameFinalInput) v2.frameFinalInput.value = '';
+        if (v2.videoFileInput) v2.videoFileInput.value = '';
         v2RenderFilesGrid();
         v2RenderFrameGrid('initial');
         v2RenderFrameGrid('final');
+        v2RenderVideoFilesGrid();
         updateV2GenerateState();
+    }
+
+    // ── Video Reference Upload (Seedance 2.0) ──
+    function v2AddVideoFiles(newFiles) {
+        const accepted = newFiles.filter(f =>
+            f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|webm)$/i)
+        );
+        if (!accepted.length) {
+            toast('Formato inválido. Use MP4, MOV ou MKV', 'error');
+            return;
+        }
+        // Size check: 10MB max per file
+        const oversized = accepted.filter(f => f.size > 10 * 1024 * 1024);
+        if (oversized.length) {
+            toast('Vídeo excede 10MB. Reduza o tamanho.', 'error');
+            return;
+        }
+        const remaining = v2MaxVideoFiles - v2VideoFiles.length;
+        if (remaining <= 0) {
+            toast(`Máximo de ${v2MaxVideoFiles} vídeos atingido`, 'error');
+            return;
+        }
+        v2VideoFiles.push(...accepted.slice(0, remaining));
+        v2RenderVideoFilesGrid();
+        updateV2GenerateState();
+    }
+
+    function v2RenderVideoFilesGrid() {
+        if (!v2.videoFilesGrid) return;
+        v2.videoFilesGrid.innerHTML = '';
+        if (v2.videoCounter) {
+            v2.videoCounter.textContent = `${v2VideoFiles.length} / ${v2MaxVideoFiles}`;
+            v2.videoCounter.classList.toggle('has-files', v2VideoFiles.length > 0);
+            v2.videoCounter.classList.toggle('full', v2VideoFiles.length >= v2MaxVideoFiles);
+        }
+        if (v2VideoFiles.length === 0) {
+            if (v2.uploadVideoZone) v2.uploadVideoZone.classList.remove('v2-upload-full');
+            return;
+        }
+        if (v2.uploadVideoZone) v2.uploadVideoZone.classList.add('v2-upload-full');
+
+        v2VideoFiles.forEach((file, index) => {
+            const card = document.createElement('div');
+            card.className = 'v2-file-card';
+            const objUrl = URL.createObjectURL(file);
+            const vidEl = document.createElement('video');
+            vidEl.src = objUrl;
+            vidEl.muted = true;
+            vidEl.preload = 'metadata';
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'v2-file-card-name';
+            nameEl.textContent = file.name;
+            nameEl.style.cssText = 'position:absolute;bottom:4px;left:4px;right:4px;font-size:8px;color:#ccc;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'v2-file-card-remove';
+            removeBtn.title = 'Remover';
+            removeBtn.innerHTML = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+            removeBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                v2VideoFiles.splice(index, 1);
+                URL.revokeObjectURL(objUrl);
+                v2RenderVideoFilesGrid();
+                updateV2GenerateState();
+            });
+
+            card.appendChild(vidEl);
+            card.appendChild(nameEl);
+            card.appendChild(removeBtn);
+            v2.videoFilesGrid.appendChild(card);
+        });
+    }
+
+    // Wire video upload zone click/drag
+    if (v2.uploadVideoZone) {
+        v2.uploadVideoZone.addEventListener('click', () => v2.videoFileInput?.click());
+        v2.uploadVideoZone.addEventListener('dragover', e => { e.preventDefault(); v2.uploadVideoZone.classList.add('dragover'); });
+        v2.uploadVideoZone.addEventListener('dragleave', () => v2.uploadVideoZone.classList.remove('dragover'));
+        v2.uploadVideoZone.addEventListener('drop', e => {
+            e.preventDefault();
+            v2.uploadVideoZone.classList.remove('dragover');
+            v2AddVideoFiles([...e.dataTransfer.files]);
+        });
+    }
+    if (v2.videoFileInput) {
+        v2.videoFileInput.addEventListener('change', () => {
+            if (v2.videoFileInput.files.length) {
+                v2AddVideoFiles([...v2.videoFileInput.files]);
+                v2.videoFileInput.value = '';
+            }
+        });
     }
 
     // ── Settings: Reset — re-render dynamic params with defaults ──
@@ -3920,6 +4130,7 @@ const v2Registry = {};
         const hasPrompt = v2.prompt.value.trim().length > 0;
         const hasFiles = v2Files.length > 0;
         const hasFrames = v2FrameInitial !== null || v2FrameFinal !== null;
+        const hasVideoFiles = v2VideoFiles.length > 0;
 
         // Refresh credit estimate whenever generate state changes (file added/removed, etc.)
         v2UpdateCost();
@@ -3934,7 +4145,7 @@ const v2Registry = {};
             }
             v2.btnGenerate.disabled = !hasAnyDialogue;
         } else {
-            v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames);
+            v2.btnGenerate.disabled = !(hasPrompt || hasFiles || hasFrames || hasVideoFiles);
         }
 
         // Update model info label with resolved model (reflects image-to-video when file attached)
@@ -4040,7 +4251,7 @@ const v2Registry = {};
         // even when an image is supplied. Provide a safe default if user left it blank.
         // Skip for file-only models (e.g. Topaz upscale) that don't accept a prompt field.
         const modelNeedsPrompt = v2Model?.prompt === 'true' || selectedModel?.hasPrompt;
-        if (!prompt && modelNeedsPrompt && (v2Files.length > 0 || v2FrameInitial || v2FrameFinal)) {
+        if (!prompt && modelNeedsPrompt && (v2Files.length > 0 || v2FrameInitial || v2FrameFinal || v2VideoFiles.length > 0)) {
             prompt = 'Mantenha os detalhes originais, proporções e faça uma animação suave.';
         }
         if (prompt && modelNeedsPrompt) extra.prompt = prompt;
@@ -4053,20 +4264,31 @@ const v2Registry = {};
         }
         delete extra.suno_mode;
 
-        const isFramesModel = resolvedModel.includes('kling-3.0/video');
+        // Seedance 2.0: all sub-models resolve to the single API model
+        const isSeedance = resolvedModel.startsWith('bytedance/seedance-2');
+        const isSeedanceFrames = resolvedModel === 'bytedance/seedance-2-frames';
+        const isSeedanceVideo = resolvedModel === 'bytedance/seedance-2-video';
+
+        const isFramesModel = resolvedModel.includes('kling-3.0/video') || isSeedanceFrames;
+        const hasVideoRefs = isSeedanceVideo && v2VideoFiles.length > 0;
         const hasFiles = isFramesModel ? (v2FrameInitial !== null || v2FrameFinal !== null) : (v2Files.length > 0);
 
         // Remap model names based on whether images are present
-        if (hasFiles) {
-            if (resolvedModel === 'grok-imagine/text-to-image') resolvedModel = 'grok-imagine/image-to-image';
-            if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
-            if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
-            if (resolvedModel === 'wan/2-6-text-to-video') resolvedModel = 'wan/2-6-image-to-video';
-            resolvedModel = resolveSeedreamModel(resolvedModel, extra, true);
-        } else {
-            // Text-only: remap to correct API model names
-            resolvedModel = resolveSeedreamModel(resolvedModel, extra, false);
+        if (!isSeedance) {
+            if (hasFiles) {
+                if (resolvedModel === 'grok-imagine/text-to-image') resolvedModel = 'grok-imagine/image-to-image';
+                if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
+                if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
+                if (resolvedModel === 'wan/2-6-text-to-video') resolvedModel = 'wan/2-6-image-to-video';
+                resolvedModel = resolveSeedreamModel(resolvedModel, extra, true);
+            } else {
+                // Text-only: remap to correct API model names
+                resolvedModel = resolveSeedreamModel(resolvedModel, extra, false);
+            }
         }
+
+        // Resolve all Seedance sub-models to the canonical API model
+        if (isSeedance) resolvedModel = 'bytedance/seedance-2';
 
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
 
@@ -4075,25 +4297,16 @@ const v2Registry = {};
                 btnSpan.textContent = 'Uploading frames...';
                 let initialUrl = "";
                 let finalUrl = "";
-                console.log('[KLING-DEBUG] PRE-UPLOAD v2FrameInitial:', v2FrameInitial ? {name: v2FrameInitial.name, size: v2FrameInitial.size, type: v2FrameInitial.type} : null);
-                console.log('[KLING-DEBUG] PRE-UPLOAD v2FrameFinal:', v2FrameFinal ? {name: v2FrameFinal.name, size: v2FrameFinal.size, type: v2FrameFinal.type} : null);
                 if (v2FrameInitial) {
                     initialUrl = await v2UploadSingleFile(v2FrameInitial, 0, 1);
-                    console.log('[KLING-DEBUG] POST-UPLOAD initialUrl:', initialUrl);
                 }
                 if (v2FrameFinal) {
                     finalUrl = await v2UploadSingleFile(v2FrameFinal, 0, 1);
-                    console.log('[KLING-DEBUG] POST-UPLOAD finalUrl:', finalUrl);
                 }
                 const urls = [];
-                if (initialUrl) {
-                    urls.push(encodeURI(initialUrl));
-                }
-                if (finalUrl) {
-                    urls.push(encodeURI(finalUrl));
-                }
+                if (initialUrl) urls.push(encodeURI(initialUrl));
+                if (finalUrl) urls.push(encodeURI(finalUrl));
                 if (urls.length > 0) extra[imgField] = urls;
-                console.log('[KLING-DEBUG] FINAL extra[' + imgField + ']:', extra[imgField]);
             } else {
                 const isVideo = v2Files.some(f => f.type.startsWith('video/'));
                 btnSpan.textContent = isVideo
@@ -4112,7 +4325,19 @@ const v2Registry = {};
             btnSpan.textContent = 'Creating task...';
         }
 
-        console.log('[KLING-DEBUG] PAYLOAD resolvedModel:', resolvedModel, 'extra:', JSON.stringify(extra));
+        // Seedance 2.0 Video Reference: upload video files to reference_video_urls
+        if (hasVideoRefs) {
+            btnSpan.textContent = `Uploading ${v2VideoFiles.length} vídeo${v2VideoFiles.length > 1 ? 's' : ''}...`;
+            const videoUrls = await Promise.all(
+                v2VideoFiles.map(async (file, i) => {
+                    const url = await v2UploadSingleFile(file, i, v2VideoFiles.length);
+                    return encodeURI(url);
+                })
+            );
+            extra.reference_video_urls = videoUrls;
+            btnSpan.textContent = 'Creating task...';
+        }
+
         const fd = new FormData();
         fd.append('model', resolvedModel);
         fd.append('input_json', JSON.stringify(extra));
@@ -4152,7 +4377,7 @@ const v2Registry = {};
         // Always clear uploaded files/frames after successful submission
         // to prevent stale images from being re-sent.
         v2ClearAllFiles();
-        toast(`✅ Task created!${hasFiles ? ` (images uploaded)` : ''}`, 'success');
+        toast(`✅ Task created!${hasFiles || hasVideoRefs ? ` (files uploaded)` : ''}`, 'success');
     }
 
     // ── GENERATE — Functional submit with multi-image support ──
