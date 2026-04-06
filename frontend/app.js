@@ -28,6 +28,9 @@ const TOPAZ_VIDEO_UPSCALE_MODEL = 'topaz/video-upscale';
 const TOPAZ_VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm', 'video/x-msvideo'];
 const TOPAZ_VIDEO_ACCEPT = 'video/*,.mp4,.mov,.mkv,.avi,.webm';
 
+// Maximum file size for video references (Seedance 2.0)
+const MAX_VIDEO_REF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
@@ -60,7 +63,6 @@ const MODEL_COST_ESTIMATES = {
     'grok-imagine/image-to-video': 10,    // 6s 480p = 10, 10s 720p = 30
     'hailuo/2-3-image-to-video-pro': 45,  // Pro-6s-768p=45, Pro-6s-1080p=80, Pro-10s-768p=90
     // ── Seedance 2.0 (ByteDance) ──
-    'bytedance/seedance-2': 375,           // 720p no-video-input: 25 cr/s × 15s default
     'bytedance/seedance-2-frames': 375,
     'bytedance/seedance-2-multi': 375,
     'bytedance/seedance-2-video': 375,
@@ -141,6 +143,15 @@ function updateCostBadge(el, cost, baseClass, suffix) {
         el.classList.add('hidden');
     }
 }
+
+// Shared parameters for all Seedance 2.0 workflows (Frames, Multi, Video)
+const SEEDANCE_2_PARAMS = [
+    { key: 'duration', label: 'Duração (s)', type: 'number', default: 10, min: 4, max: 15, step: 1 },
+    { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'], default: '16:9' },
+    { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
+    { key: 'generate_audio', label: 'Gerar Áudio', type: 'bool', default: true },
+    { key: 'return_last_frame', label: 'Retornar Último Frame', type: 'bool', default: false },
+];
 
 const MODEL_CONFIGS = {
     // ──── IMAGE MODELS ────
@@ -557,33 +568,9 @@ const MODEL_CONFIGS = {
     },
 
     // ──── SEEDANCE 2.0 (ByteDance) ────
-    'bytedance/seedance-2-frames': {
-        params: [
-            { key: 'duration', label: 'Duração (s)', type: 'number', default: 10, min: 4, max: 15, step: 1 },
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'], default: '16:9' },
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
-            { key: 'generate_audio', label: 'Gerar Áudio', type: 'bool', default: true },
-            { key: 'return_last_frame', label: 'Retornar Último Frame', type: 'bool', default: false },
-        ]
-    },
-    'bytedance/seedance-2-multi': {
-        params: [
-            { key: 'duration', label: 'Duração (s)', type: 'number', default: 10, min: 4, max: 15, step: 1 },
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'], default: '16:9' },
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
-            { key: 'generate_audio', label: 'Gerar Áudio', type: 'bool', default: true },
-            { key: 'return_last_frame', label: 'Retornar Último Frame', type: 'bool', default: false },
-        ]
-    },
-    'bytedance/seedance-2-video': {
-        params: [
-            { key: 'duration', label: 'Duração (s)', type: 'number', default: 10, min: 4, max: 15, step: 1 },
-            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'], default: '16:9' },
-            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
-            { key: 'generate_audio', label: 'Gerar Áudio', type: 'bool', default: true },
-            { key: 'return_last_frame', label: 'Retornar Último Frame', type: 'bool', default: false },
-        ]
-    },
+    'bytedance/seedance-2-frames': { params: SEEDANCE_2_PARAMS },
+    'bytedance/seedance-2-multi':  { params: SEEDANCE_2_PARAMS },
+    'bytedance/seedance-2-video':  { params: SEEDANCE_2_PARAMS },
 
     // ──── VEO 3.1 (Google) ────
     'veo3/text-to-video': {
@@ -1320,6 +1307,22 @@ function exitWorkspace() {
 
 // ==================== Seedance 2.0 Workflow Picker ====================
 
+// Shared close handler — used by backdrop click, close button, and Escape key
+function _handleCloseSeedancePicker() {
+    _closeSeedance2Picker();
+    if (!selectedModel) exitWorkspace();
+}
+
+// Named handler so it can be added/removed with the picker lifecycle
+function _seedance2EscapeHandler(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('modal-seedance2-picker');
+        if (modal && !modal.classList.contains('hidden')) {
+            _handleCloseSeedancePicker();
+        }
+    }
+}
+
 function _openSeedance2Picker() {
     const modal = document.getElementById('modal-seedance2-picker');
     if (!modal) return;
@@ -1328,8 +1331,11 @@ function _openSeedance2Picker() {
     // Wire close handlers
     const backdrop = document.getElementById('seedance2-backdrop');
     const closeBtn = document.getElementById('seedance2-close');
-    if (backdrop) backdrop.onclick = () => { _closeSeedance2Picker(); if (!selectedModel) exitWorkspace(); };
-    if (closeBtn) closeBtn.onclick = () => { _closeSeedance2Picker(); if (!selectedModel) exitWorkspace(); };
+    if (backdrop) backdrop.onclick = () => _handleCloseSeedancePicker();
+    if (closeBtn) closeBtn.onclick = () => _handleCloseSeedancePicker();
+
+    // Scoped Escape key listener (added on open, removed on close)
+    document.addEventListener('keydown', _seedance2EscapeHandler);
 
     // Wire workflow cards
     modal.querySelectorAll('.seedance2-wf-card').forEach(card => {
@@ -1359,18 +1365,9 @@ function _openSeedance2Picker() {
 function _closeSeedance2Picker() {
     const modal = document.getElementById('modal-seedance2-picker');
     if (modal) modal.classList.add('hidden');
+    // Remove scoped Escape listener
+    document.removeEventListener('keydown', _seedance2EscapeHandler);
 }
-
-// Escape key for Seedance2 picker
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-        const modal = document.getElementById('modal-seedance2-picker');
-        if (modal && !modal.classList.contains('hidden')) {
-            _closeSeedance2Picker();
-            if (!selectedModel) exitWorkspace();
-        }
-    }
-});
 
 // ==================== Model Picker Modal ====================
 
@@ -2992,7 +2989,6 @@ const v2Registry = {};
         const isSeedanceFrames = data.model === 'bytedance/seedance-2-frames';
         const isSeedanceMulti = data.model === 'bytedance/seedance-2-multi';
         const isSeedanceVideo = data.model === 'bytedance/seedance-2-video';
-        const isSeedance = isSeedanceFrames || isSeedanceMulti || isSeedanceVideo;
 
         const isFramesModel = (data.model && (data.model.startsWith('veo3/') || data.model.includes('kling-3.0/video') || isSeedanceFrames));
 
@@ -4035,7 +4031,7 @@ const v2Registry = {};
             return;
         }
         // Size check: 10MB max per file
-        const oversized = accepted.filter(f => f.size > 10 * 1024 * 1024);
+        const oversized = accepted.filter(f => f.size > MAX_VIDEO_REF_SIZE_BYTES);
         if (oversized.length) {
             toast('Vídeo excede 10MB. Reduza o tamanho.', 'error');
             return;
@@ -4076,7 +4072,6 @@ const v2Registry = {};
             const nameEl = document.createElement('span');
             nameEl.className = 'v2-file-card-name';
             nameEl.textContent = file.name;
-            nameEl.style.cssText = 'position:absolute;bottom:4px;left:4px;right:4px;font-size:8px;color:#ccc;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'v2-file-card-remove';
