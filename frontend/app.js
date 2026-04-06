@@ -2960,8 +2960,7 @@ const v2Registry = {};
         v2RenderModelParams(data.model);
 
         // ── Cost (after params are rendered so MJ cost can read speed) ──
-        const cost = (typeof getModelCost === 'function' ? getModelCost(data.model) : null);
-        if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
+        v2UpdateCost();
 
         // ── Generate button label ──
         const btnSpan = v2.btnGenerate.querySelector('span');
@@ -3309,6 +3308,7 @@ const v2Registry = {};
                 inp.value = p.default || '0';
                 inp.placeholder = p.label;
                 inp.dataset.paramKey = p.key;
+                inp.addEventListener('input', () => v2UpdateCost());
                 group.appendChild(inp);
             }
 
@@ -3458,6 +3458,8 @@ const v2Registry = {};
             el.textContent = `Total: ${total}s / 15s (Restante: ${remaining}s)`;
             el.style.color = total > 15 ? 'var(--accent-red, #e74c3c)' : '';
         }
+
+        v2UpdateCost();
     }
 
     // + Add Shot button
@@ -3691,6 +3693,23 @@ const v2Registry = {};
                 cost = dur >= 10 ? 90 : 45; // Pro 768p
             } else {
                 cost = 30; // 480p standard
+            }
+
+        // ── Seedance 2.0 (resolution + duration + video input) ──
+        } else if (model.includes('seedance-2')) {
+            const res = params.resolution || '720p';
+            const dur = params.duration || 15;
+            const hasVideo = v2VideoFiles.length > 0;
+
+            if (res === '480p') {
+                const rate = hasVideo ? 11.5 : 19;
+                // Formula: (input_dur + output_dur) * rate if video input exists
+                // We use a safe estimate of 5s for input video if not explicitly measured
+                cost = hasVideo ? (5 + dur) * rate : dur * rate;
+            } else {
+                // 720p
+                const rate = hasVideo ? 25 : 41;
+                cost = hasVideo ? (5 + dur) * rate : dur * rate;
             }
 
         // ── Google Imagen 4 (no dynamic param but note tiers) ──
