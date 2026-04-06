@@ -571,6 +571,7 @@ const MODEL_CONFIGS = {
     'bytedance/seedance-2-frames': { params: SEEDANCE_2_PARAMS },
     'bytedance/seedance-2-multi':  { params: SEEDANCE_2_PARAMS },
     'bytedance/seedance-2-video':  { params: SEEDANCE_2_PARAMS },
+    'bytedance/seedance-2-fast':   { params: SEEDANCE_2_PARAMS },
 
     // ──── VEO 3.1 (Google) ────
     'veo3/text-to-video': {
@@ -1345,6 +1346,7 @@ function _openSeedance2Picker() {
                 frames: 'bytedance/seedance-2-frames',
                 multi: 'bytedance/seedance-2-multi',
                 video: 'bytedance/seedance-2-video',
+                fast:  'bytedance/seedance-2-fast',
             };
             const modelId = modelMap[wf];
             if (!modelId) return;
@@ -2896,6 +2898,7 @@ const v2Registry = {};
     let v2FrameInitial = null; // File object for Initial Frame
     let v2FrameFinal = null;   // File object for Final Frame
     let v2VideoFiles = [];     // Array of File objects for video references (Seedance 2.0)
+    let v2VideoDurations = []; // Measured durations of v2VideoFiles
     let v2MaxVideoFiles = 3;   // Max video references
     let v2Settings = { ...DEFAULT_V2_SETTINGS };
     let v2Tasks = JSON.parse(sessionStorage.getItem('v2_tasks') || '[]'); // Track tasks spawned from V2 workspace
@@ -2960,8 +2963,7 @@ const v2Registry = {};
         v2RenderModelParams(data.model);
 
         // ── Cost (after params are rendered so MJ cost can read speed) ──
-        const cost = (typeof getModelCost === 'function' ? getModelCost(data.model) : null);
-        if (v2.creditsAmount) v2.creditsAmount.textContent = cost ? `~${cost} créditos` : '—';
+        v2UpdateCost();
 
         // ── Generate button label ──
         const btnSpan = v2.btnGenerate.querySelector('span');
@@ -3309,6 +3311,7 @@ const v2Registry = {};
                 inp.value = p.default || '0';
                 inp.placeholder = p.label;
                 inp.dataset.paramKey = p.key;
+                inp.addEventListener('input', () => v2UpdateCost());
                 group.appendChild(inp);
             }
 
@@ -3458,6 +3461,8 @@ const v2Registry = {};
             el.textContent = `Total: ${total}s / 15s (Restante: ${remaining}s)`;
             el.style.color = total > 15 ? 'var(--accent-red, #e74c3c)' : '';
         }
+
+        v2UpdateCost();
     }
 
     // + Add Shot button
@@ -3691,6 +3696,28 @@ const v2Registry = {};
                 cost = dur >= 10 ? 90 : 45; // Pro 768p
             } else {
                 cost = 30; // 480p standard
+            }
+
+        // ── Seedance 2.0 (resolution + duration + video input) ──
+        } else if (model.includes('seedance-2')) {
+            const res = params.resolution || '720p';
+            const dur = params.duration || 15;
+            const hasVideo = v2VideoFiles.length > 0;
+            const isFast = model.includes('fast');
+
+            if (res === '480p') {
+                const rate = isFast 
+                    ? (hasVideo ? 8 : 15.5) 
+                    : (hasVideo ? 11.5 : 19);
+                const totalInputDur = v2VideoDurations.reduce((a, b) => a + b, 0);
+                cost = hasVideo ? (totalInputDur + dur) * rate : dur * rate;
+            } else {
+                // 720p
+                const rate = isFast 
+                    ? (hasVideo ? 20 : 33) 
+                    : (hasVideo ? 25 : 41);
+                const totalInputDur = v2VideoDurations.reduce((a, b) => a + b, 0);
+                cost = hasVideo ? (totalInputDur + dur) * rate : dur * rate;
             }
 
         // ── Google Imagen 4 (no dynamic param but note tiers) ──
@@ -4010,6 +4037,7 @@ const v2Registry = {};
         v2FrameInitial = null;
         v2FrameFinal = null;
         v2VideoFiles = [];
+        v2VideoDurations = [];
         v2.fileInput.value = '';
         if (v2.frameInitialInput) v2.frameInitialInput.value = '';
         if (v2.frameFinalInput) v2.frameFinalInput.value = '';
@@ -4022,7 +4050,7 @@ const v2Registry = {};
     }
 
     // ── Video Reference Upload (Seedance 2.0) ──
-    function v2AddVideoFiles(newFiles) {
+    async function v2AddVideoFiles(newFiles) {
         const accepted = newFiles.filter(f =>
             f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|webm)$/i)
         );
@@ -4041,9 +4069,32 @@ const v2Registry = {};
             toast(`Máximo de ${v2MaxVideoFiles} vídeos atingido`, 'error');
             return;
         }
-        v2VideoFiles.push(...accepted.slice(0, remaining));
+        const toAdd = accepted.slice(0, remaining);
+        v2VideoFiles.push(...toAdd);
+
+        // Measure and store durations (needed for accurate pricing)
+        const durPromises = toAdd.map(f => _v2GetVideoDuration(f));
+        const durations = await Promise.all(durPromises);
+        v2VideoDurations.push(...durations);
+
         v2RenderVideoFilesGrid();
         updateV2GenerateState();
+    }
+
+    function _v2GetVideoDuration(file) {
+        return new Promise(resolve => {
+            const vid = document.createElement('video');
+            vid.preload = 'metadata';
+            vid.onloadedmetadata = () => {
+                window.URL.revokeObjectURL(vid.src);
+                resolve(vid.duration || 0);
+            };
+            vid.onerror = () => {
+                window.URL.revokeObjectURL(vid.src);
+                resolve(0);
+            };
+            vid.src = window.URL.createObjectURL(file);
+        });
     }
 
     function v2RenderVideoFilesGrid() {
@@ -4080,6 +4131,7 @@ const v2Registry = {};
             removeBtn.addEventListener('click', e => {
                 e.stopPropagation();
                 v2VideoFiles.splice(index, 1);
+                v2VideoDurations.splice(index, 1);
                 URL.revokeObjectURL(objUrl);
                 v2RenderVideoFilesGrid();
                 updateV2GenerateState();
