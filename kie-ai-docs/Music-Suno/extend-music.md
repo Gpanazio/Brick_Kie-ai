@@ -29,7 +29,7 @@ Extend existing music tracks with Suno's AI music generation.
   "style": "Classical",
   "title": "Peaceful Piano Extended",
   "continueAt": 60,
-  "model": "V5",
+  "model": "V5_5",
   "callBackUrl": "https://api.example.com/callback"
 }
 ```
@@ -44,7 +44,7 @@ Extend existing music tracks with Suno's AI music generation.
 | style | string | Yes (custom) | Music style |
 | title | string | Yes (custom) | Track title |
 | continueAt | number | Yes (custom) | Start time in seconds |
-| model | string | Yes | AI model (V4, V4_5, V4_5PLUS, V4_5ALL, V5) |
+| model | string | Yes | AI model (V4, V4_5, V4_5PLUS, V4_5ALL, V5, V5_5) |
 | callBackUrl | string | Yes | Callback URL |
 | vocalGender | string | No | Vocal gender (m/f) |
 | styleWeight | number | No | Style adherence (0-1) |

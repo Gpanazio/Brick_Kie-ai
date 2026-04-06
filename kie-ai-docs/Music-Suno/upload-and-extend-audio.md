@@ -37,7 +37,7 @@ Extend uploaded audio tracks while maintaining the original style. Creates a lon
 | style | string | Yes* | Music style (*required in custom mode) |
 | title | string | Yes* | Track title (*required in custom mode) |
 | continueAt | number | Yes | Start time in seconds |
-| model | string | Yes | AI model (V4, V4_5, V4_5PLUS, V4_5ALL, V5) |
+| model | string | Yes | AI model (V4, V4_5, V4_5PLUS, V4_5ALL, V5, V5_5) |
 | callBackUrl | string | Yes | Callback URL |
 
 ### Response

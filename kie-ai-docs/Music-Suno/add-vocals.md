@@ -20,7 +20,7 @@ Add vocals to an existing instrumental audio file. Generate vocal output harmoni
   "negativeTags": "heavy metal, strong drum beats",
   "style": "Jazz",
   "vocalGender": "m",
-  "model": "V5",
+  "model": "V5_5",
   "callBackUrl": "https://example.com/callback"
 }
 ```
@@ -38,7 +38,7 @@ Add vocals to an existing instrumental audio file. Generate vocal output harmoni
 | styleWeight | number | No | Style adherence (0-1) |
 | weirdnessConstraint | number | No | Creativity level (0-1) |
 | audioWeight | number | No | Audio weight (0-1) |
-| model | string | No | AI model (V4_5PLUS, V5) |
+| model | string | No | AI model (V4_5PLUS, V5, V5_5) |
 | callBackUrl | string | Yes | Callback URL |
 
 ### Response
