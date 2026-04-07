@@ -31,6 +31,12 @@ const TOPAZ_VIDEO_ACCEPT = 'video/*,.mp4,.mov,.mkv,.avi,.webm';
 // Maximum file size for video references (Seedance 2.0)
 const MAX_VIDEO_REF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
+// Maximum file size for video references (Seedance 2.0 Fast)
+const MAX_VIDEO_REF_SIZE_FAST_BYTES = 50 * 1024 * 1024; // 50MB
+
+// Maximum file size for image references (Seedance 2.0 Fast)
+const MAX_IMAGE_REF_SIZE_BYTES = 30 * 1024 * 1024; // 30MB
+
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
@@ -573,6 +579,16 @@ const MODEL_CONFIGS = {
     'bytedance/seedance-2-frames': { params: SEEDANCE_2_PARAMS },
     'bytedance/seedance-2-multi':  { params: SEEDANCE_2_PARAMS },
     'bytedance/seedance-2-video':  { params: SEEDANCE_2_PARAMS },
+    'bytedance/seedance-2-fast': {
+        params: [
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 10, min: 4, max: 15, step: 1 },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'], default: '16:9' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
+            { key: 'generate_audio', label: 'Gerar Áudio', type: 'bool', default: true },
+            { key: 'return_last_frame', label: 'Retornar Último Frame', type: 'bool', default: false },
+            { key: 'web_search', label: 'Web Search', type: 'bool', default: false },
+        ]
+    },
 
     // ──── VEO 3.1 (Google) ────
     'veo3/text-to-video': {
@@ -3040,6 +3056,7 @@ const v2Registry = {};
             'bytedance/seedance-2-frames': 2,  // initial + final frame
             'bytedance/seedance-2-multi': 9,   // up to 9 reference images
             'bytedance/seedance-2-video': 0,   // video refs use separate v2VideoFiles array
+            'bytedance/seedance-2-fast': 9,    // up to 9 reference images
         };
         const modelKey = data.model || '';
         // Check per-model override first, then fall back to category defaults
@@ -3938,9 +3955,19 @@ const v2Registry = {};
 
     function v2AddFiles(newFiles) {
         const isVideoUpscale = v2Model?.model === TOPAZ_VIDEO_UPSCALE_MODEL;
-        const accepted = newFiles.filter(f =>
-            isVideoUpscale ? (f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|avi|webm)$/i)) : f.type.startsWith('image/')
-        );
+        const isSeedanceFast = v2Model?.model === 'bytedance/seedance-2-fast';
+        const maxImageSize = isSeedanceFast ? MAX_IMAGE_REF_SIZE_BYTES : (10 * 1024 * 1024);
+        const accepted = newFiles.filter(f => {
+            if (isVideoUpscale) {
+                return f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|avi|webm)$/i);
+            }
+            if (!f.type.startsWith('image/')) return false;
+            if (f.size > maxImageSize) {
+                toast(`Arquivo muito grande (máx. ${maxImageSize / (1024 * 1024)}MB)`, 'error');
+                return false;
+            }
+            return true;
+        });
         if (!accepted.length) {
             if (isVideoUpscale) toast('Formato inválido. Use MP4, MOV, MKV, etc. (máx. 50MB)', 'error');
             return;
@@ -4051,6 +4078,8 @@ const v2Registry = {};
 
     // ── Video Reference Upload (Seedance 2.0) ──
     async function v2AddVideoFiles(newFiles) {
+        const isSeedanceFast = v2Model?.model === 'bytedance/seedance-2-fast';
+        const maxVideoSize = isSeedanceFast ? MAX_VIDEO_REF_SIZE_FAST_BYTES : MAX_VIDEO_REF_SIZE_BYTES;
         const accepted = newFiles.filter(f =>
             f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|webm)$/i)
         );
@@ -4058,10 +4087,10 @@ const v2Registry = {};
             toast('Formato inválido. Use MP4, MOV ou MKV', 'error');
             return;
         }
-        // Size check: 10MB max per file
-        const oversized = accepted.filter(f => f.size > MAX_VIDEO_REF_SIZE_BYTES);
+        // Size check based on model
+        const oversized = accepted.filter(f => f.size > maxVideoSize);
         if (oversized.length) {
-            toast('Vídeo excede 10MB. Reduza o tamanho.', 'error');
+            toast(`Vídeo excede ${maxVideoSize / (1024 * 1024)}MB. Reduza o tamanho.`, 'error');
             return;
         }
         const remaining = v2MaxVideoFiles - v2VideoFiles.length;
@@ -4319,7 +4348,7 @@ const v2Registry = {};
         if (isSeedance) delete extra.seedance_speed; // not an API param
 
         const isFramesModel = resolvedModel.includes('kling-3.0/video') || isSeedanceFrames;
-        const hasVideoRefs = isSeedanceVideo && v2VideoFiles.length > 0;
+        const hasVideoRefs = (isSeedanceVideo || resolvedModel === 'bytedance/seedance-2-fast') && v2VideoFiles.length > 0;
         const hasFiles = isFramesModel ? (v2FrameInitial !== null || v2FrameFinal !== null) : (v2Files.length > 0);
 
         // Remap model names based on whether images are present
@@ -4417,7 +4446,7 @@ const v2Registry = {};
         const json = await resp.json();
         if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
         if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
-        const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId;
+        const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId || json?.data?.task_id || json?.task_id;
         if (!taskId) throw new Error(json.msg || 'No taskId returned');
 
         const previewUrl = extra[imgField]?.length ? (Array.isArray(extra[imgField]) ? extra[imgField][0] : extra[imgField]) : null;
