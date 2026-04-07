@@ -66,8 +66,10 @@ const MODEL_COST_ESTIMATES = {
     'sora-2-pro-text-to-video': 330,     // Pro High-10s=330, High-15s=630, Standard-10s=150, Standard-15s=270
     'sora-2-pro-image-to-video': 150,     // Pro Standard-10s=150, Standard-15s=270, High-10s=330, High-15s=630
     'kling-3.0/video': 135,               // 27 cr/s × 5s default (1080p+audio)
-    'wan/2-6-text-to-video': 40,             // 5s 480p = 40
-    'wan/2-6-image-to-video': 40,            // 5s 480p = 40
+    'wan/2-7-text-to-video': 40,             // 5s 480p = 40
+    'wan/2-7-image-to-video': 40,            // 5s 480p = 40
+    'wan/2-7-videoedit': 40,                 // 5s 480p = 40
+    'wan/2-7-r2v': 40,                       // 5s 480p = 40
     'grok-imagine/text-to-video': 10,     // 6s 480p = 10, 10s 720p = 30
     'grok-imagine/image-to-video': 10,    // 6s 480p = 10, 10s 720p = 30
     'hailuo/2-3-image-to-video-pro': 45,  // Pro-6s-768p=45, Pro-6s-1080p=80, Pro-10s-768p=90
@@ -263,9 +265,9 @@ const MODEL_CONFIGS = {
             { key: 'multi_shots', label: 'Multi-Shot', type: 'bool', default: false },
         ]
     },
-    'wan/2-6-text-to-video': {
+    'wan/2-7-text-to-video': {
         params: [
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['5', '10', '15'], default: '5' },
+            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['2', '5', '10', '15'], default: '5' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
         ]
     },
@@ -1528,7 +1530,7 @@ const V2_FILE_MODEL_MAP = {
     'grok-imagine/text-to-video': 'grok-imagine/image-to-video',
     'grok-imagine/text-to-image': 'grok-imagine/image-to-image',
     'sora-2-pro-text-to-video': 'sora-2-pro-image-to-video',
-    'wan/2-6-text-to-video': 'wan/2-6-image-to-video',
+    'wan/2-7-text-to-video': 'wan/2-7-image-to-video',
     'seedream/5-lite': 'seedream/5-lite-image-to-image',
 };
 const V2_TEXT_MODEL_MAP = {
@@ -1735,7 +1737,9 @@ const MODEL_REVERSE_MAP = {
     'grok-imagine/image-to-image': 'grok-imagine/text-to-image',
     'grok-imagine/image-to-video': 'grok-imagine/text-to-video',
     'sora-2-pro-image-to-video': 'sora-2-pro-text-to-video',
-    'wan/2-6-image-to-video': 'wan/2-6-text-to-video',
+    'wan/2-7-image-to-video': 'wan/2-7-text-to-video',
+    'wan/2-7-videoedit': 'wan/2-7-text-to-video',
+    'wan/2-7-r2v': 'wan/2-7-text-to-video',
     'veo3/text-to-video-fast': 'veo3/text-to-video',
     'veo3/text-to-video-quality': 'veo3/text-to-video',
     'veo3/image-to-video-fast': 'veo3/text-to-video',
@@ -3672,10 +3676,10 @@ const v2Registry = {};
                 cost = dur >= 15 ? 270 : 150;
             }
 
-        // ── Wan 2.6 (resolution-dependent) ──
+        // ── Wan 2.7 (resolution-dependent) ──
         } else if (model.startsWith('wan/')) {
             const res = params.resolution || '720p';
-            // Wan 2.6: 720p=70, 1080p=104.5
+            // Wan 2.7: 720p=70, 1080p=104.5
             cost = res === '1080p' ? 104.5 : 70;
 
         // ── Grok video (resolution + duration) ──
@@ -4373,13 +4377,16 @@ const v2Registry = {};
         const hasVideoRefs = (isSeedanceVideo || resolvedModel === 'bytedance/seedance-2-fast') && v2VideoFiles.length > 0;
         const hasFiles = isFramesModel ? (v2FrameInitial !== null || v2FrameFinal !== null) : (v2Files.length > 0);
 
-        // Remap model names based on whether images are present
+        // Remap model names based on whether files are present
         if (!isSeedance) {
             if (hasFiles) {
                 if (resolvedModel === 'grok-imagine/text-to-image') resolvedModel = 'grok-imagine/image-to-image';
                 if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
                 if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
-                if (resolvedModel === 'wan/2-6-text-to-video') resolvedModel = 'wan/2-6-image-to-video';
+                if (resolvedModel === 'wan/2-7-text-to-video') {
+                    const hasUploadedVideo = v2Files.some(f => f.type.startsWith('video/'));
+                    resolvedModel = hasUploadedVideo ? 'wan/2-7-videoedit' : 'wan/2-7-image-to-video';
+                }
                 resolvedModel = resolveSeedreamModel(resolvedModel, extra, true);
             } else {
                 // Text-only: remap to correct API model names
@@ -4390,7 +4397,8 @@ const v2Registry = {};
         // Resolve Seedance sub-models → 'seedance-2' or 'seedance-2-fast'
         if (isSeedance) resolvedModel = seedanceSpeedFast ? 'bytedance/seedance-2-fast' : 'bytedance/seedance-2';
 
-        const imgField = v2Model?.field || selectedModel?.field || 'image_input';
+        let imgField = v2Model?.field || selectedModel?.field || 'image_input';
+        if (resolvedModel === 'wan/2-7-videoedit') imgField = 'video_url';
 
         if (hasFiles) {
             if (isFramesModel) {

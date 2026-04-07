@@ -743,7 +743,7 @@ All use `POST /api/v1/jobs/createTask` with model-specific `input` parameters.
 | Sora2 Image-to-Video | (see docs) | (market) |
 | Sora2 Characters Pro | (see docs) | https://docs.kie.ai/market/sora2/sora-2-characters-pro |
 | Wan 2.2 Image-to-Video Turbo | (see docs) | https://docs.kie.ai/market/wan/2-2-a14b-image-to-video-turbo |
-| Wan 2.6 Video-to-Video | (see docs) | https://docs.kie.ai/market/wan/2-6-video-to-video |
+| Wan 2.7 Video Edit | (see docs) | https://docs.kie.ai/market/wan/2-7-videoedit |
 | Grok Imagine Image-to-Video | (see docs) | https://docs.kie.ai/market/grok-imagine/image-to-video |
 | Hailuo Standard Text-to-Video | (see docs) | https://docs.kie.ai/market/hailuo/02-text-to-video-standard |
 | Topaz Video Upscale | `topaz/video-upscale` | (market) |
@@ -926,7 +926,7 @@ POST https://api.kie.ai/api/v1/jobs/createTask
 - https://docs.kie.ai/market/kling/kling-3.0
 - https://docs.kie.ai/market/sora2/sora-2-characters-pro
 - https://docs.kie.ai/market/wan/2-2-a14b-image-to-video-turbo
-- https://docs.kie.ai/market/wan/2-6-video-to-video
+- https://docs.kie.ai/market/wan/2-7-videoedit
 - https://docs.kie.ai/market/grok-imagine/image-to-video
 - https://docs.kie.ai/market/hailuo/02-text-to-video-standard
 

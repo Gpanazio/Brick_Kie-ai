@@ -63,6 +63,17 @@ def _ensure_callback_url(payload: dict) -> dict:
     return payload
 
 
+WAN_MODEL_MIGRATION_MAP = {
+    "wan/2-6-text-to-video": "wan/2-7-text-to-video",
+    "wan/2-6-image-to-video": "wan/2-7-image-to-video",
+    "wan/2-6-video-to-video": "wan/2-7-videoedit",
+}
+
+
+def _normalize_market_model(model: str) -> str:
+    return WAN_MODEL_MIGRATION_MAP.get(model, model)
+
+
 def _validate_api_response(resp: dict) -> dict:
     """Check API-level error codes in JSON body (KIE returns HTTP 200 with error codes in body)."""
     if isinstance(resp, dict):
@@ -505,6 +516,7 @@ def market_create(
     rid = _request_id(request)
     try:
         input_data = json.loads(input_json)
+        model = _normalize_market_model(model)
         resp = kie_api.market_create_task(
             model, input_data, callback_url=callback or CALLBACK_URL
         )
@@ -633,6 +645,7 @@ async def process_file(
 
         # Step 2: Build input
         extra = json.loads(input_json) if input_json else {}
+        model = _normalize_market_model(model)
         # Fields ending with _urls expect an array of URLs
         if file_field.endswith("_urls"):
             extra[file_field] = [file_url]
@@ -676,6 +689,7 @@ def market_create_json_body(
     rid = _request_id(request)
     try:
         input_data = json.loads(input_json)
+        model = _normalize_market_model(model)
         logger.info(
             "[%s] market/create-json: model=%s input=%s",
             rid,
