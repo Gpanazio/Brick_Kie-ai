@@ -66,6 +66,7 @@ const MODEL_COST_ESTIMATES = {
     'bytedance/seedance-2-frames': 375,
     'bytedance/seedance-2-multi': 375,
     'bytedance/seedance-2-video': 375,
+    'bytedance/seedance-2-fast': 330,     // 33 cr/s × 10s (720p, no video input)
     // ── Audio (ElevenLabs) ──
     'elevenlabs/text-to-speech-turbo-2-5': 6,   // 6 cr / 1000 chars
     'elevenlabs/text-to-dialogue-v3': 14,       // 14 cr / 1000 chars
@@ -146,6 +147,7 @@ function updateCostBadge(el, cost, baseClass, suffix) {
 
 // Shared parameters for all Seedance 2.0 workflows (Frames, Multi, Video)
 const SEEDANCE_2_PARAMS = [
+    { key: 'seedance_speed', label: 'Velocidade', type: 'radio', options: ['Normal', 'Fast'], default: 'Normal' },
     { key: 'duration', label: 'Duração (s)', type: 'number', default: 10, min: 4, max: 15, step: 1 },
     { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'], default: '16:9' },
     { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
@@ -571,7 +573,6 @@ const MODEL_CONFIGS = {
     'bytedance/seedance-2-frames': { params: SEEDANCE_2_PARAMS },
     'bytedance/seedance-2-multi':  { params: SEEDANCE_2_PARAMS },
     'bytedance/seedance-2-video':  { params: SEEDANCE_2_PARAMS },
-    'bytedance/seedance-2-fast':   { params: SEEDANCE_2_PARAMS },
 
     // ──── VEO 3.1 (Google) ────
     'veo3/text-to-video': {
@@ -1346,7 +1347,6 @@ function _openSeedance2Picker() {
                 frames: 'bytedance/seedance-2-frames',
                 multi: 'bytedance/seedance-2-multi',
                 video: 'bytedance/seedance-2-video',
-                fast:  'bytedance/seedance-2-fast',
             };
             const modelId = modelMap[wf];
             if (!modelId) return;
@@ -3698,12 +3698,12 @@ const v2Registry = {};
                 cost = 30; // 480p standard
             }
 
-        // ── Seedance 2.0 (resolution + duration + video input) ──
+        // ── Seedance 2.0 (resolution + duration + video input + speed toggle) ──
         } else if (model.includes('seedance-2')) {
             const res = params.resolution || '720p';
             const dur = params.duration || 15;
             const hasVideo = v2VideoFiles.length > 0;
-            const isFast = model.includes('fast');
+            const isFast = params.seedance_speed === 'Fast';
 
             if (res === '480p') {
                 const rate = isFast 
@@ -4311,10 +4311,12 @@ const v2Registry = {};
         }
         delete extra.suno_mode;
 
-        // Seedance 2.0: all sub-models resolve to the single API model
+        // Seedance 2.0: detect speed toggle and resolve model
         const isSeedance = resolvedModel.startsWith('bytedance/seedance-2');
         const isSeedanceFrames = resolvedModel === 'bytedance/seedance-2-frames';
         const isSeedanceVideo = resolvedModel === 'bytedance/seedance-2-video';
+        const seedanceSpeedFast = isSeedance && extra.seedance_speed === 'Fast';
+        if (isSeedance) delete extra.seedance_speed; // not an API param
 
         const isFramesModel = resolvedModel.includes('kling-3.0/video') || isSeedanceFrames;
         const hasVideoRefs = isSeedanceVideo && v2VideoFiles.length > 0;
@@ -4334,8 +4336,8 @@ const v2Registry = {};
             }
         }
 
-        // Resolve all Seedance sub-models to the canonical API model
-        if (isSeedance) resolvedModel = 'bytedance/seedance-2';
+        // Resolve Seedance sub-models → 'seedance-2' or 'seedance-2-fast'
+        if (isSeedance) resolvedModel = seedanceSpeedFast ? 'bytedance/seedance-2-fast' : 'bytedance/seedance-2';
 
         const imgField = v2Model?.field || selectedModel?.field || 'image_input';
 
