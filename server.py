@@ -20,6 +20,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 import kie_api
@@ -54,11 +55,13 @@ def _safe_unlink(path: str) -> None:
     except Exception:
         logger.warning("[tmp] Failed to remove temp file %s", path, exc_info=True)
 
+
 def _ensure_callback_url(payload: dict) -> dict:
     """Inject default callback URL if not already set."""
     if CALLBACK_URL and "callBackUrl" not in payload:
         payload["callBackUrl"] = CALLBACK_URL
     return payload
+
 
 def _validate_api_response(resp: dict) -> dict:
     """Check API-level error codes in JSON body (KIE returns HTTP 200 with error codes in body)."""
@@ -66,8 +69,11 @@ def _validate_api_response(resp: dict) -> dict:
         code = resp.get("code")
         if code is not None and code != 200:
             msg = resp.get("msg", f"API error (code {code})")
-            raise HTTPException(status_code=code if 400 <= code < 600 else 502, detail=msg)
+            raise HTTPException(
+                status_code=code if 400 <= code < 600 else 502, detail=msg
+            )
     return resp
+
 
 def _sanitize_error(e: Exception) -> str:
     """Sanitize error messages to avoid leaking internal details (paths, keys, stack traces)."""
@@ -83,9 +89,11 @@ def _sanitize_error(e: Exception) -> str:
         return msg[:200] + "..."
     return msg
 
+
 def _request_id(request: Request) -> str:
     """Extract or generate a request ID for tracing."""
     return request.headers.get("X-Request-ID", uuid.uuid4().hex[:12])
+
 
 async def _save_upload_to_temp(file: UploadFile, default_name: str = "file") -> str:
     """Save an UploadFile to a temporary file and return its path."""
@@ -117,8 +125,10 @@ app.include_router(auth_module.router)
 # ── JWT Auth Middleware ──
 from starlette.middleware.base import BaseHTTPMiddleware
 
+
 class JWTAuthMiddleware(BaseHTTPMiddleware):
     """Protege todas as rotas /api/* (exceto /api/auth/* e /api/kie-callback)."""
+
     async def dispatch(self, request: Request, call_next):
         if is_protected(request.url.path):
             token = extract_token(request)
@@ -132,6 +142,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             except HTTPException as e:
                 return JSONResponse({"error": e.detail}, status_code=e.status_code)
         return await call_next(request)
+
 
 app.add_middleware(JWTAuthMiddleware)
 
@@ -181,11 +192,15 @@ async def sse_events():
             if q in _sse_clients:
                 _sse_clients.remove(q)
 
-    return StreamingResponse(stream(), media_type="text/event-stream", headers={
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",
-    })
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ==================== Webhook Callback ====================
@@ -216,8 +231,11 @@ async def kie_callback(request: Request):
         if not timestamp or not signature:
             raise HTTPException(status_code=401, detail="Missing signature headers")
         message = f"{task_id}.{timestamp}"
-        expected = hmac.new(WEBHOOK_KEY.encode(), message.encode(), hashlib.sha256).digest()
+        expected = hmac.new(
+            WEBHOOK_KEY.encode(), message.encode(), hashlib.sha256
+        ).digest()
         import base64
+
         expected_b64 = base64.b64encode(expected).decode()
         if not hmac.compare_digest(expected_b64, signature):
             raise HTTPException(status_code=401, detail="Invalid signature")
@@ -289,7 +307,15 @@ def _extract_callback_urls(data: dict) -> list:
         except (json.JSONDecodeError, ValueError):
             rj = None
     if isinstance(rj, dict):
-        for k in ("resultUrl", "resultUrls", "output", "fileUrl", "downloadUrl", "videoUrl", "audioUrl"):
+        for k in (
+            "resultUrl",
+            "resultUrls",
+            "output",
+            "fileUrl",
+            "downloadUrl",
+            "videoUrl",
+            "audioUrl",
+        ):
             v = rj.get(k)
             if isinstance(v, str) and v.startswith("http"):
                 urls.append(v)
@@ -333,7 +359,9 @@ async def serve_static(filename: str):
     if base_dir not in file_path.parents and file_path != base_dir:
         raise HTTPException(status_code=403, detail="Invalid static file path")
     if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(status_code=404, detail=f"Static file not found: {filename}")
+        raise HTTPException(
+            status_code=404, detail=f"Static file not found: {filename}"
+        )
     response = FileResponse(str(file_path))
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
@@ -376,6 +404,7 @@ async def media_backfill(request: Request):
                 urls = entry.get("urls", [])
                 if isinstance(urls, str):
                     import json as _json
+
                     urls = _json.loads(urls)
                 if not urls:
                     continue
@@ -388,7 +417,9 @@ async def media_backfill(request: Request):
                 errors.append({"id": entry["id"], "error": str(e)[:100]})
 
         total_remaining = len(db.entries_needing_backfill(limit=1))
-        logger.info("[%s] media/backfill: processed=%d, errors=%d", rid, processed, len(errors))
+        logger.info(
+            "[%s] media/backfill: processed=%d, errors=%d", rid, processed, len(errors)
+        )
         return {
             "success": True,
             "processed": processed,
@@ -441,7 +472,12 @@ async def upload_file(
     tmp_path = None
     try:
         tmp_path = await _save_upload_to_temp(file)
-        resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path=uploadPath, file_name=file.filename)
+        resp = await asyncio.to_thread(
+            kie_api.upload_stream,
+            tmp_path,
+            upload_path=uploadPath,
+            file_name=file.filename,
+        )
         _validate_api_response(resp)
         url = kie_api._extract_uploaded_url(resp)
         logger.info("[%s] upload: success, url=%s", rid, url[:80])
@@ -469,7 +505,9 @@ def market_create(
     rid = _request_id(request)
     try:
         input_data = json.loads(input_json)
-        resp = kie_api.market_create_task(model, input_data, callback_url=callback or CALLBACK_URL)
+        resp = kie_api.market_create_task(
+            model, input_data, callback_url=callback or CALLBACK_URL
+        )
         _validate_api_response(resp)
         logger.info("[%s] market/create: model=%s", rid, model)
         return resp
@@ -512,7 +550,10 @@ async def shortcut_recraft_rmbg(
         tmp_path = await _save_upload_to_temp(file, "img.png")
         resp = await asyncio.to_thread(
             kie_api.recraft_remove_background_from_local,
-            tmp_path, upload_path=uploadPath, callback_url=callback or CALLBACK_URL, file_name=file.filename
+            tmp_path,
+            upload_path=uploadPath,
+            callback_url=callback or CALLBACK_URL,
+            file_name=file.filename,
         )
         _validate_api_response(resp)
         logger.info("[%s] shortcuts/recraft-rmbg: submitted", rid)
@@ -541,7 +582,11 @@ async def shortcut_topaz_upscale(
         tmp_path = await _save_upload_to_temp(file, "video.mp4")
         resp = await asyncio.to_thread(
             kie_api.topaz_video_upscale_from_local,
-            tmp_path, upscale_factor=factor, upload_path=uploadPath, callback_url=callback or CALLBACK_URL, file_name=file.filename
+            tmp_path,
+            upscale_factor=factor,
+            upload_path=uploadPath,
+            callback_url=callback or CALLBACK_URL,
+            file_name=file.filename,
         )
         _validate_api_response(resp)
         logger.info("[%s] shortcuts/topaz-upscale: factor=%s", rid, factor)
@@ -577,7 +622,12 @@ async def process_file(
         tmp_path = await _save_upload_to_temp(file)
 
         # Step 1: Upload
-        up_resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path=uploadPath, file_name=file.filename)
+        up_resp = await asyncio.to_thread(
+            kie_api.upload_stream,
+            tmp_path,
+            upload_path=uploadPath,
+            file_name=file.filename,
+        )
         _validate_api_response(up_resp)
         file_url = kie_api._extract_uploaded_url(up_resp)
 
@@ -590,7 +640,9 @@ async def process_file(
             extra[file_field] = file_url
 
         # Step 3: Create task
-        task_resp = await asyncio.to_thread(kie_api.market_create_task, model, extra, callback_url=CALLBACK_URL)
+        task_resp = await asyncio.to_thread(
+            kie_api.market_create_task, model, extra, callback_url=CALLBACK_URL
+        )
         _validate_api_response(task_resp)
 
         logger.info("[%s] process: model=%s, uploaded=%s", rid, model, file_url[:80])
@@ -624,11 +676,19 @@ def market_create_json_body(
     rid = _request_id(request)
     try:
         input_data = json.loads(input_json)
-        if "kling" in model.lower():
-            logger.info("[%s] [KLING-DEBUG] model=%s input_data=%s", rid, model, json.dumps(input_data, ensure_ascii=False)[:500])
+        logger.info(
+            "[%s] market/create-json: model=%s input=%s",
+            rid,
+            model,
+            json.dumps(input_data, ensure_ascii=False)[:500],
+        )
         resp = kie_api.market_create_task(model, input_data, callback_url=CALLBACK_URL)
+        logger.info(
+            "[%s] market/create-json response: %s",
+            rid,
+            json.dumps(resp, ensure_ascii=False)[:500],
+        )
         _validate_api_response(resp)
-        logger.info("[%s] market/create-json: model=%s", rid, model)
         return resp
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid input JSON")
@@ -658,7 +718,9 @@ async def suno_create(
         # If a file was uploaded, stream it to KIE upload API first
         if file and file.filename:
             tmp_path = await _save_upload_to_temp(file, "audio.tmp")
-            up_resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path="audio")
+            up_resp = await asyncio.to_thread(
+                kie_api.upload_stream, tmp_path, upload_path="audio"
+            )
             _validate_api_response(up_resp)
             upload_url = kie_api._extract_uploaded_url(up_resp)
             input_data["uploadUrl"] = upload_url
@@ -789,7 +851,9 @@ async def gpt4o_image_create(
         upload_url = None
         if file and file.filename:
             tmp_path = await _save_upload_to_temp(file, "img.tmp")
-            up_resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path="images")
+            up_resp = await asyncio.to_thread(
+                kie_api.upload_stream, tmp_path, upload_path="images"
+            )
             _validate_api_response(up_resp)
             upload_url = kie_api._extract_uploaded_url(up_resp)
             existing = input_data.get("filesUrl", [])
@@ -871,7 +935,9 @@ async def flux_kontext_create(
         upload_url = None
         if file and file.filename:
             tmp_path = await _save_upload_to_temp(file, "img.tmp")
-            up_resp = await asyncio.to_thread(kie_api.upload_stream, tmp_path, upload_path="images")
+            up_resp = await asyncio.to_thread(
+                kie_api.upload_stream, tmp_path, upload_path="images"
+            )
             _validate_api_response(up_resp)
             upload_url = kie_api._extract_uploaded_url(up_resp)
             input_data["inputImage"] = upload_url
@@ -922,7 +988,9 @@ def _validate_history_entry(entry: dict) -> dict:
     if not isinstance(entry, dict):
         raise HTTPException(status_code=400, detail="Entry must be a JSON object")
     if not entry.get("id") or not isinstance(entry["id"], str):
-        raise HTTPException(status_code=400, detail="Entry must have a non-empty string 'id'")
+        raise HTTPException(
+            status_code=400, detail="Entry must have a non-empty string 'id'"
+        )
     if "model" in entry and not isinstance(entry.get("model"), str):
         raise HTTPException(status_code=400, detail="'model' must be a string")
     if "cat" in entry and not isinstance(entry.get("cat"), str):
@@ -993,7 +1061,14 @@ def _extract_result_urls(data: dict) -> list:
     urls = []
     if not isinstance(data, dict):
         return urls
-    for key in ("resultUrl", "output", "fileUrl", "downloadUrl", "audioUrl", "videoUrl"):
+    for key in (
+        "resultUrl",
+        "output",
+        "fileUrl",
+        "downloadUrl",
+        "audioUrl",
+        "videoUrl",
+    ):
         val = data.get(key)
         if isinstance(val, str) and val.startswith("http"):
             urls.append(val)
@@ -1009,30 +1084,48 @@ def _extract_result_urls(data: dict) -> list:
             logger.warning("[history] Failed to parse resultJson: %s", e)
             result_json = None
     if isinstance(result_json, dict):
-        for key in ("resultUrl", "resultUrls", "output", "fileUrl", "downloadUrl", "videoUrl", "audioUrl"):
+        for key in (
+            "resultUrl",
+            "resultUrls",
+            "output",
+            "fileUrl",
+            "downloadUrl",
+            "videoUrl",
+            "audioUrl",
+        ):
             val = result_json.get(key)
             if isinstance(val, str) and val.startswith("http"):
                 urls.append(val)
             elif isinstance(val, list):
-                urls.extend(u for u in val if isinstance(u, str) and u.startswith("http"))
+                urls.extend(
+                    u for u in val if isinstance(u, str) and u.startswith("http")
+                )
     resp = data.get("response", {})
     if isinstance(resp, dict):
         for key in ("resultUrl", "output", "fileUrl", "downloadUrl"):
             val = resp.get(key)
             if isinstance(val, str) and val.startswith("http"):
                 urls.append(val)
-        for s in (resp.get("sunoData") or []):
+        for s in resp.get("sunoData") or []:
             if isinstance(s, dict):
                 for k in ("audioUrl", "videoUrl", "sourceAudioUrl"):
-                    if s.get(k): urls.append(s[k])
+                    if s.get(k):
+                        urls.append(s[k])
     return list(dict.fromkeys(urls))
+
 
 def _infer_cat(model: str) -> str:
     m = (model or "").lower()
-    if "suno" in m: return "music"
-    if "elevenlabs" in m: return "audio"
-    if "topaz" in m or "crisp" in m or "recraft" in m: return "tools"
-    if any(x in m for x in ["video", "kling", "wan", "hailuo", "sora", "veo", "seedance"]): return "video"
+    if "suno" in m:
+        return "music"
+    if "elevenlabs" in m:
+        return "audio"
+    if "topaz" in m or "crisp" in m or "recraft" in m:
+        return "tools"
+    if any(
+        x in m for x in ["video", "kling", "wan", "hailuo", "sora", "veo", "seedance"]
+    ):
+        return "video"
     return "image"
 
 
@@ -1046,7 +1139,9 @@ def import_history_tasks(
     try:
         task_ids = json.loads(task_ids_json)
         if not isinstance(task_ids, list):
-            raise HTTPException(status_code=400, detail="task_ids_json must be a JSON array")
+            raise HTTPException(
+                status_code=400, detail="task_ids_json must be a JSON array"
+            )
 
         imported = 0
         errors = []
@@ -1082,7 +1177,9 @@ def import_history_tasks(
                 errors.append({"id": tid, "error": _sanitize_error(e)})
 
         total = db.count_history()
-        logger.info("[%s] history/import: imported=%d, errors=%d", rid, imported, len(errors))
+        logger.info(
+            "[%s] history/import: imported=%d, errors=%d", rid, imported, len(errors)
+        )
         return {"success": True, "imported": imported, "total": total, "errors": errors}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON")
@@ -1095,5 +1192,6 @@ def import_history_tasks(
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", os.environ.get("KIE_PORT", "8420")))
     uvicorn.run(app, host="0.0.0.0", port=port)

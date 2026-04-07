@@ -4399,10 +4399,8 @@ const v2Registry = {};
                 if (v2FrameFinal) {
                     finalUrl = await v2UploadSingleFile(v2FrameFinal, 0, 1);
                 }
-                const urls = [];
-                if (initialUrl) urls.push(encodeURI(initialUrl));
-                if (finalUrl) urls.push(encodeURI(finalUrl));
-                if (urls.length > 0) extra[imgField] = urls;
+                if (initialUrl) extra.first_frame_url = encodeURI(initialUrl);
+                if (finalUrl) extra.last_frame_url = encodeURI(finalUrl);
             } else {
                 const isVideo = v2Files.some(f => f.type.startsWith('video/'));
                 btnSpan.textContent = isVideo
