@@ -37,6 +37,9 @@ const MAX_VIDEO_REF_SIZE_FAST_BYTES = 50 * 1024 * 1024; // 50MB
 // Maximum file size for image references (Seedance 2.0 Fast)
 const MAX_IMAGE_REF_SIZE_BYTES = 30 * 1024 * 1024; // 30MB
 
+// Default maximum file size for images (non-Fast models)
+const MAX_IMAGE_DEFAULT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
 // Credit cost estimates (1 credit ≈ $0.005 USD)
 const MODEL_COST_ESTIMATES = {
     // ── Image ──
@@ -3953,10 +3956,21 @@ const v2Registry = {};
         }
     );
 
+    // Helper: Get max file sizes for Seedance 2.0 based on speed toggle
+    function _getSeedanceMaxSizes() {
+        const isSeedance = v2Model?.model?.startsWith('bytedance/seedance-2');
+        if (!isSeedance) return { image: MAX_IMAGE_DEFAULT_SIZE_BYTES, video: MAX_VIDEO_REF_SIZE_BYTES };
+        // Check speed toggle — seedance-2-fast is resolved at submit time
+        const isFast = document.querySelector('[data-param-group-key="seedance_speed"] .v2-param-pill.active')?.dataset?.value === 'Fast';
+        return {
+            image: isFast ? MAX_IMAGE_REF_SIZE_BYTES : MAX_IMAGE_DEFAULT_SIZE_BYTES,
+            video: isFast ? MAX_VIDEO_REF_SIZE_FAST_BYTES : MAX_VIDEO_REF_SIZE_BYTES
+        };
+    }
+
     function v2AddFiles(newFiles) {
         const isVideoUpscale = v2Model?.model === TOPAZ_VIDEO_UPSCALE_MODEL;
-        const isSeedanceFast = v2Model?.model === 'bytedance/seedance-2-fast';
-        const maxImageSize = isSeedanceFast ? MAX_IMAGE_REF_SIZE_BYTES : (10 * 1024 * 1024);
+        const { image: maxImageSize } = _getSeedanceMaxSizes();
         const accepted = newFiles.filter(f => {
             if (isVideoUpscale) {
                 return f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|avi|webm)$/i);
@@ -4078,8 +4092,7 @@ const v2Registry = {};
 
     // ── Video Reference Upload (Seedance 2.0) ──
     async function v2AddVideoFiles(newFiles) {
-        const isSeedanceFast = v2Model?.model === 'bytedance/seedance-2-fast';
-        const maxVideoSize = isSeedanceFast ? MAX_VIDEO_REF_SIZE_FAST_BYTES : MAX_VIDEO_REF_SIZE_BYTES;
+        const { video: maxVideoSize } = _getSeedanceMaxSizes();
         const accepted = newFiles.filter(f =>
             f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|webm)$/i)
         );
