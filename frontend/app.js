@@ -267,8 +267,42 @@ const MODEL_CONFIGS = {
     },
     'wan/2-7-text-to-video': {
         params: [
+            { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
             { key: 'duration', label: 'Duração (s)', type: 'select', options: ['2', '5', '10', '15'], default: '5' },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
+            { key: 'ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '9:16', '1:1', '4:3', '3:4'], default: '16:9' },
+            { key: 'prompt_extend', label: 'Prompt Extend', type: 'bool', default: true },
+            { key: 'watermark', label: 'Watermark', type: 'bool', default: false },
+        ]
+    },
+    'wan/2-7-image-to-video': {
+        params: [
+            { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
+            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['2', '5', '10', '15'], default: '5' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
+            { key: 'prompt_extend', label: 'Prompt Extend', type: 'bool', default: true },
+            { key: 'watermark', label: 'Watermark', type: 'bool', default: false },
+        ]
+    },
+    'wan/2-7-videoedit': {
+        params: [
+            { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
+            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['0', '2', '3', '4', '5', '6', '7', '8', '9', '10'], default: '0' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '9:16', '1:1', '4:3', '3:4'], default: '16:9' },
+            { key: 'audio_setting', label: 'Audio', type: 'select', options: ['auto', 'origin'], default: 'auto' },
+            { key: 'prompt_extend', label: 'Prompt Extend', type: 'bool', default: true },
+            { key: 'watermark', label: 'Watermark', type: 'bool', default: false },
+        ]
+    },
+    'wan/2-7-r2v': {
+        params: [
+            { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
+            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['2', '3', '4', '5', '6', '7', '8', '9', '10'], default: '5' },
+            { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
+            { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '9:16', '1:1', '4:3', '3:4'], default: '16:9' },
+            { key: 'prompt_extend', label: 'Prompt Extend', type: 'bool', default: true },
+            { key: 'watermark', label: 'Watermark', type: 'bool', default: false },
         ]
     },
     'grok-imagine/text-to-video': {
@@ -1414,50 +1448,131 @@ function initModelPickerModal() {
     });
 }
 
+const WAN_MODE_OPTIONS = [
+    {
+        model: 'wan/2-7-text-to-video',
+        name: 'Wan 2.7 — Text',
+        provider: 'Wan',
+        input: 'text',
+        field: 'prompt',
+        prompt: 'true',
+        color: 'mc-wan',
+        desc: 'Text to Video com prompt puro.'
+    },
+    {
+        model: 'wan/2-7-image-to-video',
+        name: 'Wan 2.7 — Image',
+        provider: 'Wan',
+        input: 'file',
+        field: 'first_frame_url',
+        prompt: 'true',
+        color: 'mc-wan',
+        desc: 'Image to Video usando imagem inicial.'
+    },
+    {
+        model: 'wan/2-7-videoedit',
+        name: 'Wan 2.7 — Video Edit',
+        provider: 'Wan',
+        input: 'file',
+        field: 'video_url',
+        prompt: 'true',
+        color: 'mc-wan',
+        desc: 'Edição de vídeo com instruções de prompt.'
+    },
+    {
+        model: 'wan/2-7-r2v',
+        name: 'Wan 2.7 — R2V',
+        provider: 'Wan',
+        input: 'mix',
+        field: 'reference_image',
+        prompt: 'true',
+        color: 'mc-wan',
+        desc: 'Reference to Video com imagens e/ou vídeos.'
+    },
+];
+
+function _buildModelPickerCard(data) {
+    const cost = getModelCost(data.model);
+    const isActive = selectedModel?.model === data.model;
+    const card = document.createElement('button');
+    card.className = `mpm-card${isActive ? ' active' : ''} mpm-card-v2`;
+    card.dataset.model = data.model;
+    if (data.color) card.dataset.color = data.color;
+
+    const inputTypeTag = data.input === 'file' ? 'Image/File' : data.input === 'mix' ? 'Mix' : 'Text';
+    const features = [];
+    if (data.input === 'text' || data.input === 'mix' || data.prompt === 'true') features.push('Prompt');
+    if (data.input === 'file' || data.input === 'mix') features.push('Referência');
+    const featuresHtml = features.length ? `
+            <div class="mpm-v2-features">
+                ${features.map(f => `<div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>${f}</div>`).join('')}
+            </div>` : '';
+
+    card.innerHTML = `
+        <div class="mpm-v2-glow-border"></div>
+        <div class="mpm-v2-inner">
+            <div class="mpm-v2-header">
+                <div class="mpm-v2-icon">${sanitizeSvg(data.icon)}</div>
+                <div class="mpm-v2-badge">${esc(data.provider)}</div>
+            </div>
+            <div class="mpm-v2-body">
+                <div class="mpm-v2-name">${esc(data.name)}</div>
+                <div class="mpm-v2-provider">${esc(data.provider)}</div>
+                <div class="mpm-v2-desc">${esc(data.desc || '')}</div>
+            </div>
+            <div class="mpm-v2-footer">
+                <span class="mpm-v2-tag">${esc(inputTypeTag)}</span>
+                ${cost ? `<span class="mpm-v2-cost">~${cost} cr</span>` : ''}
+            </div>
+            ${featuresHtml}
+        </div>
+        <div class="mpm-v2-ambient"></div>
+    `;
+    return card;
+}
+
+function _renderWanModeSubmenu(baseWanData) {
+    if (!els.mpmGrid) return;
+    els.mpmGrid.innerHTML = '';
+
+    const backCard = document.createElement('button');
+    backCard.className = 'mpm-card mpm-card-v2';
+    backCard.innerHTML = `
+        <div class="mpm-v2-inner">
+            <div class="mpm-v2-body">
+                <div class="mpm-v2-name">← Voltar</div>
+                <div class="mpm-v2-desc">Escolher outro modelo de vídeo</div>
+            </div>
+        </div>
+    `;
+    backCard.addEventListener('click', () => openModelPickerModal());
+    els.mpmGrid.appendChild(backCard);
+
+    WAN_MODE_OPTIONS.forEach(mode => {
+        const modeData = { ...baseWanData, ...mode };
+        const card = _buildModelPickerCard(modeData);
+        card.addEventListener('click', () => {
+            selectModelFromData(modeData);
+            closeModelPickerModal();
+            if (typeof window._v2ShowWorkspace === 'function') {
+                window._v2ShowWorkspace(modeData);
+            }
+        });
+        els.mpmGrid.appendChild(card);
+    });
+}
+
 function openModelPickerModal() {
     if (!els.modalModelPicker || !els.mpmGrid) return;
     // Build cards
     els.mpmGrid.innerHTML = '';
     _currentCatItems.forEach(data => {
-        const cost = getModelCost(data.model);
-        const isActive = selectedModel?.model === data.model;
-        const card = document.createElement('button');
-        card.className = `mpm-card${isActive ? ' active' : ''} mpm-card-v2`;
-        card.dataset.model = data.model;
-        if (data.color) card.dataset.color = data.color;
-
-        const inputTypeTag = data.input === 'file' ? 'Image/File' : data.input === 'mix' ? 'Mix' : 'Text';
-
-        // Build feature tags from input type
-        const features = [];
-        if (data.input === 'text' || data.input === 'mix' || data.prompt === 'true') features.push('Prompt');
-        if (data.input === 'file' || data.input === 'mix') features.push('Referência');
-        const featuresHtml = features.length ? `
-                <div class="mpm-v2-features">
-                    ${features.map(f => `<div class="mpm-v2-feature"><span class="mpm-v2-dot"></span>${f}</div>`).join('')}
-                </div>` : '';
-
-        card.innerHTML = `
-            <div class="mpm-v2-glow-border"></div>
-            <div class="mpm-v2-inner">
-                <div class="mpm-v2-header">
-                    <div class="mpm-v2-icon">${sanitizeSvg(data.icon)}</div>
-                    <div class="mpm-v2-badge">${esc(data.provider)}</div>
-                </div>
-                <div class="mpm-v2-body">
-                    <div class="mpm-v2-name">${esc(data.name)}</div>
-                    <div class="mpm-v2-provider">${esc(data.provider)}</div>
-                    <div class="mpm-v2-desc">${esc(data.desc || '')}</div>
-                </div>
-                <div class="mpm-v2-footer">
-                    <span class="mpm-v2-tag">${esc(inputTypeTag)}</span>
-                    ${cost ? `<span class="mpm-v2-cost">~${cost} cr</span>` : ''}
-                </div>
-                ${featuresHtml}
-            </div>
-            <div class="mpm-v2-ambient"></div>
-        `;
+        const card = _buildModelPickerCard(data);
         card.addEventListener('click', () => {
+            if (data.provider === 'Wan' && data.model === 'wan/2-7-text-to-video') {
+                _renderWanModeSubmenu(data);
+                return;
+            }
             selectModelFromData(data);
             closeModelPickerModal();
             if (typeof window._v2ShowWorkspace === 'function') {
@@ -1530,7 +1645,6 @@ const V2_FILE_MODEL_MAP = {
     'grok-imagine/text-to-video': 'grok-imagine/image-to-video',
     'grok-imagine/text-to-image': 'grok-imagine/image-to-image',
     'sora-2-pro-text-to-video': 'sora-2-pro-image-to-video',
-    'wan/2-7-text-to-video': 'wan/2-7-image-to-video',
     'seedream/5-lite': 'seedream/5-lite-image-to-image',
 };
 const V2_TEXT_MODEL_MAP = {
@@ -2984,7 +3098,7 @@ const v2Registry = {};
         if (galleryTitle) galleryTitle.textContent = isVideo ? 'Vídeos Gerados' : 'Gerado';
         const emptyHint = ws.querySelector('.v2-gallery-empty-hint');
         if (emptyHint) emptyHint.textContent = isVideo
-            ? 'Envie uma imagem ou escreva um prompt e clique em Gerar'
+            ? 'Configure o modo e clique em Gerar'
             : 'Escreva um prompt e clique em Gerar';
 
         // ── Dynamic settings from MODEL_CONFIGS (must render before cost calc) ──
@@ -3029,9 +3143,13 @@ const v2Registry = {};
 
         // ── Update file input accept for video models ──
         if (v2.fileInput) {
-            v2.fileInput.accept = (data.model === TOPAZ_VIDEO_UPSCALE_MODEL)
-                ? TOPAZ_VIDEO_ACCEPT
-                : 'image/*';
+            if (data.model === TOPAZ_VIDEO_UPSCALE_MODEL || data.model === 'wan/2-7-videoedit') {
+                v2.fileInput.accept = TOPAZ_VIDEO_ACCEPT;
+            } else if (data.model === 'wan/2-7-r2v') {
+                v2.fileInput.accept = 'image/*,video/*';
+            } else {
+                v2.fileInput.accept = 'image/*';
+            }
         }
 
         // ── Dialogue group show/hide (ElevenLabs Dialogue V3) ──
@@ -3065,6 +3183,9 @@ const v2Registry = {};
             'flux-kontext-max': 1,              // single inputImage
             'flux-2/pro-text-to-image': 0,      // text only
             'kling-3.0/video': 2,              // first + last frame
+            'wan/2-7-image-to-video': 1,
+            'wan/2-7-videoedit': 1,
+            'wan/2-7-r2v': 5,
             'bytedance/seedance-2-frames': 2,  // initial + final frame
             'bytedance/seedance-2-multi': 9,   // up to 9 reference images
             'bytedance/seedance-2-video': 0,   // video refs use separate v2VideoFiles array
@@ -3084,7 +3205,11 @@ const v2Registry = {};
         const uploadLabel = document.getElementById('v2-upload-label');
         if (uploadLabel) {
             const isImageEdit = ['qwen/image-edit', 'google/nano-banana-edit'].includes(modelKey);
-            if (isVideoUpscale) {
+            if (modelKey === 'wan/2-7-videoedit') {
+                uploadLabel.innerHTML = 'Vídeo de referência <span class="v2-label-hint">— obrigatório</span>';
+            } else if (modelKey === 'wan/2-7-r2v') {
+                uploadLabel.innerHTML = 'Referências (imagem/vídeo) <span class="v2-label-hint">— até 5 arquivos</span>';
+            } else if (isVideoUpscale) {
                 uploadLabel.innerHTML = 'Vídeo para upscale <span class="v2-label-hint">— MP4, MOV ou MKV, máx. 50MB</span>';
             } else if (isImageEdit) {
                 uploadLabel.innerHTML = 'Imagem para editar <span class="v2-label-hint">— obrigatória</span>';
@@ -3096,7 +3221,9 @@ const v2Registry = {};
         }
         const uploadZoneHint = document.querySelector('#v2-upload-zone .v2-upload-hint');
         if (uploadZoneHint) {
-            if (isVideoUpscale) uploadZoneHint.textContent = 'MP4, MOV, MKV, AVI';
+            if (modelKey === 'wan/2-7-videoedit') uploadZoneHint.textContent = 'MP4, MOV, MKV, AVI';
+            else if (modelKey === 'wan/2-7-r2v') uploadZoneHint.textContent = 'PNG, JPG, WEBP, MP4, MOV';
+            else if (isVideoUpscale) uploadZoneHint.textContent = 'MP4, MOV, MKV, AVI';
             else uploadZoneHint.textContent = 'PNG, JPG, WEBP';
         }
 
@@ -4383,10 +4510,6 @@ const v2Registry = {};
                 if (resolvedModel === 'grok-imagine/text-to-image') resolvedModel = 'grok-imagine/image-to-image';
                 if (resolvedModel === 'sora-2-pro-text-to-video') resolvedModel = 'sora-2-pro-image-to-video';
                 if (resolvedModel === 'grok-imagine/text-to-video') resolvedModel = 'grok-imagine/image-to-video';
-                if (resolvedModel === 'wan/2-7-text-to-video') {
-                    const hasUploadedVideo = v2Files.some(f => f.type.startsWith('video/'));
-                    resolvedModel = hasUploadedVideo ? 'wan/2-7-videoedit' : 'wan/2-7-image-to-video';
-                }
                 resolvedModel = resolveSeedreamModel(resolvedModel, extra, true);
             } else {
                 // Text-only: remap to correct API model names
@@ -4398,7 +4521,9 @@ const v2Registry = {};
         if (isSeedance) resolvedModel = seedanceSpeedFast ? 'bytedance/seedance-2-fast' : 'bytedance/seedance-2';
 
         let imgField = v2Model?.field || selectedModel?.field || 'image_input';
-        if (resolvedModel === 'wan/2-7-videoedit') imgField = 'video_url';
+        if (resolvedModel === 'wan/2-7-videoedit') {
+            imgField = 'video_url';
+        }
 
         if (hasFiles) {
             if (isFramesModel) {
@@ -4414,6 +4539,20 @@ const v2Registry = {};
                 if (initialUrl) extra.first_frame_url = encodeURI(initialUrl);
                 if (finalUrl) extra.last_frame_url = encodeURI(finalUrl);
             } else {
+                if (resolvedModel === 'wan/2-7-r2v') {
+                    btnSpan.textContent = `Uploading ${v2Files.length} referência${v2Files.length > 1 ? 's' : ''}...`;
+                    const uploaded = await Promise.all(
+                        v2Files.map(async (file, i) => ({
+                            type: file.type,
+                            url: encodeURI(await v2UploadSingleFile(file, i, v2Files.length))
+                        }))
+                    );
+                    const imageRefs = uploaded.filter(f => f.type.startsWith('image/')).map(f => f.url);
+                    const videoRefs = uploaded.filter(f => f.type.startsWith('video/')).map(f => f.url);
+                    if (imageRefs.length > 0) extra.reference_image = imageRefs;
+                    if (videoRefs.length > 0) extra.reference_video = videoRefs;
+                    btnSpan.textContent = 'Creating task...';
+                } else {
                 const isVideo = v2Files.some(f => f.type.startsWith('video/'));
                 btnSpan.textContent = isVideo
                     ? 'Uploading video...'
@@ -4425,8 +4564,9 @@ const v2Registry = {};
                     })
                 );
                 // Fields that expect a single string rather than an array
-                const singleStringFields = ['image_url', 'video_url', 'audio_url', 'image', 'inputImage'];
+                const singleStringFields = ['image_url', 'video_url', 'audio_url', 'image', 'inputImage', 'first_frame_url', 'first_clip_url'];
                 extra[imgField] = (singleStringFields.includes(imgField) && imageUrls.length === 1) ? imageUrls[0] : imageUrls;
+                }
             }
             btnSpan.textContent = 'Creating task...';
         }
