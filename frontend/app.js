@@ -3958,10 +3958,14 @@ const v2Registry = {};
 
     // Helper: Get max file sizes for Seedance 2.0 based on speed toggle
     function _getSeedanceMaxSizes() {
+        const SEEDANCE_SPEED_SELECTOR = '[data-param-group-key="seedance_speed"] .v2-param-pill.active';
+        const SEEDANCE_SPEED_FAST_VALUE = 'Fast';
+
         const isSeedance = v2Model?.model?.startsWith('bytedance/seedance-2');
         if (!isSeedance) return { image: MAX_IMAGE_DEFAULT_SIZE_BYTES, video: MAX_VIDEO_REF_SIZE_BYTES };
+        
         // Check speed toggle — seedance-2-fast is resolved at submit time
-        const isFast = document.querySelector('[data-param-group-key="seedance_speed"] .v2-param-pill.active')?.dataset?.value === 'Fast';
+        const isFast = document.querySelector(SEEDANCE_SPEED_SELECTOR)?.dataset?.value === SEEDANCE_SPEED_FAST_VALUE;
         return {
             image: isFast ? MAX_IMAGE_REF_SIZE_BYTES : MAX_IMAGE_DEFAULT_SIZE_BYTES,
             video: isFast ? MAX_VIDEO_REF_SIZE_FAST_BYTES : MAX_VIDEO_REF_SIZE_BYTES
