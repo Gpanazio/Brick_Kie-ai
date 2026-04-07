@@ -268,7 +268,7 @@ const MODEL_CONFIGS = {
     'wan/2-7-text-to-video': {
         params: [
             { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['2', '5', '10', '15'], default: '5' },
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 5, min: 3, max: 15, step: 1 },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
             { key: 'ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '9:16', '1:1', '4:3', '3:4'], default: '16:9' },
             { key: 'prompt_extend', label: 'Prompt Extend', type: 'bool', default: true },
@@ -278,7 +278,7 @@ const MODEL_CONFIGS = {
     'wan/2-7-image-to-video': {
         params: [
             { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['2', '5', '10', '15'], default: '5' },
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 5, min: 3, max: 15, step: 1 },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
             { key: 'prompt_extend', label: 'Prompt Extend', type: 'bool', default: true },
             { key: 'watermark', label: 'Watermark', type: 'bool', default: false },
@@ -287,7 +287,7 @@ const MODEL_CONFIGS = {
     'wan/2-7-videoedit': {
         params: [
             { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['0', '2', '3', '4', '5', '6', '7', '8', '9', '10'], default: '0' },
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 5, min: 3, max: 15, step: 1 },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '9:16', '1:1', '4:3', '3:4'], default: '16:9' },
             { key: 'audio_setting', label: 'Audio', type: 'select', options: ['auto', 'origin'], default: 'auto' },
@@ -298,7 +298,7 @@ const MODEL_CONFIGS = {
     'wan/2-7-r2v': {
         params: [
             { key: 'negative_prompt', label: 'Prompt Negativo', type: 'text', default: '' },
-            { key: 'duration', label: 'Duração (s)', type: 'select', options: ['2', '3', '4', '5', '6', '7', '8', '9', '10'], default: '5' },
+            { key: 'duration', label: 'Duração (s)', type: 'number', default: 5, min: 3, max: 15, step: 1 },
             { key: 'resolution', label: 'Resolução', type: 'select', options: ['720p', '1080p'], default: '1080p' },
             { key: 'aspect_ratio', label: 'Aspect Ratio', type: 'select', options: ['16:9', '9:16', '1:1', '4:3', '3:4'], default: '16:9' },
             { key: 'prompt_extend', label: 'Prompt Extend', type: 'bool', default: true },
