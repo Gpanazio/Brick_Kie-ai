@@ -2929,7 +2929,11 @@ const v2Registry = {};
     // ── Show / Hide ──
     window._v2ShowWorkspace = function (modelData) {
         if (modelData) {
+            const prevModel = v2Model?.model;
             v2Model = modelData;
+            if (prevModel && prevModel !== modelData.model) {
+                v2ClearAllFiles();
+            }
             v2UpdateModelUI(modelData);
         }
         ws.classList.remove('hidden');
