@@ -32,142 +32,48 @@ Get API Key:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| model | string | Yes | Model name, format: `bytedance/seedance-2-fast` |
-| input | object | Yes | Input parameters object |
-| callBackUrl | string | No | Callback URL for task completion notifications. If provided, the system will send POST requests to this URL when the task completes (success or fail). If not provided, no callback notifications will be sent. Example: `"https://your-domain.com/api/callback"` |
-
-### Model Parameter
-
-The `model` parameter specifies which AI model to use for content generation.
-
-| Property | Value | Description |
-|----------|-------|-------------|
-| **Format** | `bytedance/seedance-2-fast` | The exact model identifier for this API |
-| **Type** | string | Must be passed as a string value |
-| **Required** | Yes | This parameter is mandatory for all requests |
-
-> **Note**: The model parameter must match exactly as shown above. Different models have different capabilities and parameter requirements.
-
-### Callback URL Parameter
-
-The `callBackUrl` parameter allows you to receive automatic notifications when your task completes.
-
-| Property | Value | Description |
-|----------|-------|-------------|
-| **Purpose** | Task completion notification | Receive real-time updates when your task finishes |
-| **Method** | POST request | The system sends POST requests to your callback URL |
-| **Timing** | When task completes | Notifications sent for both success and failure states |
-| **Content** | Query Task API response | Callback content structure is identical to the Query Task API response |
-| **Parameters** | Complete request data | The `param` field contains the complete Create Task request parameters, not just the input section |
-| **Optional** | Yes | If not provided, no callback notifications will be sent |
-
-**Important Notes:**
-- The callback content structure is identical to the Query Task API response
-- The `param` field contains the complete Create Task request parameters, not just the input section  
-- If `callBackUrl` is not provided, no callback notifications will be sent
-
-### input Object Parameters
-
-#### prompt
-- **Type**: `string`
-- **Required**: No
-- **Description**: The text prompt or description for the video.
-- **Max Length**: 5000 characters
-- **Default Value**: `"Fixed camera shot, a girl is elegantly hanging clothes to dry. After one piece is hung, she takes another from the bucket and gives it a vigorous shake."`
-
-#### reference_image_urls
-- **Type**: `array`
-- **Required**: No
-- **Description**: Please provide the URL of the uploaded file,A list of input image URLs.  Currently, assetId is not supported for use in the playground page. You can pass the assetId directly through the API interface.
-- **Max File Size**: 30MB
-- **Accepted File Types**: image/jpeg, image/png, image/webp, image/jpg, image/gif
-- **Multiple Files**: Yes
-- **Default Value**: `["https://static.aiquickdraw.com/tools/example/1775188742460_VfFGmaNa.png"]`
-
-#### reference_video_urls
-- **Type**: `array`
-- **Required**: No
-- **Description**: Please provide the URL of the uploaded file,A list of input video URLs. Furthermore, the total length of the three videos must not exceed 15 seconds.  Currently, assetId is not supported for use in the playground page. You can pass the assetId directly through the API interface.
-- **Max File Size**: 50MB
-- **Accepted File Types**: video/mp4, video/quicktime, video/x-matroska
-- **Multiple Files**: Yes
-- **Default Value**: `[""]`
-
-#### reference_audio_urls
-- **Type**: `array`
-- **Required**: No
-- **Description**: Please provide the URL of the uploaded file,A list of input audio URLs.  Currently, assetId is not supported for use in the playground page. You can pass the assetId directly through the API interface.
-- **Max File Size**: 10MB
-- **Accepted File Types**: audio/mpeg, audio/wav
-- **Multiple Files**: Yes
-- **Default Value**: `[""]`
-
-#### return_last_frame
-- **Type**: `boolean`
-- **Required**: No
-- **Description**: Whether to return the last frame of the video as an image.
-- **Default Value**: `false`
-
-#### generate_audio
-- **Type**: `boolean`
-- **Required**: No
-- **Description**: Whether to generate AI audio synchronized with the video.
-- **Default Value**: `true`
-
-#### resolution
-- **Type**: `string`
-- **Required**: No
-- **Description**: The output video resolution.
-- **Options**:
-  - `480p`: 480p
-  - `720p`: 720p
-- **Default Value**: `"720p"`
-
-#### aspect_ratio
-- **Type**: `string`
-- **Required**: No
-- **Description**: The aspect ratio of the generated video.
-- **Options**:
-  - `16:9`: 16:9
-  - `4:3`: 4:3
-  - `1:1`: 1:1
-  - `3:4`: 3:4
-  - `9:16`: 9:16
-  - `21:9`: 21:9
-- **Default Value**: `"16:9"`
-
-#### duration
-- **Type**: `number`
-- **Required**: No
-- **Description**: Video duration in seconds. 
-- **Range**: 4 - 15 (step: 1)
-- **Default Value**: `15`
-
-#### web_search
-- **Type**: `boolean`
-- **Required**: No
-- **Description**: Use online search
-- **Default Value**: `false`
+| model | string | Yes | Must be `bytedance/seedance-2-fast` |
+| callBackUrl | string | No | URL to receive callback when task completes |
+| input.prompt | string | No | Text prompt (min 3, max 2500 chars) |
+| input.first_frame_url | string | No | First frame image URL (for Image-to-Video) |
+| input.last_frame_url | string | No | Last frame image URL (for First & Last Frames) |
+| input.reference_image_urls | array | No | Reference image URLs (max 9; max 30MB each) |
+| input.reference_video_urls | array | No | Reference video URLs (max 3; max 50MB each; total ≤ 15s) |
+| input.reference_audio_urls | array | No | Reference audio URLs (max 3; max 15MB each; total ≤ 15s) |
+| input.generate_audio | boolean | No | Generate AI audio (default: `true`) |
+| input.return_last_frame | boolean | No | Return last frame as image (default: `false`) |
+| input.resolution | string | No | Output resolution: `480p`, `720p` (default: `720p`) |
+| input.aspect_ratio | string | No | Aspect ratio: `1:1`, `4:3`, `3:4`, `16:9`, `9:16`, `21:9`, `adaptive` (default: `16:9`) |
+| input.duration | number | No | Video duration: 4-15 seconds (default: `8`) |
+| input.web_search | boolean | **Yes** | Use online search (REQUIRED) |
+| input.nsfw_checker | boolean | No | Enable content filtering (default: `false`) |
 
 ### Request Example
 
 ```json
 {
   "model": "bytedance/seedance-2-fast",
+  "callBackUrl": "https://your-domain.com/api/callback",
   "input": {
-    "prompt": "Fixed camera shot, a girl is elegantly hanging clothes to dry. After one piece is hung, she takes another from the bucket and gives it a vigorous shake.",
-    "reference_image_urls": ["https://static.aiquickdraw.com/tools/example/1775188742460_VfFGmaNa.png"],
-    "reference_video_urls": [""],
-    "reference_audio_urls": [""],
-    "return_last_frame": false,
+    "prompt": "A serene beach at sunset with waves gently crashing on the shore.",
+    "first_frame_url": "https://example.com/first.png",
+    "last_frame_url": "https://example.com/last.png",
+    "reference_image_urls": [
+      "https://example.com/ref1.png"
+    ],
+    "reference_video_urls": [],
+    "reference_audio_urls": [],
     "generate_audio": true,
+    "return_last_frame": false,
     "resolution": "720p",
     "aspect_ratio": "16:9",
     "duration": 15,
-    "web_search": false
+    "web_search": false,
+    "nsfw_checker": false
   }
 }
 ```
+
 ### Response Example
 
 ```json
@@ -175,95 +81,63 @@ The `callBackUrl` parameter allows you to receive automatic notifications when y
   "code": 200,
   "msg": "success",
   "data": {
-    "taskId": "281e5b0*********************f39b9"
+    "taskId": "task_bytedance_1765186743319"
   }
 }
 ```
-
-### Response Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| code | integer | Response status code, 200 indicates success |
-| msg | string | Response message |
-| data.taskId | string | Task ID for querying task status |
 
 ---
 
 ## 2. Query Task Status
 
-### API Information
-- **URL**: `GET https://api.kie.ai/api/v1/jobs/recordInfo`
-- **Parameter**: `taskId` (passed via URL parameter)
-
-### Request Example
-```
-GET https://api.kie.ai/api/v1/jobs/recordInfo?taskId=281e5b0*********************f39b9
-```
-
-### Response Example
-
-```json
-{
-  "code": 200,
-  "msg": "success",
-  "data": {
-    "taskId": "281e5b0*********************f39b9",
-    "model": "bytedance/seedance-2-fast",
-    "state": "waiting",
-    "param": "{\"model\":\"bytedance/seedance-2-fast\",\"input\":{\"prompt\":\"Fixed camera shot, a girl is elegantly hanging clothes to dry. After one piece is hung, she takes another from the bucket and gives it a vigorous shake.\",\"reference_image_urls\":[\"https://static.aiquickdraw.com/tools/example/1775188742460_VfFGmaNa.png\"],\"reference_video_urls\":[\"\"],\"reference_audio_urls\":[\"\"],\"return_last_frame\":false,\"generate_audio\":true,\"resolution\":\"720p\",\"aspect_ratio\":\"16:9\",\"duration\":15,\"web_search\":false}}",
-    "resultJson": "{\"resultUrls\":[\"https://static.aiquickdraw.com/tools/example/1775188761712_tHGAgzLy.mp4\"]}",
-    "failCode": null,
-    "failMsg": null,
-    "costTime": null,
-    "completeTime": null,
-    "createTime": 1757584164490
-  }
-}
-```
-
-### Response Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| code | integer | Response status code, 200 indicates success |
-| msg | string | Response message |
-| data.taskId | string | Task ID |
-| data.model | string | Model name used |
-| data.state | string | Task status: `waiting`(waiting),  `success`(success), `fail`(fail) |
-| data.param | string | Task parameters (JSON string) |
-| data.resultJson | string | Task result (JSON string, available when task is success). Structure depends on outputMediaType: `{resultUrls: []}` for image/media/video, `{resultObject: {}}` for text |
-| data.failCode | string | Failure code (available when task fails) |
-| data.failMsg | string | Failure message (available when task fails) |
-| data.costTime | integer | Task duration in milliseconds (available when task is success) |
-| data.completeTime | integer | Completion timestamp (available when task is success) |
-| data.createTime | integer | Creation timestamp |
+**GET /api/v1/jobs/recordInfo?taskId={taskId}**
 
 ---
 
-## Usage Flow
+## File Requirements
 
-1. **Create Task**: Call `POST https://api.kie.ai/api/v1/jobs/createTask` to create a generation task
-2. **Get Task ID**: Extract `taskId` from the response
-3. **Wait for Results**: 
-   - If you provided a `callBackUrl`, wait for the callback notification
-   - If no `callBackUrl`, poll status by calling `GET https://api.kie.ai/api/v1/jobs/recordInfo`
-4. **Get Results**: When `state` is `success`, extract generation results from `resultJson`
+### Images
+- **Formats:** JPEG, PNG, WebP, BMP, TIFF, GIF
+- **Max size:** 30MB per image
+- **Max images:** 9
+
+### Videos
+- **Formats:** MP4, MOV
+- **Max size:** 50MB per video
+- **Max videos:** 3
+- **Total duration:** ≤ 15 seconds
+- **Frame rate:** 24-60 FPS
+
+### Audio
+- **Formats:** WAV, MP3
+- **Max size:** 15MB per audio
+- **Max audios:** 3
+- **Total duration:** ≤ 15 seconds
+
+---
+
+## Pricing
+
+| Resolution | With Video Input | Without Video Input |
+|------------|-----------------|---------------------|
+| 480p | 8 credits/s | 15.5 credits/s |
+| 720p | 20 credits/s | 33 credits/s |
+
+**Note:** Seedance 2 Fast has lower pricing than Seedance 2 (standard) for faster generation.
+
+---
 
 ## Error Codes
 
-| Status Code | Description |
-|-------------|-------------|
-| 200 | Request successful |
-| 400 | Invalid request parameters |
-| 401 | Authentication failed, please check API Key |
-| 402 | Insufficient account balance |
-| 404 | Resource not found |
-| 422 | Parameter validation failed |
-| 429 | Request rate limit exceeded |
-| 500 | Internal server error |
-
-Pricing: Pricing: 480P — 8 credits/s ($0.045/s, with video input) |15.5 credits/s ($0.0775/s, no video input); 720P — 20 credits/s ($0.100/s, with video input) |33 credits/s ($0.165/s, no video input) 
-Prices are currently in beta and may be adjusted in the future.
-
-Total cost (with video input) = (input video duration + output duration) × rate; High-tier top-ups include +10% bonus credits. Effective pricing is approximately 10% lower than the above rates. Prices are currently in beta and may be adjusted in the future.
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 401 | Unauthorized – invalid or missing API Key |
+| 402 | Insufficient Credits |
+| 404 | Not Found |
+| 422 | Validation Error |
+| 429 | Rate Limited |
+| 455 | Service Unavailable |
+| 500 | Server Error |
+| 501 | Generation Failed |
+| 505 | Feature Disabled |

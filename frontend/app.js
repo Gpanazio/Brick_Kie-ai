@@ -162,6 +162,7 @@ const SEEDANCE_2_PARAMS = [
     { key: 'resolution', label: 'Resolução', type: 'select', options: ['480p', '720p'], default: '720p' },
     { key: 'generate_audio', label: 'Gerar Áudio', type: 'bool', default: true },
     { key: 'return_last_frame', label: 'Retornar Último Frame', type: 'bool', default: false },
+    { key: 'web_search', label: 'Web Search', type: 'bool', default: false },
 ];
 
 const MODEL_CONFIGS = {
