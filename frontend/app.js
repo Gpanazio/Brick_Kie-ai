@@ -4462,8 +4462,15 @@ const v2Registry = {};
         const json = await resp.json();
         if (!resp.ok) throw new Error(json.detail || json.msg || 'Failed');
         if (json.code && json.code !== 200) throw new Error(json.msg || `API error (code ${json.code})`);
-        const taskId = json?.data?.taskId || json?.task?.data?.taskId || json?.taskId || json?.data?.task_id || json?.task_id;
-        if (!taskId) throw new Error(json.msg || 'No taskId returned');
+        const taskId =
+            json?.data?.taskId ||
+            json?.task?.data?.taskId ||
+            json?.taskId ||
+            json?.data?.task_id ||
+            json?.task_id ||
+            json?.data?.recordId ||
+            json?.recordId;
+        if (!taskId) throw new Error(json.msg || 'No taskId/recordId returned');
 
         const previewUrl = extra[imgField]?.length ? (Array.isArray(extra[imgField]) ? extra[imgField][0] : extra[imgField]) : null;
         addTask(taskId, resolvedModel, mode, previewUrl, extra);
