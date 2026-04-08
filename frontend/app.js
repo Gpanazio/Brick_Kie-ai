@@ -4536,8 +4536,26 @@ const v2Registry = {};
                 if (v2FrameFinal) {
                     finalUrl = await v2UploadSingleFile(v2FrameFinal, 0, 1);
                 }
-                if (initialUrl) extra.first_frame_url = encodeURI(initialUrl);
-                if (finalUrl) extra.last_frame_url = encodeURI(finalUrl);
+                if (resolvedModel.includes("kling")) {
+                    const urls = [];
+                    if (initialUrl) urls.push(encodeURI(initialUrl));
+                    if (finalUrl) {
+                        if (!initialUrl) urls.push(""); // Kling expects empty string if only last frame is provided
+                        urls.push(encodeURI(finalUrl));
+                    }
+                    if (urls.length > 0) extra.image_urls = urls;
+                } else if (resolvedModel === "bytedance/seedance-2-frames") {
+                    const urls = [];
+                    if (initialUrl) urls.push(encodeURI(initialUrl));
+                    if (finalUrl) {
+                        if (!initialUrl) urls.push("");
+                        urls.push(encodeURI(finalUrl));
+                    }
+                    if (urls.length > 0) extra.reference_image_urls = urls;
+                } else {
+                    if (initialUrl) extra.first_frame_url = encodeURI(initialUrl);
+                    if (finalUrl) extra.last_frame_url = encodeURI(finalUrl);
+                }
             } else {
                 if (resolvedModel === 'wan/2-7-r2v') {
                     btnSpan.textContent = `Uploading ${v2Files.length} referência${v2Files.length > 1 ? 's' : ''}...`;
