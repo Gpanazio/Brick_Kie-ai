@@ -3324,10 +3324,9 @@ const v2Registry = {};
                     if (val === String(p.default)) o.selected = true;
                     sel.appendChild(o);
                 });
-                sel.addEventListener('change', () => {
-                    v2UpdateCost();
-                    // Suno mode toggle: show/hide music-only params
-                    if (p.key === 'suno_mode') {
+    sel.addEventListener('change', () => {
+      requestAnimationFrame(() => v2UpdateCost());
+      if (p.key === 'suno_mode') {
                         const isLyrics = sel.value === 'Letra';
                         const MUSIC_ONLY = new Set(['model', 'custom_mode', 'style', 'title', 'instrumental']);
                         container.querySelectorAll('.v2-param-group').forEach(g => {
