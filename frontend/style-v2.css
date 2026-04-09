@@ -5014,7 +5014,7 @@ body {
     border: 1px solid rgba(220, 38, 38, 0.08);
     transition: all 0.25s;
     cursor: pointer;
-    aspect-ratio: 1;
+    height: fit-content;
 }
 
 .v2-gallery-item:hover {
@@ -5025,8 +5025,9 @@ body {
 
 .v2-gallery-item img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
+    display: block;
 }
 
 .v2-gallery-item-overlay {
@@ -5590,10 +5591,30 @@ body {
 }
 
 /* ── V2 Workspace — Responsive ── */
-@media (max-width: 1100px) {
-    .v2-ws {
-        grid-template-columns: 280px 1fr 260px;
-    }
+@media (max-width: 1200px) {
+  .v2-ws {
+    grid-template-columns: 260px 1fr;
+  }
+
+  .v2-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .v2-ws {
+    grid-template-columns: 240px 1fr;
+  }
+
+  .v2-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .v2-gallery-header {
+    padding: 14px 16px;
+  }
 }
 
 @media (max-width: 900px) {

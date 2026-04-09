@@ -2523,15 +2523,22 @@ function openHistoryLightbox(entry) {
             }
             selectModelFromData(modelData);
 
-            // Populate V2 prompt
-            const v2PromptEl = document.getElementById('v2-prompt');
-            if (entry.prompt && v2PromptEl) {
-                v2PromptEl.value = entry.prompt;
-                v2PromptEl.dispatchEvent(new Event('input'));
-            }
+      // Populate V2 prompt
+      const v2PromptEl = document.getElementById('v2-prompt');
+      if (entry.prompt && v2PromptEl) {
+        v2PromptEl.value = entry.prompt;
+        v2PromptEl.dispatchEvent(new Event('input'));
+      }
 
-            // Restore extra params into V2 workspace dynamic params
-            if (entry.extraParams) {
+      // Populate negative prompt
+      const v2NegPromptEl = document.getElementById('v2-negative-prompt');
+      if (entry.extraParams?.negative_prompt && v2NegPromptEl) {
+        v2NegPromptEl.value = entry.extraParams.negative_prompt;
+        v2NegPromptEl.dispatchEvent(new Event('input'));
+      }
+
+      // Restore extra params into V2 workspace dynamic params
+      if (entry.extraParams) {
                 setTimeout(() => {
                     const ep = entry.extraParams;
                     const v2Params = document.getElementById('v2-dynamic-params');
