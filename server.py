@@ -3,6 +3,8 @@ KIE AI — FastAPI Server
 Wraps kie_api.py functions into REST endpoints for the frontend.
 """
 
+# pyright: reportMissingImports=false
+
 import asyncio
 import json
 import logging
@@ -74,7 +76,7 @@ def _normalize_market_model(model: str) -> str:
     return WAN_MODEL_MIGRATION_MAP.get(model, model)
 
 
-def _validate_api_response(resp: dict) -> dict:
+def _validate_api_response(resp: object) -> object:
     """Check API-level error codes in JSON body (KIE returns HTTP 200 with error codes in body)."""
     if isinstance(resp, dict):
         code = resp.get("code")
@@ -163,6 +165,7 @@ app.add_middleware(JWTAuthMiddleware)
 
 # In-memory list of SSE subscribers
 _sse_clients: List[asyncio.Queue] = []
+_download_retry_counts: dict[str, int] = {}
 
 
 async def _broadcast_sse(event_type: str, data: dict):
@@ -253,6 +256,10 @@ async def kie_callback(request: Request):
 
     logger.info("[%s] kie-callback: taskId=%s code=%s", rid, task_id, body.get("code"))
 
+    if db.is_deleted(task_id):
+        logger.info("[%s] kie-callback: skipping tombstoned task %s", rid, task_id)
+        return {"code": 200, "msg": "success"}
+
     # Broadcast to SSE clients
     await _broadcast_sse("kie:task-update", body)
 
@@ -287,18 +294,107 @@ async def kie_callback(request: Request):
     return {"code": 200, "msg": "success"}
 
 
-async def _download_and_save(task_id: str, urls: list[str]):
+async def _retry_download_after_delay(task_id: str, urls: list[str], attempt: int):
+    await asyncio.sleep(30)
+    await _download_and_save(task_id, urls, attempt=attempt)
+
+
+async def _download_and_save(task_id: str, urls: list[str], attempt: int = 1):
     """Background task: download media files and update DB with local paths."""
+    _download_retry_counts[task_id] = attempt
+    logger.info("[media] Download attempt %d/3 for task %s", attempt, task_id)
+    scheduled_retry = False
     try:
         local_files = await storage.download_media(task_id, urls)
         if local_files:
             db.update_local_urls(task_id, local_files)
+            _download_retry_counts.pop(task_id, None)
             logger.info("[media] Saved %d files for task %s", len(local_files), task_id)
+            return
+
+        if urls and attempt < 3:
+            logger.warning(
+                "[media] No files saved for task %s on attempt %d/3; retrying in 30s",
+                task_id,
+                attempt,
+            )
+            _download_retry_counts[task_id] = attempt + 1
+            scheduled_retry = True
+            asyncio.create_task(_retry_download_after_delay(task_id, urls, attempt + 1))
+            return
+
+        if urls:
+            logger.warning(
+                "[media] Exhausted media download retries for task %s", task_id
+            )
     except Exception as e:
-        logger.error("[media] Background download failed for %s: %s", task_id, e)
+        logger.error(
+            "[media] Background download failed for %s on attempt %d/3: %s",
+            task_id,
+            attempt,
+            e,
+        )
+        if urls and attempt < 3:
+            _download_retry_counts[task_id] = attempt + 1
+            scheduled_retry = True
+            asyncio.create_task(_retry_download_after_delay(task_id, urls, attempt + 1))
+            return
+    finally:
+        if not scheduled_retry and _download_retry_counts.get(task_id) == attempt:
+            _download_retry_counts.pop(task_id, None)
 
 
-def _extract_callback_urls(data: dict) -> list:
+def _run_startup_backfill() -> None:
+    """Backfill local media for recent successful entries missing local_urls."""
+    try:
+        entries = db.entries_needing_backfill(limit=50)
+        if not entries:
+            logger.info("[startup-backfill] No entries need media backfill")
+            return
+
+        for entry in entries:
+            entry_id = entry.get("id")
+            urls = entry.get("urls", [])
+            if isinstance(urls, str):
+                try:
+                    urls = json.loads(urls)
+                except (json.JSONDecodeError, ValueError):
+                    urls = []
+            if not entry_id or not urls:
+                continue
+
+            try:
+                local_files = storage.download_media_sync(entry_id, urls)
+                if local_files:
+                    db.update_local_urls(entry_id, local_files)
+                    logger.info(
+                        "[startup-backfill] Backfilled %d files for task %s",
+                        len(local_files),
+                        entry_id,
+                    )
+                else:
+                    logger.warning(
+                        "[startup-backfill] No local files saved for task %s",
+                        entry_id,
+                    )
+            except Exception as e:
+                logger.warning(
+                    "[startup-backfill] Failed for task %s: %s",
+                    entry_id,
+                    e,
+                )
+    except Exception as e:
+        logger.error(
+            "[startup-backfill] Failed to run startup backfill: %s", e, exc_info=True
+        )
+
+
+@app.on_event("startup")
+async def startup_media_backfill() -> None:
+    asyncio.create_task(asyncio.to_thread(_run_startup_backfill))
+
+
+def _extract_callback_urls(data: object) -> list:
     """Extract result URLs from a KIE callback payload."""
     urls = []
     if not isinstance(data, dict):
@@ -997,7 +1093,7 @@ def flux_kontext_task(request: Request, task_id: str):
 # ==================== Server-Side History (PostgreSQL) ====================
 
 
-def _validate_history_entry(entry: dict) -> dict:
+def _validate_history_entry(entry: object) -> dict:
     """Validate a history entry before persisting."""
     if not isinstance(entry, dict):
         raise HTTPException(status_code=400, detail="Entry must be a JSON object")
@@ -1025,6 +1121,9 @@ async def save_history_entry(
         entry = json.loads(entry_json)
         _validate_history_entry(entry)
         db.upsert_entry(entry)
+        if not db.entry_exists(entry["id"]):
+            logger.info("[%s] history/save: tombstoned id=%s", rid, entry["id"])
+            return {"success": False, "tombstoned": True}
         total = db.count_history()
         logger.info("[%s] history/save: id=%s, total=%d", rid, entry["id"], total)
 
@@ -1070,7 +1169,7 @@ def clear_history_endpoint(request: Request, cat: Optional[str] = None):
     return {"success": True}
 
 
-def _extract_result_urls(data: dict) -> list:
+def _extract_result_urls(data: object) -> list:
     """Extract result URLs from task data, checking multiple response formats."""
     urls = []
     if not isinstance(data, dict):
@@ -1144,7 +1243,7 @@ def _infer_cat(model: str) -> str:
 
 
 @app.post("/api/history/import")
-def import_history_tasks(
+async def import_history_tasks(
     request: Request,
     task_ids_json: str = Form(...),
 ):
@@ -1163,6 +1262,9 @@ def import_history_tasks(
         for tid in task_ids:
             if not isinstance(tid, str) or not tid:
                 errors.append({"id": str(tid), "error": "Invalid task ID"})
+                continue
+            if db.is_deleted(tid):
+                logger.info("[%s] history/import: skipping tombstoned id=%s", rid, tid)
                 continue
             if db.entry_exists(tid):
                 continue
@@ -1185,6 +1287,13 @@ def import_history_tasks(
                     "timestamp": data.get("createTime"),
                 }
                 db.upsert_entry(entry)
+                if not db.entry_exists(tid):
+                    logger.info(
+                        "[%s] history/import: tombstoned during upsert id=%s", rid, tid
+                    )
+                    continue
+                if urls and state == "success":
+                    await _download_and_save(tid, urls)
                 imported += 1
             except Exception as e:
                 logger.warning("[%s] history/import: failed for %s: %s", rid, tid, e)
