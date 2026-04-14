@@ -8,6 +8,7 @@ permanently at /history/media/{task_id}/ so they survive KIE's 14-day retention.
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
@@ -20,10 +21,12 @@ logger = logging.getLogger(__name__)
 MEDIA_DIR = Path(os.environ.get("MEDIA_DIR", "/history/media"))
 
 # Thread pool for background downloads (avoids blocking the async event loop)
-_pool = ThreadPoolExecutor(max_workers=3)
+_pool = ThreadPoolExecutor(max_workers=5)
 
 # Timeout for downloading files (connect, read)
-_DL_TIMEOUT = (10, 300)  # 10s connect, 5min read (videos can be large)
+_DL_TIMEOUT = (15, 300)  # 15s connect, 5min read (videos can be large)
+_DL_MAX_ATTEMPTS = 3
+_DL_BACKOFF_SECONDS = 1
 
 
 def _ensure_dir(task_id: str) -> Path:
@@ -44,7 +47,7 @@ def _filename_from_url(url: str, index: int) -> str:
         basename = basename.split("?")[0]
 
         # Extract extension
-        ext_match = re.search(r'\.(\w{2,5})$', basename)
+        ext_match = re.search(r"\.(\w{2,5})$", basename)
         ext = ext_match.group(0) if ext_match else _guess_ext_from_url(url)
 
         return f"{index:03d}{ext}"
@@ -72,45 +75,81 @@ def _guess_ext_from_url(url: str) -> str:
     return ".bin"
 
 
-def _download_one(url: str, dest: Path) -> bool:
-    """Download a single URL to dest. Returns True on success."""
-    try:
-        resp = requests.get(url, timeout=_DL_TIMEOUT, stream=True)
-        resp.raise_for_status()
-
-        # Refine extension from Content-Type if we got .bin
-        if dest.suffix == ".bin":
-            ct = resp.headers.get("content-type", "")
-            ext_map = {
-                "video/mp4": ".mp4",
-                "video/webm": ".webm",
-                "audio/mpeg": ".mp3",
-                "audio/wav": ".wav",
-                "audio/x-wav": ".wav",
-                "image/png": ".png",
-                "image/jpeg": ".jpg",
-                "image/webp": ".webp",
-            }
-            for mime, ext in ext_map.items():
-                if mime in ct:
-                    dest = dest.with_suffix(ext)
-                    break
-
-        with open(dest, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=1024 * 256):  # 256KB chunks
-                f.write(chunk)
-
-        size_mb = dest.stat().st_size / (1024 * 1024)
-        logger.info("[storage] Downloaded %s (%.1fMB) -> %s", url[:80], size_mb, dest.name)
+def _is_retryable_download_error(exc: Exception) -> bool:
+    if isinstance(
+        exc, (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError)
+    ):
         return True
-    except Exception as e:
-        logger.error("[storage] Failed to download %s: %s", url[:80], e)
-        # Clean up partial file
+    if isinstance(exc, requests.HTTPError):
+        response = getattr(exc, "response", None)
+        status_code = getattr(response, "status_code", None)
+        return isinstance(status_code, int) and status_code >= 500
+    return False
+
+
+def _cleanup_partial_download(dest: Path) -> None:
+    try:
+        dest.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
+def _download_one(url: str, dest: Path, task_id: str = "") -> bool:
+    """Download a single URL to dest. Returns True on success."""
+    for attempt in range(1, _DL_MAX_ATTEMPTS + 1):
         try:
-            dest.unlink(missing_ok=True)
-        except Exception:
-            pass
-        return False
+            resp = requests.get(url, timeout=_DL_TIMEOUT, stream=True)
+            resp.raise_for_status()
+
+            # Refine extension from Content-Type if we got .bin
+            if dest.suffix == ".bin":
+                ct = resp.headers.get("content-type", "")
+                ext_map = {
+                    "video/mp4": ".mp4",
+                    "video/webm": ".webm",
+                    "audio/mpeg": ".mp3",
+                    "audio/wav": ".wav",
+                    "audio/x-wav": ".wav",
+                    "image/png": ".png",
+                    "image/jpeg": ".jpg",
+                    "image/webp": ".webp",
+                }
+                for mime, ext in ext_map.items():
+                    if mime in ct:
+                        dest = dest.with_suffix(ext)
+                        break
+
+            with open(dest, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=1024 * 256):  # 256KB chunks
+                    f.write(chunk)
+
+            size_mb = dest.stat().st_size / (1024 * 1024)
+            logger.info(
+                "[storage] Downloaded %s (%.1fMB) -> %s", url[:80], size_mb, dest.name
+            )
+            return True
+        except Exception as e:
+            _cleanup_partial_download(dest)
+            if _is_retryable_download_error(e) and attempt < _DL_MAX_ATTEMPTS:
+                logger.info(
+                    "[storage] Retry download for task %s attempt %d/%d: %s",
+                    task_id or "unknown",
+                    attempt,
+                    _DL_MAX_ATTEMPTS,
+                    url[:80],
+                )
+                time.sleep(_DL_BACKOFF_SECONDS * (2 ** (attempt - 1)))
+                continue
+
+            logger.error("[storage] Failed to download %s: %s", url[:80], e)
+            logger.warning(
+                "[storage] Exhausted download retries for task %s url=%s",
+                task_id or "unknown",
+                url,
+            )
+            return False
+
+    return False
 
 
 def download_media_sync(task_id: str, urls: list[str]) -> list[str]:
@@ -137,7 +176,7 @@ def download_media_sync(task_id: str, urls: list[str]) -> list[str]:
             saved.append(dest.name)
             continue
 
-        if _download_one(url, dest):
+        if _download_one(url, dest, task_id=task_id):
             # Re-read the filename in case it was renamed by content-type detection
             # (the dest variable might have been changed with with_suffix)
             actual_files = sorted(task_dir.glob(f"{i:03d}.*"))
@@ -154,6 +193,7 @@ async def download_media(task_id: str, urls: list[str]) -> list[str]:
     Returns list of local filenames.
     """
     import asyncio
+
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_pool, download_media_sync, task_id, urls)
 
@@ -163,7 +203,10 @@ def get_local_path(task_id: str, filename: str) -> Path | None:
     path = MEDIA_DIR / task_id / filename
     if path.exists() and path.is_file():
         # Security: ensure resolved path is within MEDIA_DIR
-        if MEDIA_DIR.resolve() in path.resolve().parents or path.resolve().parent == MEDIA_DIR.resolve():
+        if (
+            MEDIA_DIR.resolve() in path.resolve().parents
+            or path.resolve().parent == MEDIA_DIR.resolve()
+        ):
             return path
     return None
 
