@@ -1945,6 +1945,80 @@ function stateIcon(s) {
     return '•';
 }
 
+// ==================== Custom Music Player Builder ====================
+
+/** Generate a unique ID for each music player instance */
+let _mpIdCounter = 0;
+function _nextMpId() { return `mp-${++_mpIdCounter}`; }
+
+/**
+ * Build the HTML for a custom music player.
+ * @param {string} audioSrc  - URL of the audio file
+ * @param {string} title     - Track title
+ * @param {string} artist    - Artist / tags label
+ * @param {string} coverSrc  - Cover image URL (optional)
+ * @param {string} extraId   - A unique ID suffix for this player
+ * @returns {string}  HTML string
+ */
+function _buildMusicPlayerHtml(audioSrc, title, artist, coverSrc, extraId) {
+    const pid = _nextMpId();
+    const albumStyle = coverSrc ? `background-image:url('${esc(coverSrc)}')` : '';
+    return `<div class="music-player-container">
+        <div class="main-music-card" data-mp-id="${pid}" data-mp-src="${esc(audioSrc)}">
+            <div class="track-info">
+                <div class="album-art" style="${albumStyle}"></div>
+                <div class="track-details">
+                    <div class="track-title">${esc(title || 'Untitled')}</div>
+                    <div class="artist-name">${esc(artist || 'Suno AI')}</div>
+                </div>
+                <div class="volume-bars">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                </div>
+            </div>
+            <div class="playback-controls">
+                <div class="time-info">
+                    <span class="current-time">0:00</span>
+                    <span class="remaining-time">0:00</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                    <div class="progress-handle"></div>
+                </div>
+                <div class="button-row">
+                    <div class="main-control-btns">
+                        <button class="control-button back" title="-10s">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M.5 3.5A.5.5 0 0 0 0 4v8a.5.5 0 0 0 1 0V8.753l6.267 3.636c.54.313 1.233-.066 1.233-.697v-2.94l6.267 3.636c.54.314 1.233-.065 1.233-.696V4.308c0-.63-.693-1.01-1.233-.696L8.5 7.248v-2.94c0-.63-.692-1.01-1.233-.696L1 7.248V4a.5.5 0 0 0-.5-.5"/>
+                            </svg>
+                        </button>
+                        <div class="play-pause-btns">
+                            <button class="control-button play-pause-button" title="Play / Pause">
+                                <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M11.596 8.697l-6.363 3.692c-.54.314-1.233-.065-1.233-.696V4.308c0-.63.693-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+                                </svg>
+                                <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <button class="control-button next" title="+10s">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M15.5 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V8.753l-6.267 3.636c-.54.313-1.233-.066-1.233-.697v-2.94l-6.267 3.636C.693 12.703 0 12.324 0 11.693V4.308c0-.63.693-1.01 1.233-.696L7.5 7.248v-2.94c0-.63.693-1.01 1.233-.696L15 7.248V4a.5.5 0 0 1 .5-.5"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <a href="${esc(audioSrc)}" target="_blank" rel="noopener" class="control-button d" title="Abrir áudio">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M6.634 1.135A7 7 0 0 1 15 8a.5.5 0 0 1-1 0 6 6 0 1 0-6.5 5.98v-1.005A5 5 0 1 1 13 8a.5.5 0 0 1-1 0 4 4 0 1 0-4.5 3.969v-1.011A2.999 2.999 0 1 1 11 8a.5.5 0 0 1-1 0 2 2 0 1 0-2.5 1.936v-1.07a1 1 0 1 1 1 0V15.5a.5.5 0 0 1-1 0v-.518a7 7 0 0 1-.866-13.847"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
 function renderTaskResult(task) {
     const container = document.querySelector(`[data-task-result="${CSS.escape(task.id)}"]`);
     if (!container) return;
@@ -1992,7 +2066,7 @@ function renderTaskResult(task) {
                             ${tags ? `<div class="suno-track-tags">${esc(tags.substring(0, 120))}${tags.length > 120 ? '…' : ''}</div>` : ''}
                         </div>
                     </div>
-                    <audio src="${esc(audioSrc)}" controls style="width:100%"></audio>
+                    ${_buildMusicPlayerHtml(audioSrc, title, tags || 'Suno AI', coverSrc, `task-${esc(task.id)}-${i}`)}
                     ${lyrics ? `<details class="suno-track-lyrics-wrap"><summary>Ver Letra</summary><pre class="suno-track-lyrics">${esc(lyrics)}</pre></details>` : ''}
                     <div class="suno-actions-row">
                         <button class="btn-ghost btn-sm suno-action" data-suno-model="suno/extend-music" data-audio-id="${esc(audioId)}" data-task-id="${esc(parentTaskId)}" title="Estender a música">🔁 Extend</button>
@@ -2017,14 +2091,13 @@ function renderTaskResult(task) {
             // Multi-audio generic
             unique.forEach((u, i) => {
                 html += `<div class="task-result-audio-track">
-                    <span class="audio-track-label">Faixa ${i + 1}</span>
-                    <audio src="${esc(u)}" controls style="width:100%"></audio>
+                    ${_buildMusicPlayerHtml(u, `Faixa ${i + 1}`, task.model || '', '', `gen-${esc(task.id)}-${i}`)}
                 </div>`;
             });
         } else if (isVid) {
             html += `<video src="${esc(unique[0])}" controls preload="metadata" style="width:100%" onerror="window.handleExpiredMedia(this)"></video>`;
         } else if (isAud) {
-            html += `<audio src="${esc(unique[0])}" controls style="width:100%"></audio>`;
+            html += _buildMusicPlayerHtml(unique[0], 'Áudio Gerado', task.model || '', '', `single-${esc(task.id)}`);
         } else {
             html += `<img src="${esc(unique[0])}" alt="Result" loading="lazy">`;
         }
@@ -2407,7 +2480,7 @@ function openHistoryLightbox(entry) {
                     </div>` : ''}
                 </div>
                 <div class="suno-lb-player">
-                    <audio src="${esc(audioSrc)}" controls preload="metadata" id="suno-audio-${parentTaskId}-${i}"></audio>
+                    ${_buildMusicPlayerHtml(audioSrc, title, tags || 'Suno AI', coverSrc, `lb-${parentTaskId}-${i}`)}
                 </div>
                 ${lyrics ? `<details class="suno-track-lyrics-wrap"><summary>Ver Letra</summary><pre class="suno-track-lyrics">${esc(lyrics)}</pre></details>` : ''}
                 <div class="suno-lb-actions">
@@ -2424,7 +2497,7 @@ function openHistoryLightbox(entry) {
     } else if (isVid) {
         mediaHtml = `<video src="${esc(url)}" controls autoplay preload="auto" class="lightbox-media" playsinline onerror="window.handleExpiredMedia(this)"></video>`;
     } else if (isAud) {
-        mediaHtml = `<audio src="${esc(url)}" controls autoplay class="lightbox-audio"></audio>`;
+        mediaHtml = _buildMusicPlayerHtml(url, 'Áudio', '', '', `lb-gen-${entry.id}`);
     } else if (url) {
         mediaHtml = `<img src="${esc(url)}" alt="Result" class="lightbox-media" onerror="window.handleExpiredMedia(this)">`;
     } else if (entry.state === 'fail' || entry.state === 'failed') {
@@ -5138,4 +5211,186 @@ const v2Registry = {};
     });
 
     console.log('[V2] Image workspace initialized');
+})();
+
+// ==================== Custom Music Player Controller ====================
+// Each .main-music-card with data-mp-src creates a JS Audio object on first interaction.
+// Only one player is active at a time (global singleton pattern).
+
+(function () {
+    'use strict';
+
+    /** @type {HTMLAudioElement|null} */
+    let _activeAudio = null;
+    /** @type {Element|null} */
+    let _activeCard = null;
+    let _rafId = null;
+
+    function _fmt(secs) {
+        if (!isFinite(secs) || secs < 0) return '0:00';
+        const m = Math.floor(secs / 60);
+        const s = Math.floor(secs % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function _stopCurrent() {
+        if (_activeAudio) {
+            _activeAudio.pause();
+            _activeAudio.removeAttribute('src');
+            _activeAudio.load();
+            _activeAudio = null;
+        }
+        if (_activeCard) {
+            _activeCard.classList.remove('is-playing');
+            _activeCard = null;
+        }
+        if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+    }
+
+    function _updateUI(card, audio) {
+        const fill = card.querySelector('.progress-fill');
+        const handle = card.querySelector('.progress-handle');
+        const curTime = card.querySelector('.current-time');
+        const remTime = card.querySelector('.remaining-time');
+        if (!audio || audio.paused) return;
+
+        const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+        if (fill) fill.style.width = pct + '%';
+        if (handle) handle.style.left = pct + '%';
+        if (curTime) curTime.textContent = _fmt(audio.currentTime);
+        if (remTime) remTime.textContent = '-' + _fmt(audio.duration - audio.currentTime);
+
+        _rafId = requestAnimationFrame(() => _updateUI(card, audio));
+    }
+
+    function _initPlayer(card) {
+        const src = card.dataset.mpSrc;
+        if (!src) return;
+
+        // If same card = toggle play/pause
+        if (_activeCard === card && _activeAudio) {
+            if (_activeAudio.paused) {
+                _activeAudio.play();
+                card.classList.add('is-playing');
+                _rafId = requestAnimationFrame(() => _updateUI(card, _activeAudio));
+            } else {
+                _activeAudio.pause();
+                card.classList.remove('is-playing');
+                if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+            }
+            return;
+        }
+
+        // Stop any other playing track
+        _stopCurrent();
+
+        const audio = new Audio(src);
+        audio.preload = 'metadata';
+        _activeAudio = audio;
+        _activeCard = card;
+
+        audio.addEventListener('loadedmetadata', () => {
+            const remTime = card.querySelector('.remaining-time');
+            if (remTime) remTime.textContent = _fmt(audio.duration);
+        });
+
+        audio.addEventListener('ended', () => {
+            card.classList.remove('is-playing');
+            const fill = card.querySelector('.progress-fill');
+            const handle = card.querySelector('.progress-handle');
+            if (fill) fill.style.width = '0%';
+            if (handle) handle.style.left = '0%';
+            if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+        });
+
+        audio.play().then(() => {
+            card.classList.add('is-playing');
+            _rafId = requestAnimationFrame(() => _updateUI(card, audio));
+        }).catch(e => console.warn('[MusicPlayer] Play blocked:', e.message));
+    }
+
+    function _seek(card, audio, clientX) {
+        const bar = card.querySelector('.progress-bar');
+        if (!bar || !audio || !audio.duration) return;
+        const rect = bar.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        audio.currentTime = ratio * audio.duration;
+        const pct = ratio * 100;
+        const fill = card.querySelector('.progress-fill');
+        const handle = card.querySelector('.progress-handle');
+        if (fill) fill.style.width = pct + '%';
+        if (handle) handle.style.left = pct + '%';
+        const curTime = card.querySelector('.current-time');
+        const remTime = card.querySelector('.remaining-time');
+        if (curTime) curTime.textContent = _fmt(audio.currentTime);
+        if (remTime) remTime.textContent = '-' + _fmt(audio.duration - audio.currentTime);
+    }
+
+    // ── Event delegation on document ──
+    document.addEventListener('click', e => {
+        // Play/pause button
+        const ppBtn = e.target.closest('.main-music-card .play-pause-button');
+        if (ppBtn) {
+            e.preventDefault();
+            const card = ppBtn.closest('.main-music-card');
+            if (card) _initPlayer(card);
+            return;
+        }
+
+        // Skip back button (-10s)
+        const backBtn = e.target.closest('.main-music-card .control-button.back');
+        if (backBtn) {
+            const card = backBtn.closest('.main-music-card');
+            if (card === _activeCard && _activeAudio) {
+                _activeAudio.currentTime = Math.max(0, _activeAudio.currentTime - 10);
+            }
+            return;
+        }
+
+        // Skip forward button (+10s)
+        const nextBtn = e.target.closest('.main-music-card .control-button.next');
+        if (nextBtn) {
+            const card = nextBtn.closest('.main-music-card');
+            if (card === _activeCard && _activeAudio) {
+                _activeAudio.currentTime = Math.min(_activeAudio.duration || 0, _activeAudio.currentTime + 10);
+            }
+            return;
+        }
+
+        // Progress bar click to seek
+        const bar = e.target.closest('.main-music-card .progress-bar');
+        if (bar) {
+            const card = bar.closest('.main-music-card');
+            if (card === _activeCard && _activeAudio) {
+                _seek(card, _activeAudio, e.clientX);
+            }
+            return;
+        }
+    });
+
+    // ── Drag-to-scrub on progress bar ──
+    let _scrubbing = false;
+    document.addEventListener('mousedown', e => {
+        const bar = e.target.closest('.main-music-card .progress-bar');
+        if (!bar) return;
+        const card = bar.closest('.main-music-card');
+        if (card !== _activeCard || !_activeAudio) return;
+        _scrubbing = true;
+        card.classList.add('is-scrubbing');
+        _seek(card, _activeAudio, e.clientX);
+    });
+
+    document.addEventListener('mousemove', e => {
+        if (!_scrubbing || !_activeCard || !_activeAudio) return;
+        _seek(_activeCard, _activeAudio, e.clientX);
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (_scrubbing && _activeCard) {
+            _activeCard.classList.remove('is-scrubbing');
+        }
+        _scrubbing = false;
+    });
+
+    console.log('[MusicPlayer] Custom player controller initialized');
 })();
