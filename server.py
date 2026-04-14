@@ -304,17 +304,30 @@ async def _download_and_save(task_id: str, urls: list[str], attempt: int = 1):
     _download_retry_counts[task_id] = attempt
     logger.info("[media] Download attempt %d/3 for task %s", attempt, task_id)
     scheduled_retry = False
+    expected_count = len(urls)
     try:
         local_files = await storage.download_media(task_id, urls)
         if local_files:
             db.update_local_urls(task_id, local_files)
-            _download_retry_counts.pop(task_id, None)
-            logger.info("[media] Saved %d files for task %s", len(local_files), task_id)
-            return
+            if len(local_files) >= expected_count:
+                _download_retry_counts.pop(task_id, None)
+                logger.info(
+                    "[media] Saved all %d files for task %s", len(local_files), task_id
+                )
+                return
+
+            logger.warning(
+                "[media] Partial save for task %s on attempt %d/3 (%d/%d); retrying in 30s",
+                task_id,
+                attempt,
+                len(local_files),
+                expected_count,
+            )
 
         if urls and attempt < 3:
             logger.warning(
-                "[media] No files saved for task %s on attempt %d/3; retrying in 30s",
+                "[media] %s for task %s on attempt %d/3; retrying in 30s",
+                "No files saved" if not local_files else "Download incomplete",
                 task_id,
                 attempt,
             )
@@ -1293,7 +1306,7 @@ async def import_history_tasks(
                     )
                     continue
                 if urls and state == "success":
-                    await _download_and_save(tid, urls)
+                    asyncio.create_task(_download_and_save(tid, urls))
                 imported += 1
             except Exception as e:
                 logger.warning("[%s] history/import: failed for %s: %s", rid, tid, e)
