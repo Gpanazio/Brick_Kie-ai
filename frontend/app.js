@@ -3891,6 +3891,15 @@ const v2Registry = {};
         } else if (model === 'suno/utilities') {
             cost = 2;   // utility actions (music-video/wav/lyrics/persona/cover/midi) cost ~2
 
+        // ── Suno (mode-dependent) ──
+        } else if (model === 'suno/generate-music') {
+            const mode = params.suno_mode || 'Música';
+            cost = mode === 'Letra' ? 0.4 : 12;
+        } else if (model === 'suno/edit-audio') {
+            cost = 12;  // all edit actions (extend/instrumental/vocals/separate) cost ~12
+        } else if (model === 'suno/utilities') {
+            cost = 2;   // utility actions (music-video/wav/lyrics/persona/cover/midi) cost ~2
+
         // ── Google Imagen 4 (no dynamic param but note tiers) ──
         // ── Default: flat cost from MODEL_COST_ESTIMATES ──
         } else {
@@ -4507,11 +4516,42 @@ const v2Registry = {};
             extra.prompt = prompt;
         }
 
+        // Suno always needs the prompt (Suno models don't use data-prompt flag)
+        if (resolvedModel.startsWith('suno/') && prompt) {
+            extra.prompt = prompt;
+        }
+
         // Suno mode toggle: 'Letra' → suno/generate-lyrics
         if (resolvedModel === 'suno/generate-music' && extra.suno_mode === 'Letra') {
             resolvedModel = 'suno/generate-lyrics';
         }
         delete extra.suno_mode;
+
+        // suno/edit-audio → resolve suno_action to actual Suno API model
+        if (resolvedModel === 'suno/edit-audio') {
+            const SUNO_EDIT_MAP = {
+                'Extend Music': 'suno/extend-music',
+                'Add Instrumental': 'suno/add-instrumental',
+                'Add Vocals': 'suno/add-vocals',
+                'Separate Vocals': 'suno/separate-vocals',
+            };
+            resolvedModel = SUNO_EDIT_MAP[extra.suno_action] || 'suno/extend-music';
+            delete extra.suno_action;
+        }
+
+        // suno/utilities → resolve suno_action to actual Suno API model
+        if (resolvedModel === 'suno/utilities') {
+            const SUNO_UTIL_MAP = {
+                'Music Video': 'suno/music-video',
+                'Convert WAV': 'suno/convert-wav',
+                'Get Lyrics': 'suno/get-lyrics',
+                'Generate Persona': 'suno/generate-persona',
+                'Cover Image': 'suno/cover-suno',
+                'Generate MIDI': 'suno/generate-midi',
+            };
+            resolvedModel = SUNO_UTIL_MAP[extra.suno_action] || 'suno/music-video';
+            delete extra.suno_action;
+        }
 
         // suno/edit-audio → resolve suno_action to actual Suno API model
         if (resolvedModel === 'suno/edit-audio') {
