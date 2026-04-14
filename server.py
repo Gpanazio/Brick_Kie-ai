@@ -308,7 +308,7 @@ async def _download_and_save(task_id: str, urls: list[str], attempt: int = 1):
     try:
         local_files = await storage.download_media(task_id, urls)
         if local_files:
-            db.update_local_urls(task_id, local_files)
+            await asyncio.to_thread(db.update_local_urls, task_id, local_files)
             if len(local_files) >= expected_count:
                 _download_retry_counts.pop(task_id, None)
                 logger.info(
@@ -530,7 +530,7 @@ async def media_backfill(request: Request):
                     continue
                 local_files = await storage.download_media(entry["id"], urls)
                 if local_files:
-                    db.update_local_urls(entry["id"], local_files)
+                    await asyncio.to_thread(db.update_local_urls, entry["id"], local_files)
                     processed += 1
             except Exception as e:
                 logger.warning("[%s] backfill: failed for %s: %s", rid, entry["id"], e)
