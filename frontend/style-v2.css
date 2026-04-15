@@ -2902,7 +2902,10 @@ body {
     gap: 12px;
     width: 520px;
     max-width: 92vw;
-    padding: 4px 0;
+    padding: 16px 0;
+    max-height: 75vh;
+    overflow-y: auto;
+    margin: auto;
 }
 
 .suno-lb-card {
