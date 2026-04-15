@@ -3085,7 +3085,7 @@ window.openCropModal = (function () {
     const selection = document.getElementById('crop-selection');
     const zoomSlider = document.getElementById('crop-zoom');
     const zoomPct = document.getElementById('crop-zoom-pct');
-    const arBadge = document.getElementById('crop-ar-badge');
+    const arSelect = document.getElementById('crop-ar-select');
     const btnConfirm = document.getElementById('crop-btn-confirm');
     const btnCancel = document.getElementById('crop-btn-cancel');
     const btnCancelX = document.getElementById('crop-btn-cancel-x');
@@ -3216,32 +3216,21 @@ window.openCropModal = (function () {
             _sel.y = o.y + dy;
         } else {
             // Resize from corner, locked to aspect ratio
-            let newW, newH;
-            if (_drag.type === 'se') {
+            let newW;
+            if (_drag.type.includes('e')) {
                 newW = o.w + dx;
-                newH = newW / ar;
-                _sel.w = newW;
-                _sel.h = newH;
-            } else if (_drag.type === 'sw') {
+            } else {
                 newW = o.w - dx;
-                newH = newW / ar;
-                _sel.x = o.x + o.w - newW;
-                _sel.w = newW;
-                _sel.h = newH;
-            } else if (_drag.type === 'ne') {
-                newW = o.w + dx;
-                newH = newW / ar;
-                _sel.y = o.y + o.h - newH;
-                _sel.w = newW;
-                _sel.h = newH;
-            } else if (_drag.type === 'nw') {
-                newW = o.w - dx;
-                newH = newW / ar;
-                _sel.x = o.x + o.w - newW;
-                _sel.y = o.y + o.h - newH;
-                _sel.w = newW;
-                _sel.h = newH;
             }
+            const newH = newW / ar;
+            if (_drag.type.includes('n')) {
+                _sel.y = o.y + o.h - newH;
+            }
+            if (_drag.type.includes('w')) {
+                _sel.x = o.x + o.w - newW;
+            }
+            _sel.w = newW;
+            _sel.h = newH;
         }
         applySelection();
     }
@@ -3334,33 +3323,66 @@ window.openCropModal = (function () {
         const tmpCtx = tmp.getContext('2d');
         tmpCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
+        const outputType = (modal.dataset.originalFileType === 'image/jpeg' || modal.dataset.originalFileType === 'image/png') ? modal.dataset.originalFileType : 'image/png';
+        const outputFilename = 'cropped.' + (outputType === 'image/jpeg' ? 'jpg' : 'png');
+
         tmp.toBlob(blob => {
             if (!blob) { cancel(); return; }
-            const croppedFile = new File([blob], 'cropped.png', { type: 'image/png' });
+            const croppedFile = new File([blob], outputFilename, { type: outputType });
             modal.classList.add('hidden');
             if (_resolve) { _resolve(croppedFile); _resolve = null; }
-        }, 'image/png');
+        }, outputType, 0.92);
     });
 
+    // ── AR Select change handler ──
+    function setAspectRatio(arStr) {
+        const ar = parseAR(arStr);
+        if (ar) {
+            _aspectW = ar[0];
+            _aspectH = ar[1];
+            _aspectLabel = arStr;
+        } else {
+            _aspectW = 4;
+            _aspectH = 3;
+            _aspectLabel = 'Livre';
+        }
+        // Re-init selection with new AR if modal is visible
+        if (!modal.classList.contains('hidden') && _displayW > 0) {
+            initSelection();
+        }
+    }
+
+    if (arSelect) {
+        arSelect.addEventListener('change', () => {
+            setAspectRatio(arSelect.value);
+        });
+    }
+
     // ── Public API ──
-    return function openCropModal(file, aspectRatioStr) {
+    return function openCropModal(file, aspectRatioStr, arOptions) {
         return new Promise(resolve => {
             _resolve = resolve;
             _rotation = 0;
 
-            // Parse aspect ratio
-            const ar = parseAR(aspectRatioStr);
-            if (ar) {
-                _aspectW = ar[0];
-                _aspectH = ar[1];
-                _aspectLabel = aspectRatioStr;
-            } else {
-                // Default to 4:3 for free/auto
-                _aspectW = 4;
-                _aspectH = 3;
-                _aspectLabel = 'Livre';
+            // Store original file type for output format preservation
+            modal.dataset.originalFileType = file.type;
+
+            // Populate AR select with options from the model config
+            if (arSelect) {
+                arSelect.innerHTML = '';
+                const opts = arOptions && arOptions.length > 0 ? arOptions : [aspectRatioStr || '1:1'];
+                opts.forEach(o => {
+                    const opt = document.createElement('option');
+                    opt.value = o;
+                    opt.textContent = o;
+                    arSelect.appendChild(opt);
+                });
+                // Set the currently selected AR
+                arSelect.value = aspectRatioStr || opts[0];
             }
-            arBadge.textContent = _aspectLabel;
+
+            // Apply the initial aspect ratio
+            setAspectRatio(aspectRatioStr || (arOptions && arOptions[0]) || '1:1');
 
             // Reset zoom
             zoomSlider.value = 100;
@@ -3393,18 +3415,41 @@ window.openCropModal = (function () {
     };
 })();
 
-// ── Helper: detect the current aspect ratio from model settings ──
+// ── Helper: detect the current AR + all available AR options from model config ──
 function _getCropAspectRatio() {
     // Read the active aspect_ratio param from the V2 dynamic params UI
     const arGroup = document.querySelector('[data-param-group-key="aspect_ratio"]');
     if (arGroup) {
-        // Could be a select or radio pills
         const sel = arGroup.querySelector('.v2-param-select');
         if (sel && sel.value) return sel.value;
         const pill = arGroup.querySelector('.v2-param-pill.active');
         if (pill && pill.dataset.value) return pill.dataset.value;
     }
+    // Also check ratio, aspectRatio, size, image_size keys (different models use different keys)
+    for (const key of ['ratio', 'aspectRatio', 'size', 'image_size']) {
+        const g = document.querySelector(`[data-param-group-key="${key}"]`);
+        if (g) {
+            const sel = g.querySelector('.v2-param-select');
+            if (sel && sel.value) return sel.value;
+            const pill = g.querySelector('.v2-param-pill.active');
+            if (pill && pill.dataset.value) return pill.dataset.value;
+        }
+    }
     return 'free';
+}
+
+function _getCropAspectRatioOptions() {
+    // Get the current model key and look up its AR options from MODEL_CONFIGS
+    const modelKey = window._v2ModelKey || null;
+    if (modelKey && typeof MODEL_CONFIGS !== 'undefined' && MODEL_CONFIGS[modelKey]) {
+        const cfg = MODEL_CONFIGS[modelKey];
+        for (const p of cfg.params) {
+            if (['aspect_ratio', 'ratio', 'aspectRatio', 'size', 'image_size'].includes(p.key) && Array.isArray(p.options)) {
+                return p.options;
+            }
+        }
+    }
+    return null; // no options available — crop modal will show just the current value
 }
 
 (function initV2Workspace() {
@@ -3466,6 +3511,7 @@ function _getCropAspectRatio() {
         if (modelData) {
             const prevModel = v2Model?.model;
             v2Model = modelData;
+            window._v2ModelKey = modelData.model; // expose for crop modal AR lookup
             if (prevModel && prevModel !== modelData.model) {
                 v2ClearAllFiles();
             }
@@ -4388,7 +4434,8 @@ function _getCropAspectRatio() {
 
         // Route through crop modal — frames use the video aspect ratio
         const ar = _getCropAspectRatio() || '16:9';
-        const cropped = await window.openCropModal(images[0], ar);
+        const arOpts = _getCropAspectRatioOptions();
+        const cropped = await window.openCropModal(images[0], ar, arOpts);
         if (!cropped) return; // user cancelled
 
         if (type === 'initial') {
@@ -4514,7 +4561,7 @@ function _getCropAspectRatio() {
     setupPasteImageHandler(
         v2.prompt,
         (file) => {
-            const isFramesModel = (v2Model?.model && (v2Model.model.startsWith('veo3/') || v2Model.model.includes('kling-3.0/video')));
+            const isFramesModel = (v2Model?.model && (v2Model.model.startsWith('veo3/') || v2Model.model.includes('kling-3.0/video') || v2Model.model === 'bytedance/seedance-2-frames'));
             if (isFramesModel) {
                 if (!v2FrameInitial) v2AddFrameFile([file], 'initial');
                 else if (!v2FrameFinal) v2AddFrameFile([file], 'final');
@@ -4578,13 +4625,14 @@ function _getCropAspectRatio() {
 
         // Route each image through crop modal sequentially (skip videos)
         const ar = _getCropAspectRatio();
+        const arOpts = _getCropAspectRatioOptions();
         for (const file of toAdd) {
             if (!file.type.startsWith('image/')) {
                 // Video / non-image — add directly
                 v2Files.push(file);
                 continue;
             }
-            const cropped = await window.openCropModal(file, ar);
+            const cropped = await window.openCropModal(file, ar, arOpts);
             if (cropped) {
                 v2Files.push(cropped);
             }
@@ -5061,14 +5109,10 @@ function _getCropAspectRatio() {
                         urls.push(encodeURI(finalUrl));
                     }
                     if (urls.length > 0) extra.image_urls = urls;
-                } else if (resolvedModel === "bytedance/seedance-2-frames") {
-                    const urls = [];
-                    if (initialUrl) urls.push(encodeURI(initialUrl));
-                    if (finalUrl) {
-                        if (!initialUrl) urls.push("");
-                        urls.push(encodeURI(finalUrl));
-                    }
-                    if (urls.length > 0) extra.reference_image_urls = urls;
+                } else if (isSeedanceFrames) {
+                    // Seedance 2 Frames: use first_frame_url + last_frame_url (separate strings per API docs)
+                    if (initialUrl) extra.first_frame_url = encodeURI(initialUrl);
+                    if (finalUrl) extra.last_frame_url = encodeURI(finalUrl);
                 } else {
                     if (initialUrl) extra.first_frame_url = encodeURI(initialUrl);
                     if (finalUrl) extra.last_frame_url = encodeURI(finalUrl);
@@ -5122,6 +5166,7 @@ function _getCropAspectRatio() {
         const fd = new FormData();
         fd.append('model', resolvedModel);
         fd.append('input_json', JSON.stringify(extra));
+        if (isSeedance) console.log('[SEEDANCE-DEBUG] model:', resolvedModel, 'extra:', JSON.stringify(extra, null, 2));
 
         // Route to correct API endpoint based on model
         const isSuno = resolvedModel.startsWith('suno/');

@@ -874,7 +874,9 @@
                     </svg>
                     <span class="crop-zoom-pct" id="crop-zoom-pct">100%</span>
                 </div>
-                <div class="crop-ar-badge" id="crop-ar-badge">16:9</div>
+                <select class="crop-ar-select" id="crop-ar-select">
+                    <!-- Options populated by JS from model config -->
+                </select>
                 <div class="crop-actions">
                     <button class="crop-btn-cancel" id="crop-btn-cancel">Cancelar</button>
                     <button class="crop-btn-confirm" id="crop-btn-confirm">
@@ -891,7 +893,7 @@
     <!-- ====== TOAST ====== -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="/static/app.js?v=43"></script>
+    <script src="/static/app.js?v=44"></script>
 </body>
 
 </html>

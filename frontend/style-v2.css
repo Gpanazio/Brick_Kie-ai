@@ -6492,16 +6492,37 @@ body {
     text-align: right;
 }
 
-.crop-ar-badge {
+.crop-ar-select {
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     color: #DC2626;
-    background: rgba(220, 38, 38, 0.1);
+    background: rgba(220, 38, 38, 0.08);
     border: 1px solid rgba(220, 38, 38, 0.25);
     border-radius: 6px;
-    padding: 4px 10px;
+    padding: 5px 28px 5px 10px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23DC2626' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
     white-space: nowrap;
+}
+
+.crop-ar-select:hover,
+.crop-ar-select:focus {
+    border-color: rgba(220, 38, 38, 0.5);
+    background-color: rgba(220, 38, 38, 0.12);
+}
+
+.crop-ar-select option {
+    background: #0a0a0a;
+    color: #e2e8f0;
+    font-family: var(--mono);
+    font-size: 12px;
 }
 
 .crop-actions {
