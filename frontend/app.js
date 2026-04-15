@@ -5066,7 +5066,7 @@ function _getCropAspectRatioOptions() {
         if (isSeedance) delete extra.seedance_speed; // not an API param
 
         const isFramesModel = resolvedModel.includes('kling-3.0/video') || isSeedanceFrames;
-        const hasVideoRefs = (isSeedanceVideo || resolvedModel === 'bytedance/seedance-2-fast') && v2VideoFiles.length > 0;
+        const hasVideoRefs = isSeedanceVideo && v2VideoFiles.length > 0;
         const hasFiles = isFramesModel ? (v2FrameInitial !== null || v2FrameFinal !== null) : (v2Files.length > 0);
 
         // Remap model names based on whether files are present
