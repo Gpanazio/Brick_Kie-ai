@@ -2152,16 +2152,20 @@ function _buildMusicPlayerHtml(audioSrc, title, artist, coverSrc, extraId) {
                             </button>
                         </div>
                         <button class="control-button next" title="+10s">
-                            <a href="${esc(audioSrc)}" download target="_blank" rel="noopener" class="control-button d" title="Download">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                            </a>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M15.5 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V8.753l-6.267 3.636c-.54.313-1.233-.066-1.233-.697v-2.94l-6.267 3.636C.693 12.703 0 12.324 0 11.693V4.308c0-.63.693-1.01 1.233-.696L7.5 7.248v-2.94c0-.63.693-1.01 1.233-.696L15 7.248V4a.5.5 0 0 1 .5-.5"/>
+                            </svg>
                         </button>
                     </div>
+                    <a href="${esc(audioSrc)}" download target="_blank" rel="noopener" class="control-button d" title="Download áudio">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                    </a>
                 </div>
+            </div>
             </div>
         </div>
     </div>`;
@@ -4939,6 +4943,27 @@ const v2Registry = {};
             json?.data?.recordId ||
             json?.recordId;
         if (!taskId) throw new Error(json.msg || 'No taskId/recordId returned');
+
+    // ── V2 Gallery Management ──
+    function v2MediaHtml(url, coverUrl, isSuno, isVid) {
+        const safeUrl = esc(url || '');
+        const safeCoverUrl = esc(coverUrl || '');
+        let html = '';
+        if (isVid || isVideoUrl(url)) {
+            html += `<video src="${safeUrl}" autoplay loop muted playsinline onerror="window.handleExpiredMedia(this)"></video>
+                    <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
+        } else if (isSuno || isAudioUrl(url)) {
+            if (coverUrl) {
+                // Suno with cover art: use aspect-ratio wrapper so img has a real height
+                html += `<div style="position:relative;width:100%;aspect-ratio:1;overflow:hidden;">
+                    <img src="${safeCoverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;" onerror="window.handleExpiredMedia(this)">
+                    <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);pointer-events:none;"></div>
+                    <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white" style="opacity:0.9;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));"><polygon points="5 3 19 12 5 21"/></svg>
+                    </div>
+                    <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">♫ Suno</span></div>
+                </div>`;
+            } else {
                 html += `<div style="width:100%;height:100%;background:linear-gradient(135deg,rgba(220,38,38,0.15),rgba(15,15,15,0.9));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
                         <span style="font-family:var(--mono);font-size:10px;color:rgba(148,163,184,0.7);">Áudio Gerado</span>

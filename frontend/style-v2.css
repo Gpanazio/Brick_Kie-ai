@@ -2902,10 +2902,7 @@ body {
     gap: 12px;
     width: 520px;
     max-width: 92vw;
-    padding: 16px 0;
-    max-height: 75vh;
-    overflow-y: auto;
-    margin: auto;
+    padding: 4px 0;
 }
 
 .suno-lb-card {
@@ -3380,16 +3377,22 @@ body {
 /* Hidden checkbox — not used in our JS-driven approach */
 .main-music-card input[type="checkbox"] { display: none; }
 
-/* Radar/broadcast button */
+/* Download button */
 .main-music-card .control-button.d {
     margin-left: auto;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    text-decoration: none;
 }
 
 .main-music-card .control-button.d:hover {
-    color: var(--accent);
+    color: #fff;
+    background: rgba(220, 38, 38, 0.2);
+    border-color: rgba(220, 38, 38, 0.5);
 }
 
 /* ── Lightbox variant tweaks ── */
@@ -4114,6 +4117,7 @@ body {
     position: relative;
     border-radius: 10px;
     overflow: hidden;
+    overflow-y: auto;
     background: #050505;
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06);
     display: flex;
@@ -4121,6 +4125,7 @@ body {
     justify-content: center;
     flex-shrink: 1;
     min-height: 0;
+    max-height: 82vh;
     width: 100%;
 }
 
