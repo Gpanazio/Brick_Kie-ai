@@ -4586,6 +4586,34 @@ const v2Registry = {};
         }
         delete extra.suno_mode;
 
+        // Normalize Suno parameters to camelCase for API compatibility
+        if (resolvedModel.startsWith('suno/')) {
+            // Convert snake_case to camelCase for Suno API
+            const snakeToCamel = {
+                'custom_mode': 'customMode',
+                'style_weight': 'styleWeight',
+                'vocal_gender': 'vocalGender',
+                'negative_tags': 'negativeTags',
+                'weirdness_constraint': 'weirdnessConstraint',
+                'persona_id': 'personaId',
+                'persona_model': 'personaModel'
+            };
+            
+            for (const [snake, camel] of Object.entries(snakeToCamel)) {
+                if (Object.prototype.hasOwnProperty.call(extra, snake)) {
+                    extra[camel] = extra[snake];
+                    delete extra[snake];
+                }
+            }
+            
+            // Provide defaults for required fields when customMode is enabled
+            const customModeEnabled = extra.customMode === true || extra.customMode === 'true';
+            if (customModeEnabled) {
+                if (typeof extra.style !== 'string' || extra.style.trim() === '') extra.style = 'General';
+                if (typeof extra.title !== 'string' || extra.title.trim() === '') extra.title = 'Generated Track';
+            }
+        }
+
         // suno/edit-audio → resolve suno_action to actual Suno API model
         if (resolvedModel === 'suno/edit-audio') {
             const SUNO_EDIT_MAP = {
