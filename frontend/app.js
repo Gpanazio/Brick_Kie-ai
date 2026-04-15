@@ -2484,7 +2484,7 @@ function openHistoryLightbox(entry) {
                     </div>` : ''}
                 </div>
                 <div class="suno-lb-player">
-                    ${_buildMusicPlayerHtml(audioSrc, title, tags || 'Suno AI', coverSrc, `lb-${parentTaskId}-${i}`)}
+                    <audio controls preload="none" src="${esc(audioSrc)}"></audio>
                 </div>
                 ${lyrics ? `<details class="suno-track-lyrics-wrap"><summary>Ver Letra</summary><pre class="suno-track-lyrics">${esc(lyrics)}</pre></details>` : ''}
                 <div class="suno-lb-actions">
@@ -3910,6 +3910,11 @@ const v2Registry = {};
             const res = params.resolution || '1K';
             cost = res === '4K' ? 18 : res === '2K' ? 12 : 8;
 
+        // ── Topaz Video Upscale (factor-dependent) ──
+        } else if (model === 'topaz/video-upscale') {
+            const factor = parseInt(params.upscale_factor) || 2;
+            cost = factor >= 4 ? 24 : factor >= 2 ? 12 : 6;
+
         // ── Topaz Image Upscale (factor-dependent) ──
         } else if (model === 'topaz/image-upscale') {
             const factor = parseInt(params.upscale_factor) || 2;
@@ -4280,9 +4285,9 @@ const v2Registry = {};
 
             const objUrl = URL.createObjectURL(file);
             let mediaEl;
-            if (file.type.startsWith('video/')) {
+            if (file.type.startsWith('video/') || file.name.match(/\.(mp4|mov|mkv|webm|avi)$/i)) {
                 mediaEl = document.createElement('video');
-                mediaEl.src = objUrl;
+                mediaEl.src = objUrl + '#t=0.001';
                 mediaEl.muted = true;
                 mediaEl.preload = 'metadata';
             } else {
@@ -4804,6 +4809,34 @@ const v2Registry = {};
         v2ClearAllFiles();
         toast(`✅ Task created!${hasFiles || hasVideoRefs ? ` (files uploaded)` : ''}`, 'success');
     }
+
+    v2.btnGenerate.addEventListener('click', async () => {
+        if (v2.btnGenerate.disabled) return;
+        const btnSpan = v2.btnGenerate.querySelector('span');
+        const origText = btnSpan ? btnSpan.textContent : '';
+        const setBtn = (text, dis) => {
+            if (btnSpan) btnSpan.textContent = text;
+            v2.btnGenerate.disabled = dis;
+        };
+
+        try {
+            setBtn('Preparando...', true);
+            const prompt = !!v2.prompt ? v2.prompt.value.trim() : '';
+            const modelParams = v2CollectModelParams();
+
+            if (v2Model?.model && v2Model.model.startsWith('veo3/')) {
+                 await _handleVeo3Submission(prompt, btnSpan);
+            } else {
+                 await _handleStandardSubmission(prompt, btnSpan, modelParams);
+            }
+        } catch (err) {
+            console.error('[V2 Generate]', err);
+            toast(err.message, 'error');
+        } finally {
+            setBtn(origText, false);
+            updateV2GenerateState();
+        }
+    });
 
     // ── V2 Gallery Management ──
     function v2MediaHtml(url, coverUrl, isSuno, isVid) {
