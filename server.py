@@ -530,7 +530,9 @@ async def media_backfill(request: Request):
                     continue
                 local_files = await storage.download_media(entry["id"], urls)
                 if local_files:
-                    await asyncio.to_thread(db.update_local_urls, entry["id"], local_files)
+                    await asyncio.to_thread(
+                        db.update_local_urls, entry["id"], local_files
+                    )
                     processed += 1
             except Exception as e:
                 logger.warning("[%s] backfill: failed for %s: %s", rid, entry["id"], e)
@@ -849,6 +851,45 @@ async def suno_create(
             input_data["uploadUrl"] = upload_url
 
         _ensure_callback_url(input_data)
+        if not input_data.get("callBackUrl"):
+            raise HTTPException(
+                status_code=400,
+                detail="callBackUrl is required for Suno endpoints. Set KIE_CALLBACK_URL or provide callBackUrl in request.",
+            )
+
+        # Normalize Suno API parameters
+        if model.startswith("suno/"):
+            # Convert snake_case to camelCase for Suno API
+            if "custom_mode" in input_data:
+                input_data["customMode"] = input_data.pop("custom_mode")
+            if "style_weight" in input_data:
+                input_data["styleWeight"] = input_data.pop("style_weight")
+            if "vocal_gender" in input_data:
+                input_data["vocalGender"] = input_data.pop("vocal_gender")
+            if "negative_tags" in input_data:
+                input_data["negativeTags"] = input_data.pop("negative_tags")
+            if "weirdness_constraint" in input_data:
+                input_data["weirdnessConstraint"] = input_data.pop(
+                    "weirdness_constraint"
+                )
+            if "persona_id" in input_data:
+                input_data["personaId"] = input_data.pop("persona_id")
+            if "persona_model" in input_data:
+                input_data["personaModel"] = input_data.pop("persona_model")
+
+            # Ensure required fields when customMode is true
+            custom_mode = input_data.get("customMode")
+            custom_mode_enabled = custom_mode is True or (
+                isinstance(custom_mode, str) and custom_mode.lower() == "true"
+            )
+            if custom_mode_enabled:
+                style = input_data.get("style")
+                if not isinstance(style, str) or style.strip() == "":
+                    input_data["style"] = "General"
+                title = input_data.get("title")
+                if not isinstance(title, str) or title.strip() == "":
+                    input_data["title"] = "Generated Track"
+
         resp = await asyncio.to_thread(kie_api.suno_create_task, model, input_data)
         _validate_api_response(resp)
         logger.info("[%s] suno/create: model=%s", rid, model)
