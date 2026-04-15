@@ -817,10 +817,81 @@
         </div>
     </div>
 
+    <!-- ====== IMAGE CROP MODAL ====== -->
+    <div id="crop-modal" class="crop-modal hidden">
+        <div class="crop-backdrop" id="crop-backdrop"></div>
+        <div class="crop-panel">
+            <div class="crop-header">
+                <div>
+                    <div class="crop-title">Ajustar Imagem</div>
+                    <div class="crop-subtitle" id="crop-subtitle">Arraste para posicionar — Scroll para zoom</div>
+                </div>
+                <div class="crop-header-actions">
+                    <button class="crop-rotate-btn" id="crop-btn-rotate" title="Girar 90°">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="1 4 1 10 7 10"/>
+                            <path d="M3.51 15a9 9 0 105.64-12.36L1 10"/>
+                        </svg>
+                    </button>
+                    <button class="crop-close-btn" id="crop-btn-cancel-x" title="Cancelar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="crop-body">
+                <!-- Dark area with image + draggable crop overlay -->
+                <div class="crop-canvas-wrap" id="crop-canvas-wrap">
+                    <canvas id="crop-canvas"></canvas>
+                    <div class="crop-overlay" id="crop-overlay">
+                        <div class="crop-selection" id="crop-selection">
+                            <div class="crop-handle crop-handle-nw" data-handle="nw"></div>
+                            <div class="crop-handle crop-handle-ne" data-handle="ne"></div>
+                            <div class="crop-handle crop-handle-sw" data-handle="sw"></div>
+                            <div class="crop-handle crop-handle-se" data-handle="se"></div>
+                            <div class="crop-grid-line crop-grid-h1"></div>
+                            <div class="crop-grid-line crop-grid-h2"></div>
+                            <div class="crop-grid-line crop-grid-v1"></div>
+                            <div class="crop-grid-line crop-grid-v2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="crop-footer">
+                <div class="crop-zoom-row">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:0.5;">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        <line x1="8" y1="11" x2="14" y2="11"/>
+                    </svg>
+                    <input type="range" id="crop-zoom" class="crop-zoom-slider" min="100" max="300" value="100" step="1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:0.5;">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                    </svg>
+                    <span class="crop-zoom-pct" id="crop-zoom-pct">100%</span>
+                </div>
+                <div class="crop-ar-badge" id="crop-ar-badge">16:9</div>
+                <div class="crop-actions">
+                    <button class="crop-btn-cancel" id="crop-btn-cancel">Cancelar</button>
+                    <button class="crop-btn-confirm" id="crop-btn-confirm">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ====== TOAST ====== -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="/static/app.js?v=42"></script>
+    <script src="/static/app.js?v=43"></script>
 </body>
 
 </html>
