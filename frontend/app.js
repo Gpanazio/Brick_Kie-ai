@@ -2024,9 +2024,14 @@ function getModelDetails(modelKey) {
     const tpl = document.getElementById('tpl-models');
     if (!tpl) return null;
     // Try exact match first, then reverse-mapped fallback
-    let item = tpl.content.querySelector(`[data-model="${modelKey}"]`);
-    if (!item && MODEL_REVERSE_MAP[modelKey]) {
-        item = tpl.content.querySelector(`[data-model="${MODEL_REVERSE_MAP[modelKey]}"]`);
+    let item = null;
+    try {
+        if (modelKey) item = tpl.content.querySelector(`[data-model="${CSS.escape(modelKey)}"]`);
+        if (!item && MODEL_REVERSE_MAP[modelKey]) {
+            item = tpl.content.querySelector(`[data-model="${CSS.escape(MODEL_REVERSE_MAP[modelKey])}"]`);
+        }
+    } catch (e) {
+        console.warn('Selector error in getModelDetails:', e);
     }
     return item ? item.dataset : null;
 }
@@ -4960,7 +4965,15 @@ const v2Registry = {};
             e.stopPropagation();
             item.style.transition = `opacity ${ITEM_FADE_MS / 1000}s`;
             item.style.opacity = '0';
-            setTimeout(() => { item.remove(); updateV2GalleryCount(); }, ITEM_FADE_MS + 20);
+            const bid = item.dataset.baseTaskId || item.dataset.taskId;
+            if (bid) {
+                _deletedIds.add(bid);
+                const history = loadHistory().filter(h => h.id !== bid);
+                saveHistory(history);
+                if (typeof _serverHistoryCache !== 'undefined') _serverHistoryCache.delete(bid);
+                fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(() => {});
+            }
+            setTimeout(() => { item.remove(); updateV2GalleryCount(); renderHistoryGallery(); updateHistoryCount(); }, ITEM_FADE_MS + 20);
         });
         item.appendChild(dismissBtn);
     }
