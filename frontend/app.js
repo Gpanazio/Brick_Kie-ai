@@ -3216,32 +3216,21 @@ window.openCropModal = (function () {
             _sel.y = o.y + dy;
         } else {
             // Resize from corner, locked to aspect ratio
-            let newW, newH;
-            if (_drag.type === 'se') {
+            let newW;
+            if (_drag.type.includes('e')) {
                 newW = o.w + dx;
-                newH = newW / ar;
-                _sel.w = newW;
-                _sel.h = newH;
-            } else if (_drag.type === 'sw') {
+            } else {
                 newW = o.w - dx;
-                newH = newW / ar;
-                _sel.x = o.x + o.w - newW;
-                _sel.w = newW;
-                _sel.h = newH;
-            } else if (_drag.type === 'ne') {
-                newW = o.w + dx;
-                newH = newW / ar;
-                _sel.y = o.y + o.h - newH;
-                _sel.w = newW;
-                _sel.h = newH;
-            } else if (_drag.type === 'nw') {
-                newW = o.w - dx;
-                newH = newW / ar;
-                _sel.x = o.x + o.w - newW;
-                _sel.y = o.y + o.h - newH;
-                _sel.w = newW;
-                _sel.h = newH;
             }
+            const newH = newW / ar;
+            if (_drag.type.includes('n')) {
+                _sel.y = o.y + o.h - newH;
+            }
+            if (_drag.type.includes('w')) {
+                _sel.x = o.x + o.w - newW;
+            }
+            _sel.w = newW;
+            _sel.h = newH;
         }
         applySelection();
     }
@@ -3334,12 +3323,15 @@ window.openCropModal = (function () {
         const tmpCtx = tmp.getContext('2d');
         tmpCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
+        const outputType = (modal.dataset.originalFileType === 'image/jpeg' || modal.dataset.originalFileType === 'image/png') ? modal.dataset.originalFileType : 'image/png';
+        const outputFilename = 'cropped.' + (outputType === 'image/jpeg' ? 'jpg' : 'png');
+
         tmp.toBlob(blob => {
             if (!blob) { cancel(); return; }
-            const croppedFile = new File([blob], 'cropped.png', { type: 'image/png' });
+            const croppedFile = new File([blob], outputFilename, { type: outputType });
             modal.classList.add('hidden');
             if (_resolve) { _resolve(croppedFile); _resolve = null; }
-        }, 'image/png');
+        }, outputType, 0.92);
     });
 
     // ── AR Select change handler ──
@@ -3371,6 +3363,9 @@ window.openCropModal = (function () {
         return new Promise(resolve => {
             _resolve = resolve;
             _rotation = 0;
+
+            // Store original file type for output format preservation
+            modal.dataset.originalFileType = file.type;
 
             // Populate AR select with options from the model config
             if (arSelect) {
