@@ -1938,6 +1938,382 @@ function updateTaskCard(task) {
     if (task.state === 'success' || task.state === 'fail') renderTaskResult(task);
 }
 
+function openModelPickerModal() {
+    if (!els.modalModelPicker || !els.mpmGrid) return;
+    // Build cards
+    els.mpmGrid.innerHTML = '';
+    _currentCatItems.forEach(data => {
+        const card = _buildModelPickerCard(data);
+        card.addEventListener('click', () => {
+            if (data.provider === 'Wan' && data.model === 'wan/2-7-text-to-video') {
+                _renderWanModeSubmenu(data);
+                return;
+            }
+            selectModelFromData(data);
+            closeModelPickerModal();
+            if (typeof window._v2ShowWorkspace === 'function') {
+                window._v2ShowWorkspace(data);
+            }
+        });
+        els.mpmGrid.appendChild(card);
+    });
+
+    els.modalModelPicker.classList.remove('hidden');
+}
+
+function closeModelPickerModal() {
+    if (els.modalModelPicker) els.modalModelPicker.classList.add('hidden');
+    // If no model was selected and we're in a workspace, go back to lobby
+    if (!selectedModel && currentCat) {
+        exitWorkspace();
+    }
+}
+
+function selectModelFromData(data) {
+    selectedModel = {
+        model: data.model,
+        input: data.input,
+        field: data.field || 'image',
+        shortcut: data.shortcut || null,
+        hasPrompt: data.prompt === 'true',
+    };
+    // Persist selected model so F5 restores to same model
+    try { sessionStorage.setItem('kie-workspace-model', data.model); } catch (e) { /* ignore */ }
+
+    // Update trigger button
+    els.mptIcon.innerHTML = sanitizeSvg(data.icon);
+    els.mptIcon.className = `mpt-icon ${data.color}`;
+    els.mptName.textContent = `${data.name} — ${data.provider}`;
+    els.btnModelPicker.classList.add('has-model');
+
+    // Cost in trigger
+    const cost = getModelCost(selectedModel.model);
+    updateCostBadge(els.mptCost, cost, 'mpt-cost', 'cr');
+
+    // Update header breadcrumb
+    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${esc(currentCatLabel)} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${esc(data.name)}</span>`;
+}
+
+function setupPasteImageHandler(promptElement, fileHandler, conditionCheck) {
+    if (!promptElement) return;
+    promptElement.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (!file) continue;
+                if (conditionCheck()) {
+                    e.preventDefault();
+                    fileHandler(file);
+                    toast('Imagem colada como referência', 'success');
+                }
+                break;
+            }
+        }
+    });
+}
+
+// ==================== Submit ====================
+
+// Model display name mappings when files are attached vs text-only
+const V2_FILE_MODEL_MAP = {
+    'grok-imagine/text-to-video': 'grok-imagine/image-to-video',
+    'grok-imagine/text-to-image': 'grok-imagine/image-to-image',
+    'sora-2-pro-text-to-video': 'sora-2-pro-image-to-video',
+    'seedream/5-lite': 'seedream/5-lite-image-to-image',
+};
+const V2_TEXT_MODEL_MAP = {
+    'seedream/5-lite': 'seedream/5-lite-text-to-image',
+};
+
+function resolveVeoModelByInput(model, hasImage) {
+    if (!model || !model.startsWith('veo3/')) return model;
+
+    // Auto-switch between text/image Veo families while preserving quality suffix, if present.
+    const m = model.match(/^veo3\/(text|image)-to-video(?:-(fast|quality))?$/);
+    if (!m) return model;
+
+    const qualitySuffix = m[2] ? `-${m[2]}` : '';
+    return `veo3/${hasImage ? 'image' : 'text'}-to-video${qualitySuffix}`;
+}
+
+function resolveSeedreamModel(model, extra, hasFile) {
+    if (model === 'seedream/5-lite') {
+        // Preserve user-selected quality (default: 'basic'); do not override.
+        if (!extra.quality) extra.quality = 'basic';
+        return hasFile ? 'seedream/5-lite-image-to-image' : 'seedream/5-lite-text-to-image';
+    }
+    return model;
+}
+
+// ==================== Task Management ====================
+
+function addTask(taskId, model, mode, inputFileUrl = null, extraParams = null, overrideCat = null) {
+    const v2PromptEl = document.getElementById('v2-prompt');
+    const promptText = v2PromptEl?.value?.trim() || '';
+    const task = {
+        id: taskId,
+        model,
+        mode,
+        cat: overrideCat || currentCat, // Store the category the task was created in
+        state: 'processing',
+        data: null,
+        pollTimer: null,
+        _prompt: promptText,
+        _inputFileUrl: inputFileUrl,
+        _extraParams: extraParams
+    };
+    tasks.unshift(task);
+    addPendingTask(task);
+    renderTaskCard(task);
+    startPolling(task);
+    updateTasksEmpty();
+    updateActiveCount();
+
+    // Auto-switch to Ativas tab
+    const activeTabBtn = document.querySelector('.panel-tab[data-tab="active"]');
+    if (activeTabBtn && !activeTabBtn.classList.contains('active')) {
+        activeTabBtn.click();
+    }
+
+    // Pulse feedback on active tab
+    if (activeTabBtn) {
+        activeTabBtn.classList.remove('tab-pulse');
+        void activeTabBtn.offsetWidth; // Trigger reflow
+        activeTabBtn.classList.add('tab-pulse');
+    }
+
+    // Scroll to new task card
+    const newCard = document.getElementById(`task-${CSS.escape(taskId)}`);
+    if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Filter visible task cards by current category
+function filterTasksByCategory() {
+    tasks.forEach(t => {
+        const card = document.getElementById(`task-${CSS.escape(t.id)}`);
+        if (card) card.style.display = (!currentCat || t.cat === currentCat) ? '' : 'none';
+    });
+    updateTasksEmpty();
+    updateActiveCount();
+}
+function startPolling(task) {
+    let pollErrors = 0;
+    const MAX_POLL_ERRORS = 5;
+    const MAX_POLL_DURATION_MS = 15 * 60 * 1000; // 15 min absolute cap
+    const BASE_INTERVAL = 5000;
+    let currentInterval = BASE_INTERVAL;
+    const pollStart = Date.now();
+
+    const schedulePoll = () => {
+        task.pollTimer = setTimeout(poll, currentInterval);
+    };
+
+    const poll = async () => {
+        // Circuit breaker: give up after absolute max duration even if API never errors
+        if (Date.now() - pollStart > MAX_POLL_DURATION_MS) {
+            task.pollTimer = null;
+            removePendingTask(task.id);
+            task.state = 'fail';
+            task.data = { data: { failMsg: 'Timeout: task não concluída em 15 minutos', failCode: 'POLL_TIMEOUT' } };
+            updateTaskCard(task);
+            toast(`❌ ${task.model} — timeout após 15 min`, 'error');
+            return;
+        }
+        try {
+            const safeId = encodeURIComponent(task.id);
+            const ep = task.mode === 'suno' ? `/api/suno/task/${safeId}` :
+                task.mode === 'veo' ? `/api/veo/task/${safeId}` :
+                    task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${safeId}` :
+                        task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${safeId}` :
+                            `/api/market/task/${safeId}`;
+            const controller = new AbortController();
+            const fetchTimer = setTimeout(() => controller.abort(), 30000);
+            let resp;
+            try {
+                resp = await fetch(`${API}${ep}`, { signal: controller.signal });
+            } finally {
+                clearTimeout(fetchTimer);
+            }
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const json = await resp.json();
+            pollErrors = 0; // reset on success
+            currentInterval = BASE_INTERVAL; // reset backoff on success
+            task.data = json;
+            const data = json?.data || {};
+
+            // Parse resultJson if it comes as string (per API docs)
+            if (typeof data.resultJson === 'string' && data.resultJson) {
+                try { data._parsedResult = JSON.parse(data.resultJson); } catch (e) { console.warn('[poll] Failed to parse resultJson:', e.message); }
+            }
+
+            // Normalize failMsg from various API response formats (like callback handler does)
+            if (!data.failMsg) {
+                data.failMsg = data.failReason || data.errorMessage || data.error_msg
+                    || (json.msg && json.code !== 200 ? json.msg : '') || '';
+            }
+            if (!data.failCode && data.errorCode) data.failCode = data.errorCode;
+
+            let state;
+            if (task.mode === 'veo') {
+                // Veo 3 uses successFlag: 0=processing, 1=success, 2/3=fail
+                const sf = data.successFlag;
+                const respUrls = data.response?.resultUrls || data.resultUrls;
+                if (sf === 1 || respUrls?.length || data.resultInfoJson) state = 'success';
+                else if (sf > 1 || data.errorCode) state = 'fail';
+                else state = 'processing';
+            } else {
+                // Suno/Market APIs use 'status' or 'state'
+                const raw = (data.status || data.state || 'processing').toString().toLowerCase();
+                if (raw === 'success' || raw === 'succeeded' || raw === 'completed') state = 'success';
+                else if (raw === 'fail' || raw === 'failed' || raw === 'error') state = 'fail';
+                else state = 'processing';
+            }
+            task.state = state;
+            updateTaskCard(task);
+            if (state === 'success' || state === 'fail') {
+                task.pollTimer = null;
+                removePendingTask(task.id);
+                const failInfo = data.failMsg ? ` — ${data.failMsg}` : '';
+                toast(
+                    state === 'success' ? `✅ ${task.model} concluído!` : `❌ ${task.model} falhou${failInfo}`,
+                    state === 'success' ? 'success' : 'error'
+                );
+                // Save completed tasks (success or fail) to persistent history
+                addToHistory(task);
+                fetchCredits();
+                updateActiveCount();
+            } else {
+                schedulePoll();
+            }
+        } catch (err) {
+            pollErrors++;
+            // Exponential backoff: 5s → 10s → 20s → 40s → give up
+            currentInterval = Math.min(BASE_INTERVAL * Math.pow(2, pollErrors), 60000);
+            console.error(`[poll] Error ${pollErrors}/${MAX_POLL_ERRORS} for ${task.id}, next retry in ${currentInterval / 1000}s:`, err.message);
+            if (pollErrors >= MAX_POLL_ERRORS) {
+                task.pollTimer = null;
+                removePendingTask(task.id);
+                task.state = 'fail';
+                task.data = { data: { failMsg: `Erro de rede: ${err.message}`, failCode: 'NETWORK_ERROR' } };
+                updateTaskCard(task);
+                toast(`❌ ${task.model} — conexão perdida após ${MAX_POLL_ERRORS} tentativas`, 'error');
+            } else {
+                schedulePoll();
+            }
+        }
+    };
+    poll();
+}
+
+function updateTasksEmpty() { els.tasksEmpty.classList.toggle('hidden', tasks.length > 0); }
+
+function initClearTasks() {
+    els.btnClearTasks.addEventListener('click', () => {
+        clearAllPendingTasks();
+        clearLocalTasks();
+    });
+}
+
+// ==================== Task Card Rendering ====================
+
+// Map resolved/variant model names back to the template's base model name
+const MODEL_REVERSE_MAP = {
+    'seedream/5-lite-image-to-image': 'seedream/5-lite',
+    'seedream/5-lite-text-to-image': 'seedream/5-lite',
+    'bytedance/4.5-text-to-image': 'seedream/5-lite',
+    'seedream/4.5-edit': 'seedream/5-lite',
+    'grok-imagine/image-to-image': 'grok-imagine/text-to-image',
+    'grok-imagine/image-to-video': 'grok-imagine/text-to-video',
+    'sora-2-pro-image-to-video': 'sora-2-pro-text-to-video',
+    'wan/2-7-image-to-video': 'wan/2-7-text-to-video',
+    'wan/2-7-videoedit': 'wan/2-7-text-to-video',
+    'wan/2-7-r2v': 'wan/2-7-text-to-video',
+    'veo3/text-to-video-fast': 'veo3/text-to-video',
+    'veo3/text-to-video-quality': 'veo3/text-to-video',
+    'veo3/image-to-video-fast': 'veo3/text-to-video',
+    'veo3/image-to-video-quality': 'veo3/text-to-video',
+    'veo3/image-to-video': 'veo3/text-to-video',
+    'veo3/extend-fast': 'veo3/text-to-video',
+    'veo3/extend-quality': 'veo3/text-to-video',
+    'suno/generate-lyrics': 'suno/generate-music',
+    'suno/extend-music': 'suno/generate-music',
+    'suno/upload-cover': 'suno/generate-music',
+    'suno/upload-extend': 'suno/generate-music',
+    'suno/add-instrumental': 'suno/generate-music',
+    'suno/add-vocals': 'suno/generate-music',
+    'suno/separate-vocals': 'suno/generate-music',
+    'suno/music-video': 'suno/generate-music',
+    'suno/convert-wav': 'suno/generate-music',
+    'suno/get-lyrics': 'suno/generate-music',
+    'suno/generate-persona': 'suno/generate-music',
+    'suno/cover-suno': 'suno/generate-music',
+    'suno/generate-midi': 'suno/generate-music',
+};
+
+function getModelDetails(modelKey) {
+    const tpl = document.getElementById('tpl-models');
+    if (!tpl) return null;
+    // Try exact match first, then reverse-mapped fallback
+    let item = tpl.content.querySelector(`[data-model="${modelKey}"]`);
+    if (!item && MODEL_REVERSE_MAP[modelKey]) {
+        item = tpl.content.querySelector(`[data-model="${MODEL_REVERSE_MAP[modelKey]}"]`);
+    }
+    return item ? item.dataset : null;
+}
+
+function renderTaskCard(task) {
+    const el = document.createElement('div');
+    el.className = `task-card state-${task.state}`; el.id = `task-${CSS.escape(task.id)}`;
+    const promptSnippet = task._prompt ? (task._prompt.length > 50 ? task._prompt.slice(0, 50) + '…' : task._prompt) : '';
+
+    const modelData = getModelDetails(task.model);
+    const mIcon = modelData ? `<span class="card-model-icon ${modelData.color}">${modelData.icon}</span>` : '';
+    const mName = modelData ? esc(`${modelData.provider} ${modelData.name}`) : esc(task.model);
+
+    const mColor = modelData ? modelData.color : '';
+
+    el.innerHTML = `
+        <div class="task-card-accent ${mColor}"></div>
+        <div class="task-card-header">
+            <div class="task-card-left">
+                <div class="task-card-icon ${task.state}">${stateIcon(task.state)}</div>
+                <div class="task-card-info">
+                    <span class="task-card-model">${mIcon}${mName}</span>
+                    ${promptSnippet ? `<span class="task-card-prompt-preview">${esc(promptSnippet)}</span>` : ''}
+                </div>
+            </div>
+            <span class="task-card-badge ${task.state}">${badgeLabel(task.state)}</span>
+        </div>
+        <div class="task-progress-bar ${(task.state === 'processing' || task.state === 'waiting') ? 'indeterminate' : ''}">
+            <div class="task-progress-bar-fill" style="width:${task.state === 'success' ? '100' : '0'}%"></div>
+        </div>
+        <div class="task-result" data-task-result="${esc(task.id)}"></div>`;
+    els.tasksList.insertBefore(el, els.tasksEmpty.nextSibling);
+}
+
+function updateTaskCard(task) {
+    const card = document.getElementById(`task-${CSS.escape(task.id)}`);
+    if (!card) return;
+    // Update card state class
+    card.className = `task-card state-${task.state}`;
+    // Update icon
+    const icon = card.querySelector('.task-card-icon');
+    if (icon) { icon.className = `task-card-icon ${task.state}`; icon.innerHTML = stateIcon(task.state); }
+    // Update badge
+    const badge = card.querySelector('.task-card-badge');
+    badge.className = `task-card-badge ${task.state}`;
+    badge.textContent = badgeLabel(task.state);
+    // Update progress bar
+    const bar = card.querySelector('.task-progress-bar');
+    const fill = card.querySelector('.task-progress-bar-fill');
+    const isActive = task.state === 'processing' || task.state === 'waiting';
+    if (isActive) { bar.classList.add('indeterminate'); fill.style.width = '30%'; }
+    else { bar.classList.remove('indeterminate'); fill.style.width = task.state === 'success' ? '100%' : '0%'; }
+    if (task.state === 'success' || task.state === 'fail') renderTaskResult(task);
+}
+
 function stateIcon(s) {
     if (s === 'processing' || s === 'waiting') return '⏳';
     if (s === 'success') return '✓';
