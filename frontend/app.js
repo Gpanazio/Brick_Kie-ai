@@ -1938,60 +1938,153 @@ function updateTaskCard(task) {
     if (task.state === 'success' || task.state === 'fail') renderTaskResult(task);
 }
 
-function openModelPickerModal() {
-    if (!els.modalModelPicker || !els.mpmGrid) return;
-    // Build cards
-    els.mpmGrid.innerHTML = '';
-    _currentCatItems.forEach(data => {
-        const card = _buildModelPickerCard(data);
-        card.addEventListener('click', () => {
-            if (data.provider === 'Wan' && data.model === 'wan/2-7-text-to-video') {
-                _renderWanModeSubmenu(data);
-                return;
-            }
-            selectModelFromData(data);
-            closeModelPickerModal();
-            if (typeof window._v2ShowWorkspace === 'function') {
-                window._v2ShowWorkspace(data);
-            }
-        });
-        els.mpmGrid.appendChild(card);
-    });
-
-    els.modalModelPicker.classList.remove('hidden');
+function stateIcon(s) {
+    if (s === 'processing' || s === 'waiting') return '⏳';
+    if (s === 'success') return '✓';
+    if (s === 'fail') return '✕';
+    return '•';
 }
 
-function closeModelPickerModal() {
-    if (els.modalModelPicker) els.modalModelPicker.classList.add('hidden');
-    // If no model was selected and we're in a workspace, go back to lobby
-    if (!selectedModel && currentCat) {
-        exitWorkspace();
+// ==================== Custom Music Player Builder ====================
+
+/** Generate a unique ID for each music player instance */
+let _mpIdCounter = 0;
+function _nextMpId() { return `mp-${++_mpIdCounter}`; }
+
+/**
+ * Build the HTML for a custom music player.
+ * @param {string} audioSrc  - URL of the audio file
+ * @param {string} title     - Track title
+ * @param {string} artist    - Artist / tags label
+ * @param {string} coverSrc  - Cover image URL (optional)
+ * @param {string} extraId   - A unique ID suffix for this player
+ * @returns {string}  HTML string
+ */
+function _buildMusicPlayerHtml(audioSrc, title, artist, coverSrc, extraId) {
+    const pid = _nextMpId();
+    const albumStyle = coverSrc ? `background-image:url('${esc(coverSrc)}')` : '';
+    return `<div class="music-player-container">
+        <div class="main-music-card" data-mp-id="${pid}" data-mp-src="${esc(audioSrc)}">
+            <div class="track-info">
+                <div class="album-art" style="${albumStyle}"></div>
+                <div class="track-details">
+                    <div class="track-title">${esc(title || 'Untitled')}</div>
+                    <div class="artist-name">${esc(artist || 'Suno AI')}</div>
+                </div>
+                <div class="volume-bars">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                </div>
+            </div>
+            <div class="playback-controls">
+                <div class="time-info">
+                    <span class="current-time">0:00</span>
+                    <span class="remaining-time">0:00</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                    <div class="progress-handle"></div>
+                </div>
+                <div class="button-row">
+                    <div class="main-control-btns">
+                        <button class="control-button back" title="-10s">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M.5 3.5A.5.5 0 0 0 0 4v8a.5.5 0 0 0 1 0V8.753l6.267 3.636c.54.313 1.233-.066 1.233-.697v-2.94l6.267 3.636c.54.314 1.233-.065 1.233-.696V4.308c0-.63-.693-1.01-1.233-.696L8.5 7.248v-2.94c0-.63-.692-1.01-1.233-.696L1 7.248V4a.5.5 0 0 0-.5-.5"/>
+                            </svg>
+                        </button>
+                        <div class="play-pause-btns">
+                            <button class="control-button play-pause-button" title="Play / Pause">
+                                <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M11.596 8.697l-6.363 3.692c-.54.314-1.233-.065-1.233-.696V4.308c0-.63.693-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+                                </svg>
+                                <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+    'veo3/text-to-video-fast': 'veo3/text-to-video',
+    'veo3/text-to-video-quality': 'veo3/text-to-video',
+    'veo3/image-to-video-fast': 'veo3/text-to-video',
+    'veo3/image-to-video-quality': 'veo3/text-to-video',
+    'veo3/image-to-video': 'veo3/text-to-video',
+    'veo3/extend-fast': 'veo3/text-to-video',
+    'veo3/extend-quality': 'veo3/text-to-video',
+    'suno/generate-lyrics': 'suno/generate-music',
+    'suno/extend-music': 'suno/generate-music',
+    'suno/upload-cover': 'suno/generate-music',
+    'suno/upload-extend': 'suno/generate-music',
+    'suno/add-instrumental': 'suno/generate-music',
+    'suno/add-vocals': 'suno/generate-music',
+    'suno/separate-vocals': 'suno/generate-music',
+    'suno/music-video': 'suno/generate-music',
+    'suno/convert-wav': 'suno/generate-music',
+    'suno/get-lyrics': 'suno/generate-music',
+    'suno/generate-persona': 'suno/generate-music',
+    'suno/cover-suno': 'suno/generate-music',
+    'suno/generate-midi': 'suno/generate-music',
+};
+
+function getModelDetails(modelKey) {
+    const tpl = document.getElementById('tpl-models');
+    if (!tpl) return null;
+    // Try exact match first, then reverse-mapped fallback
+    let item = null;
+    try {
+        if (modelKey) item = tpl.content.querySelector(`[data-model="${CSS.escape(modelKey)}"]`);
+        if (!item && MODEL_REVERSE_MAP[modelKey]) {
+            item = tpl.content.querySelector(`[data-model="${CSS.escape(MODEL_REVERSE_MAP[modelKey])}"]`);
+        }
+    } catch (e) {
+        console.warn('Selector error in getModelDetails:', e);
     }
+    return item ? item.dataset : null;
 }
 
-function selectModelFromData(data) {
-    selectedModel = {
-        model: data.model,
-        input: data.input,
-        field: data.field || 'image',
-        shortcut: data.shortcut || null,
-        hasPrompt: data.prompt === 'true',
-    };
-    // Persist selected model so F5 restores to same model
-    try { sessionStorage.setItem('kie-workspace-model', data.model); } catch (e) { /* ignore */ }
+function renderTaskCard(task) {
+    const el = document.createElement('div');
+    el.className = `task-card state-${task.state}`; el.id = `task-${CSS.escape(task.id)}`;
+    const promptSnippet = task._prompt ? (task._prompt.length > 50 ? task._prompt.slice(0, 50) + '…' : task._prompt) : '';
 
-    // Update trigger button
-    els.mptIcon.innerHTML = sanitizeSvg(data.icon);
-    els.mptIcon.className = `mpt-icon ${data.color}`;
-    els.mptName.textContent = `${data.name} — ${data.provider}`;
-    els.btnModelPicker.classList.add('has-model');
+    const modelData = getModelDetails(task.model);
+    const mIcon = modelData ? `<span class="card-model-icon ${modelData.color}">${modelData.icon}</span>` : '';
+    const mName = modelData ? esc(`${modelData.provider} ${modelData.name}`) : esc(task.model);
 
-    // Cost in trigger
-    const cost = getModelCost(selectedModel.model);
-    updateCostBadge(els.mptCost, cost, 'mpt-cost', 'cr');
+    const mColor = modelData ? modelData.color : '';
 
-    // Update header breadcrumb
-    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${esc(currentCatLabel)} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${esc(data.name)}</span>`;
+    el.innerHTML = `
+        <div class="task-card-accent ${mColor}"></div>
+        <div class="task-card-header">
+            <div class="task-card-left">
+                <div class="task-card-icon ${task.state}">${stateIcon(task.state)}</div>
+                <div class="task-card-info">
+                    <span class="task-card-model">${mIcon}${mName}</span>
+                    ${promptSnippet ? `<span class="task-card-prompt-preview">${esc(promptSnippet)}</span>` : ''}
+                </div>
+            </div>
+            <span class="task-card-badge ${task.state}">${badgeLabel(task.state)}</span>
+        </div>
+        <div class="task-progress-bar ${(task.state === 'processing' || task.state === 'waiting') ? 'indeterminate' : ''}">
+            <div class="task-progress-bar-fill" style="width:${task.state === 'success' ? '100' : '0'}%"></div>
+        </div>
+        <div class="task-result" data-task-result="${esc(task.id)}"></div>`;
+    els.tasksList.insertBefore(el, els.tasksEmpty.nextSibling);
+}
+
+function updateTaskCard(task) {
+    const card = document.getElementById(`task-${CSS.escape(task.id)}`);
+    if (!card) return;
+    // Update card state class
+    card.className = `task-card state-${task.state}`;
+    // Update icon
+    const icon = card.querySelector('.task-card-icon');
+    if (icon) { icon.className = `task-card-icon ${task.state}`; icon.innerHTML = stateIcon(task.state); }
+    // Update badge
+    const badge = card.querySelector('.task-card-badge');
+    badge.className = `task-card-badge ${task.state}`;
+    badge.textContent = badgeLabel(task.state);
+    // Update progress bar
+    const bar = card.querySelector('.task-progress-bar');
+    const fill = card.querySelector('.task-progress-bar-fill');
+    const isActive = task.state === 'processing' || task.state === 'waiting';
+    if (isActive) { bar.classList.add('indeterminate'); fill.style.width = '30%'; }
+    else { bar.classList.remove('indeterminate'); fill.style.width = task.state === 'success' ? '100%' : '0%'; }
+    if (task.state === 'success' || task.state === 'fail') renderTaskResult(task);
 }
 
 function stateIcon(s) {
@@ -2075,7 +2168,8 @@ function _buildMusicPlayerHtml(audioSrc, title, artist, coverSrc, extraId) {
             </div>
             </div>
         </div>
-    </div>`;}
+    </div>`;
+}
 
 function renderTaskResult(task) {
     const container = document.querySelector(`[data-task-result="${CSS.escape(task.id)}"]`);
