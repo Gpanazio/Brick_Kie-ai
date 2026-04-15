@@ -908,7 +908,7 @@ async def suno_create(
                     "instrumental": "separate_vocal",
                     "both": "split_stem",
                 }
-                input_data["type"] = sep_map.get(sep_type, sep_type or "separate_vocal")
+                input_data["type"] = sep_map.get(sep_type, "separate_vocal")
 
             if model == "suno/extend-music" and "defaultParamFlag" not in input_data:
                 input_data["defaultParamFlag"] = True
