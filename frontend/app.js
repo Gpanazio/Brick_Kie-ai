@@ -3529,6 +3529,8 @@ const v2Registry = {};
                 inp.value = p.default || '';
                 inp.placeholder = p.label;
                 inp.dataset.paramKey = p.key;
+                inp.addEventListener('input', () => v2UpdateCost());
+                inp.addEventListener('change', () => v2UpdateCost());
                 group.appendChild(inp);
 
             } else if (p.type === 'number_input') {
@@ -4612,6 +4614,20 @@ const v2Registry = {};
                 if (typeof extra.style !== 'string' || extra.style.trim() === '') extra.style = 'General';
                 if (typeof extra.title !== 'string' || extra.title.trim() === '') extra.title = 'Generated Track';
             }
+
+            if (resolvedModel === 'suno/generate-music') {
+                extra.customMode = customModeEnabled;
+                if (typeof extra.instrumental !== 'boolean') extra.instrumental = false;
+                if (typeof extra.model !== 'string' || extra.model.trim() === '') extra.model = 'V5_5';
+            }
+
+            if (resolvedModel === 'suno/generate-lyrics') {
+                delete extra.customMode;
+                delete extra.style;
+                delete extra.title;
+                delete extra.instrumental;
+                delete extra.model;
+            }
         }
 
         // suno/edit-audio → resolve suno_action to actual Suno API model
@@ -4624,6 +4640,19 @@ const v2Registry = {};
             };
             resolvedModel = SUNO_EDIT_MAP[extra.suno_action] || 'suno/extend-music';
             delete extra.suno_action;
+
+            if (resolvedModel === 'suno/extend-music' && typeof extra.defaultParamFlag !== 'boolean') {
+                extra.defaultParamFlag = true;
+            }
+
+            if (resolvedModel === 'suno/separate-vocals') {
+                const typeMap = {
+                    vocals: 'separate_vocal',
+                    instrumental: 'separate_vocal',
+                    both: 'split_stem',
+                };
+                extra.type = typeMap[String(extra.type || '').toLowerCase()] || 'separate_vocal';
+            }
         }
 
         // suno/utilities → resolve suno_action to actual Suno API model

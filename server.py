@@ -852,9 +852,8 @@ async def suno_create(
 
         _ensure_callback_url(input_data)
         if not input_data.get("callBackUrl"):
-            raise HTTPException(
-                status_code=400,
-                detail="callBackUrl is required for Suno endpoints. Set KIE_CALLBACK_URL or provide callBackUrl in request.",
+            input_data["callBackUrl"] = (
+                str(request.base_url).rstrip("/") + "/api/kie-callback"
             )
 
         # Normalize Suno API parameters
@@ -868,6 +867,7 @@ async def suno_create(
                 "weirdness_constraint": "weirdnessConstraint",
                 "persona_id": "personaId",
                 "persona_model": "personaModel",
+                "default_param_flag": "defaultParamFlag",
             }
             for snake, camel in suno_mapping.items():
                 if snake in input_data:
@@ -885,6 +885,33 @@ async def suno_create(
                 title = input_data.get("title")
                 if not isinstance(title, str) or title.strip() == "":
                     input_data["title"] = "Generated Track"
+
+            if model == "suno/generate-music":
+                input_data["customMode"] = custom_mode_enabled
+                if not isinstance(input_data.get("instrumental"), bool):
+                    input_data["instrumental"] = False
+                model_value = input_data.get("model")
+                if not isinstance(model_value, str) or model_value.strip() == "":
+                    input_data["model"] = "V5_5"
+
+            if model == "suno/generate-lyrics":
+                input_data.pop("customMode", None)
+                input_data.pop("style", None)
+                input_data.pop("title", None)
+                input_data.pop("instrumental", None)
+                input_data.pop("model", None)
+
+            if model == "suno/separate-vocals":
+                sep_type = str(input_data.get("type", "")).lower()
+                sep_map = {
+                    "vocals": "separate_vocal",
+                    "instrumental": "separate_vocal",
+                    "both": "split_stem",
+                }
+                input_data["type"] = sep_map.get(sep_type, sep_type or "separate_vocal")
+
+            if model == "suno/extend-music" and "defaultParamFlag" not in input_data:
+                input_data["defaultParamFlag"] = True
 
         resp = await asyncio.to_thread(kie_api.suno_create_task, model, input_data)
         _validate_api_response(resp)
