@@ -4561,7 +4561,7 @@ function _getCropAspectRatioOptions() {
     setupPasteImageHandler(
         v2.prompt,
         (file) => {
-            const isFramesModel = (v2Model?.model && (v2Model.model.startsWith('veo3/') || v2Model.model.includes('kling-3.0/video')));
+            const isFramesModel = (v2Model?.model && (v2Model.model.startsWith('veo3/') || v2Model.model.includes('kling-3.0/video') || v2Model.model === 'bytedance/seedance-2-frames'));
             if (isFramesModel) {
                 if (!v2FrameInitial) v2AddFrameFile([file], 'initial');
                 else if (!v2FrameFinal) v2AddFrameFile([file], 'final');
@@ -5109,14 +5109,10 @@ function _getCropAspectRatioOptions() {
                         urls.push(encodeURI(finalUrl));
                     }
                     if (urls.length > 0) extra.image_urls = urls;
-                } else if (resolvedModel === "bytedance/seedance-2-frames") {
-                    const urls = [];
-                    if (initialUrl) urls.push(encodeURI(initialUrl));
-                    if (finalUrl) {
-                        if (!initialUrl) urls.push("");
-                        urls.push(encodeURI(finalUrl));
-                    }
-                    if (urls.length > 0) extra.reference_image_urls = urls;
+                } else if (isSeedanceFrames) {
+                    // Seedance 2 Frames: use first_frame_url + last_frame_url (separate strings per API docs)
+                    if (initialUrl) extra.first_frame_url = encodeURI(initialUrl);
+                    if (finalUrl) extra.last_frame_url = encodeURI(finalUrl);
                 } else {
                     if (initialUrl) extra.first_frame_url = encodeURI(initialUrl);
                     if (finalUrl) extra.last_frame_url = encodeURI(finalUrl);
@@ -5170,6 +5166,7 @@ function _getCropAspectRatioOptions() {
         const fd = new FormData();
         fd.append('model', resolvedModel);
         fd.append('input_json', JSON.stringify(extra));
+        if (isSeedance) console.log('[SEEDANCE-DEBUG] model:', resolvedModel, 'extra:', JSON.stringify(extra, null, 2));
 
         // Route to correct API endpoint based on model
         const isSuno = resolvedModel.startsWith('suno/');
