@@ -860,22 +860,18 @@ async def suno_create(
         # Normalize Suno API parameters
         if model.startswith("suno/"):
             # Convert snake_case to camelCase for Suno API
-            if "custom_mode" in input_data:
-                input_data["customMode"] = input_data.pop("custom_mode")
-            if "style_weight" in input_data:
-                input_data["styleWeight"] = input_data.pop("style_weight")
-            if "vocal_gender" in input_data:
-                input_data["vocalGender"] = input_data.pop("vocal_gender")
-            if "negative_tags" in input_data:
-                input_data["negativeTags"] = input_data.pop("negative_tags")
-            if "weirdness_constraint" in input_data:
-                input_data["weirdnessConstraint"] = input_data.pop(
-                    "weirdness_constraint"
-                )
-            if "persona_id" in input_data:
-                input_data["personaId"] = input_data.pop("persona_id")
-            if "persona_model" in input_data:
-                input_data["personaModel"] = input_data.pop("persona_model")
+            suno_mapping = {
+                "custom_mode": "customMode",
+                "style_weight": "styleWeight",
+                "vocal_gender": "vocalGender",
+                "negative_tags": "negativeTags",
+                "weirdness_constraint": "weirdnessConstraint",
+                "persona_id": "personaId",
+                "persona_model": "personaModel",
+            }
+            for snake, camel in suno_mapping.items():
+                if snake in input_data:
+                    input_data[camel] = input_data.pop(snake)
 
             # Ensure required fields when customMode is true
             custom_mode = input_data.get("customMode")
