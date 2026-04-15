@@ -1998,21 +1998,164 @@ function _buildMusicPlayerHtml(audioSrc, title, artist, coverSrc, extraId) {
                                     <path d="M11.596 8.697l-6.363 3.692c-.54.314-1.233-.065-1.233-.696V4.308c0-.63.693-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
                                 </svg>
                                 <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+    'veo3/text-to-video-fast': 'veo3/text-to-video',
+    'veo3/text-to-video-quality': 'veo3/text-to-video',
+    'veo3/image-to-video-fast': 'veo3/text-to-video',
+    'veo3/image-to-video-quality': 'veo3/text-to-video',
+    'veo3/image-to-video': 'veo3/text-to-video',
+    'veo3/extend-fast': 'veo3/text-to-video',
+    'veo3/extend-quality': 'veo3/text-to-video',
+    'suno/generate-lyrics': 'suno/generate-music',
+    'suno/extend-music': 'suno/generate-music',
+    'suno/upload-cover': 'suno/generate-music',
+    'suno/upload-extend': 'suno/generate-music',
+    'suno/add-instrumental': 'suno/generate-music',
+    'suno/add-vocals': 'suno/generate-music',
+    'suno/separate-vocals': 'suno/generate-music',
+    'suno/music-video': 'suno/generate-music',
+    'suno/convert-wav': 'suno/generate-music',
+    'suno/get-lyrics': 'suno/generate-music',
+    'suno/generate-persona': 'suno/generate-music',
+    'suno/cover-suno': 'suno/generate-music',
+    'suno/generate-midi': 'suno/generate-music',
+};
+
+function getModelDetails(modelKey) {
+    const tpl = document.getElementById('tpl-models');
+    if (!tpl) return null;
+    // Try exact match first, then reverse-mapped fallback
+    let item = tpl.content.querySelector(`[data-model="${modelKey}"]`);
+    if (!item && MODEL_REVERSE_MAP[modelKey]) {
+        item = tpl.content.querySelector(`[data-model="${MODEL_REVERSE_MAP[modelKey]}"]`);
+    }
+    return item ? item.dataset : null;
+}
+
+function renderTaskCard(task) {
+    const el = document.createElement('div');
+    el.className = `task-card state-${task.state}`; el.id = `task-${CSS.escape(task.id)}`;
+    const promptSnippet = task._prompt ? (task._prompt.length > 50 ? task._prompt.slice(0, 50) + '…' : task._prompt) : '';
+
+    const modelData = getModelDetails(task.model);
+    const mIcon = modelData ? `<span class="card-model-icon ${modelData.color}">${modelData.icon}</span>` : '';
+    const mName = modelData ? esc(`${modelData.provider} ${modelData.name}`) : esc(task.model);
+
+    const mColor = modelData ? modelData.color : '';
+
+    el.innerHTML = `
+        <div class="task-card-accent ${mColor}"></div>
+        <div class="task-card-header">
+            <div class="task-card-left">
+                <div class="task-card-icon ${task.state}">${stateIcon(task.state)}</div>
+                <div class="task-card-info">
+                    <span class="task-card-model">${mIcon}${mName}</span>
+                    ${promptSnippet ? `<span class="task-card-prompt-preview">${esc(promptSnippet)}</span>` : ''}
+                </div>
+            </div>
+            <span class="task-card-badge ${task.state}">${badgeLabel(task.state)}</span>
+        </div>
+        <div class="task-progress-bar ${(task.state === 'processing' || task.state === 'waiting') ? 'indeterminate' : ''}">
+            <div class="task-progress-bar-fill" style="width:${task.state === 'success' ? '100' : '0'}%"></div>
+        </div>
+        <div class="task-result" data-task-result="${esc(task.id)}"></div>`;
+    els.tasksList.insertBefore(el, els.tasksEmpty.nextSibling);
+}
+
+function updateTaskCard(task) {
+    const card = document.getElementById(`task-${CSS.escape(task.id)}`);
+    if (!card) return;
+    // Update card state class
+    card.className = `task-card state-${task.state}`;
+    // Update icon
+    const icon = card.querySelector('.task-card-icon');
+    if (icon) { icon.className = `task-card-icon ${task.state}`; icon.innerHTML = stateIcon(task.state); }
+    // Update badge
+    const badge = card.querySelector('.task-card-badge');
+    badge.className = `task-card-badge ${task.state}`;
+    badge.textContent = badgeLabel(task.state);
+    // Update progress bar
+    const bar = card.querySelector('.task-progress-bar');
+    const fill = card.querySelector('.task-progress-bar-fill');
+    const isActive = task.state === 'processing' || task.state === 'waiting';
+    if (isActive) { bar.classList.add('indeterminate'); fill.style.width = '30%'; }
+    else { bar.classList.remove('indeterminate'); fill.style.width = task.state === 'success' ? '100%' : '0%'; }
+    if (task.state === 'success' || task.state === 'fail') renderTaskResult(task);
+}
+
+function stateIcon(s) {
+    if (s === 'processing' || s === 'waiting') return '⏳';
+    if (s === 'success') return '✓';
+    if (s === 'fail') return '✕';
+    return '•';
+}
+
+// ==================== Custom Music Player Builder ====================
+
+/** Generate a unique ID for each music player instance */
+let _mpIdCounter = 0;
+function _nextMpId() { return `mp-${++_mpIdCounter}`; }
+
+/**
+ * Build the HTML for a custom music player.
+ * @param {string} audioSrc  - URL of the audio file
+ * @param {string} title     - Track title
+ * @param {string} artist    - Artist / tags label
+ * @param {string} coverSrc  - Cover image URL (optional)
+ * @param {string} extraId   - A unique ID suffix for this player
+ * @returns {string}  HTML string
+ */
+function _buildMusicPlayerHtml(audioSrc, title, artist, coverSrc, extraId) {
+    const pid = _nextMpId();
+    const albumStyle = coverSrc ? `background-image:url('${esc(coverSrc)}')` : '';
+    return `<div class="music-player-container">
+        <div class="main-music-card" data-mp-id="${pid}" data-mp-src="${esc(audioSrc)}">
+            <div class="track-info">
+                <div class="album-art" style="${albumStyle}"></div>
+                <div class="track-details">
+                    <div class="track-title">${esc(title || 'Untitled')}</div>
+                    <div class="artist-name">${esc(artist || 'Suno AI')}</div>
+                </div>
+                <div class="volume-bars">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                </div>
+            </div>
+            <div class="playback-controls">
+                <div class="time-info">
+                    <span class="current-time">0:00</span>
+                    <span class="remaining-time">0:00</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                    <div class="progress-handle"></div>
+                </div>
+                <div class="button-row">
+                    <div class="main-control-btns">
+                        <button class="control-button back" title="-10s">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M.5 3.5A.5.5 0 0 0 0 4v8a.5.5 0 0 0 1 0V8.753l6.267 3.636c.54.313 1.233-.066 1.233-.697v-2.94l6.267 3.636c.54.314 1.233-.065 1.233-.696V4.308c0-.63-.693-1.01-1.233-.696L8.5 7.248v-2.94c0-.63-.692-1.01-1.233-.696L1 7.248V4a.5.5 0 0 0-.5-.5"/>
+                            </svg>
+                        </button>
+                        <div class="play-pause-btns">
+                            <button class="control-button play-pause-button" title="Play / Pause">
+                                <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M11.596 8.697l-6.363 3.692c-.54.314-1.233-.065-1.233-.696V4.308c0-.63.693-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+                                </svg>
+                                <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
                                     <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
                                 </svg>
                             </button>
                         </div>
                         <button class="control-button next" title="+10s">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M15.5 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V8.753l-6.267 3.636c-.54.313-1.233-.066-1.233-.697v-2.94l-6.267 3.636C.693 12.703 0 12.324 0 11.693V4.308c0-.63.693-1.01 1.233-.696L7.5 7.248v-2.94c0-.63.693-1.01 1.233-.696L15 7.248V4a.5.5 0 0 1 .5-.5"/>
-                            </svg>
+                            <a href="${esc(audioSrc)}" download target="_blank" rel="noopener" class="control-button d" title="Download">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                            </a>
                         </button>
                     </div>
-                    <a href="${esc(audioSrc)}" target="_blank" rel="noopener" class="control-button d" title="Abrir áudio">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M6.634 1.135A7 7 0 0 1 15 8a.5.5 0 0 1-1 0 6 6 0 1 0-6.5 5.98v-1.005A5 5 0 1 1 13 8a.5.5 0 0 1-1 0 4 4 0 1 0-4.5 3.969v-1.011A2.999 2.999 0 1 1 11 8a.5.5 0 0 1-1 0 2 2 0 1 0-2.5 1.936v-1.07a1 1 0 1 1 1 0V15.5a.5.5 0 0 1-1 0v-.518a7 7 0 0 1-.866-13.847"/>
-                        </svg>
-                    </a>
                 </div>
             </div>
         </div>
@@ -4193,7 +4336,7 @@ const v2Registry = {};
         // Check speed toggle — seedance-2-fast is resolved at submit time
         const isFast = document.querySelector(SEEDANCE_SPEED_SELECTOR)?.dataset?.value === SEEDANCE_SPEED_FAST_VALUE;
         return {
-            image: isFast ? MAX_IMAGE_REF_SIZE_BYTES : MAX_IMAGE_DEFAULT_SIZE_BYTES,
+            image: isFast ? MAX_IMAGE_REF_SIZE_FAST_BYTES : MAX_IMAGE_DEFAULT_SIZE_BYTES,
             video: isFast ? MAX_VIDEO_REF_SIZE_FAST_BYTES : MAX_VIDEO_REF_SIZE_BYTES
         };
     }
@@ -4791,74 +4934,6 @@ const v2Registry = {};
             json?.data?.recordId ||
             json?.recordId;
         if (!taskId) throw new Error(json.msg || 'No taskId/recordId returned');
-
-        const previewUrl = extra[imgField]?.length ? (Array.isArray(extra[imgField]) ? extra[imgField][0] : extra[imgField]) : null;
-        addTask(taskId, resolvedModel, mode, previewUrl, extra);
-        v2Tasks.push(taskId);
-        // Always clear uploaded files/frames after successful submission
-        // to prevent stale images from being re-sent.
-        v2ClearAllFiles();
-        toast(`✅ Task created!${hasFiles || hasVideoRefs ? ` (files uploaded)` : ''}`, 'success');
-    }
-
-    // ── GENERATE — Functional submit with multi-image support ──
-    v2.btnGenerate.addEventListener('click', async () => {
-        if (v2.btnGenerate.disabled) return;
-
-        const prompt = v2.prompt.value.trim();
-        const btnSpan = v2.btnGenerate.querySelector('span');
-        const origText = btnSpan.textContent;
-
-        v2.btnGenerate.classList.add('loading');
-        v2.btnGenerate.disabled = true;
-        btnSpan.textContent = 'Gerando...';
-
-        try {
-            const isVideo = VIDEO_CATS.includes(currentCat);
-
-            const modelParams = v2CollectModelParams();
-
-            if (v2Model?.model?.startsWith('veo3/')) {
-                await _handleVeo3Submission(prompt, btnSpan);
-            } else {
-                await _handleStandardSubmission(prompt, btnSpan, modelParams);
-            }
-
-            // Files/frames already cleared inside submission handlers
-            v2.prompt.value = '';
-            v2.charCounter.textContent = '0 / 2.000';
-            updateV2GenerateState();
-
-            // Add a processing item to V2 gallery immediately
-            addV2GalleryItem(v2Tasks[v2Tasks.length - 1], 'processing');
-
-        } catch (err) {
-            toast(`❌ Error: ${err.message}`, 'error');
-        } finally {
-            v2.btnGenerate.classList.remove('loading');
-            btnSpan.textContent = origText;
-            updateV2GenerateState();
-        }
-    });
-
-    // ── V2 Gallery Management ──
-    function v2MediaHtml(url, coverUrl, isSuno, isVid) {
-        const safeUrl = esc(url || '');
-        const safeCoverUrl = esc(coverUrl || '');
-        let html = '';
-        if (isVid || isVideoUrl(url)) {
-            html += `<video src="${safeUrl}" autoplay loop muted playsinline onerror="window.handleExpiredMedia(this)"></video>
-                    <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
-        } else if (isSuno || isAudioUrl(url)) {
-            // If Suno cover art is available, show it as the thumbnail background
-            if (coverUrl) {
-                html += `<img src="${safeCoverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;" onerror="window.handleExpiredMedia(this)">
-                    <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);pointer-events:none;"></div>
-                    <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white" style="opacity:0.9;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));"><polygon points="5 3 19 12 5 21"/></svg>
-                    </div>
-                    <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">♫ Suno</span></div>`;
-            } else {
                 html += `<div style="width:100%;height:100%;background:linear-gradient(135deg,rgba(220,38,38,0.15),rgba(15,15,15,0.9));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
                         <span style="font-family:var(--mono);font-size:10px;color:rgba(148,163,184,0.7);">Áudio Gerado</span>
