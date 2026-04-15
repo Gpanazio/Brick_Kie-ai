@@ -1938,66 +1938,298 @@ function updateTaskCard(task) {
     if (task.state === 'success' || task.state === 'fail') renderTaskResult(task);
 }
 
-function stateIcon(s) {
-    if (s === 'processing' || s === 'waiting') return '⏳';
-    if (s === 'success') return '✓';
-    if (s === 'fail') return '✕';
-    return '•';
+function openModelPickerModal() {
+    if (!els.modalModelPicker || !els.mpmGrid) return;
+    // Build cards
+    els.mpmGrid.innerHTML = '';
+    _currentCatItems.forEach(data => {
+        const card = _buildModelPickerCard(data);
+        card.addEventListener('click', () => {
+            if (data.provider === 'Wan' && data.model === 'wan/2-7-text-to-video') {
+                _renderWanModeSubmenu(data);
+                return;
+            }
+            selectModelFromData(data);
+            closeModelPickerModal();
+            if (typeof window._v2ShowWorkspace === 'function') {
+                window._v2ShowWorkspace(data);
+            }
+        });
+        els.mpmGrid.appendChild(card);
+    });
+
+    els.modalModelPicker.classList.remove('hidden');
 }
 
-// ==================== Custom Music Player Builder ====================
+function closeModelPickerModal() {
+    if (els.modalModelPicker) els.modalModelPicker.classList.add('hidden');
+    // If no model was selected and we're in a workspace, go back to lobby
+    if (!selectedModel && currentCat) {
+        exitWorkspace();
+    }
+}
 
-/** Generate a unique ID for each music player instance */
-let _mpIdCounter = 0;
-function _nextMpId() { return `mp-${++_mpIdCounter}`; }
+function selectModelFromData(data) {
+    selectedModel = {
+        model: data.model,
+        input: data.input,
+        field: data.field || 'image',
+        shortcut: data.shortcut || null,
+        hasPrompt: data.prompt === 'true',
+    };
+    // Persist selected model so F5 restores to same model
+    try { sessionStorage.setItem('kie-workspace-model', data.model); } catch (e) { /* ignore */ }
 
-/**
- * Build the HTML for a custom music player.
- * @param {string} audioSrc  - URL of the audio file
- * @param {string} title     - Track title
- * @param {string} artist    - Artist / tags label
- * @param {string} coverSrc  - Cover image URL (optional)
- * @param {string} extraId   - A unique ID suffix for this player
- * @returns {string}  HTML string
- */
-function _buildMusicPlayerHtml(audioSrc, title, artist, coverSrc, extraId) {
-    const pid = _nextMpId();
-    const albumStyle = coverSrc ? `background-image:url('${esc(coverSrc)}')` : '';
-    return `<div class="music-player-container">
-        <div class="main-music-card" data-mp-id="${pid}" data-mp-src="${esc(audioSrc)}">
-            <div class="track-info">
-                <div class="album-art" style="${albumStyle}"></div>
-                <div class="track-details">
-                    <div class="track-title">${esc(title || 'Untitled')}</div>
-                    <div class="artist-name">${esc(artist || 'Suno AI')}</div>
-                </div>
-                <div class="volume-bars">
-                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                </div>
-            </div>
-            <div class="playback-controls">
-                <div class="time-info">
-                    <span class="current-time">0:00</span>
-                    <span class="remaining-time">0:00</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill"></div>
-                    <div class="progress-handle"></div>
-                </div>
-                <div class="button-row">
-                    <div class="main-control-btns">
-                        <button class="control-button back" title="-10s">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M.5 3.5A.5.5 0 0 0 0 4v8a.5.5 0 0 0 1 0V8.753l6.267 3.636c.54.313 1.233-.066 1.233-.697v-2.94l6.267 3.636c.54.314 1.233-.065 1.233-.696V4.308c0-.63-.693-1.01-1.233-.696L8.5 7.248v-2.94c0-.63-.692-1.01-1.233-.696L1 7.248V4a.5.5 0 0 0-.5-.5"/>
-                            </svg>
-                        </button>
-                        <div class="play-pause-btns">
-                            <button class="control-button play-pause-button" title="Play / Pause">
-                                <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M11.596 8.697l-6.363 3.692c-.54.314-1.233-.065-1.233-.696V4.308c0-.63.693-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
-                                </svg>
-                                <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+    // Update trigger button
+    els.mptIcon.innerHTML = sanitizeSvg(data.icon);
+    els.mptIcon.className = `mpt-icon ${data.color}`;
+    els.mptName.textContent = `${data.name} — ${data.provider}`;
+    els.btnModelPicker.classList.add('has-model');
+
+    // Cost in trigger
+    const cost = getModelCost(selectedModel.model);
+    updateCostBadge(els.mptCost, cost, 'mpt-cost', 'cr');
+
+    // Update header breadcrumb
+    els.headerBreadcrumb.innerHTML = `<span class="breadcrumb-sep">/</span> ${esc(currentCatLabel)} <span class="breadcrumb-sep">/</span> <span class="breadcrumb-active">${esc(data.name)}</span>`;
+}
+
+function setupPasteImageHandler(promptElement, fileHandler, conditionCheck) {
+    if (!promptElement) return;
+    promptElement.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (!file) continue;
+                if (conditionCheck()) {
+                    e.preventDefault();
+                    fileHandler(file);
+                    toast('Imagem colada como referência', 'success');
+                }
+                break;
+            }
+        }
+    });
+}
+
+// ==================== Submit ====================
+
+// Model display name mappings when files are attached vs text-only
+const V2_FILE_MODEL_MAP = {
+    'grok-imagine/text-to-video': 'grok-imagine/image-to-video',
+    'grok-imagine/text-to-image': 'grok-imagine/image-to-image',
+    'sora-2-pro-text-to-video': 'sora-2-pro-image-to-video',
+    'seedream/5-lite': 'seedream/5-lite-image-to-image',
+};
+const V2_TEXT_MODEL_MAP = {
+    'seedream/5-lite': 'seedream/5-lite-text-to-image',
+};
+
+function resolveVeoModelByInput(model, hasImage) {
+    if (!model || !model.startsWith('veo3/')) return model;
+
+    // Auto-switch between text/image Veo families while preserving quality suffix, if present.
+    const m = model.match(/^veo3\/(text|image)-to-video(?:-(fast|quality))?$/);
+    if (!m) return model;
+
+    const qualitySuffix = m[2] ? `-${m[2]}` : '';
+    return `veo3/${hasImage ? 'image' : 'text'}-to-video${qualitySuffix}`;
+}
+
+function resolveSeedreamModel(model, extra, hasFile) {
+    if (model === 'seedream/5-lite') {
+        // Preserve user-selected quality (default: 'basic'); do not override.
+        if (!extra.quality) extra.quality = 'basic';
+        return hasFile ? 'seedream/5-lite-image-to-image' : 'seedream/5-lite-text-to-image';
+    }
+    return model;
+}
+
+// ==================== Task Management ====================
+
+function addTask(taskId, model, mode, inputFileUrl = null, extraParams = null, overrideCat = null) {
+    const v2PromptEl = document.getElementById('v2-prompt');
+    const promptText = v2PromptEl?.value?.trim() || '';
+    const task = {
+        id: taskId,
+        model,
+        mode,
+        cat: overrideCat || currentCat, // Store the category the task was created in
+        state: 'processing',
+        data: null,
+        pollTimer: null,
+        _prompt: promptText,
+        _inputFileUrl: inputFileUrl,
+        _extraParams: extraParams
+    };
+    tasks.unshift(task);
+    addPendingTask(task);
+    renderTaskCard(task);
+    startPolling(task);
+    updateTasksEmpty();
+    updateActiveCount();
+
+    // Auto-switch to Ativas tab
+    const activeTabBtn = document.querySelector('.panel-tab[data-tab="active"]');
+    if (activeTabBtn && !activeTabBtn.classList.contains('active')) {
+        activeTabBtn.click();
+    }
+
+    // Pulse feedback on active tab
+    if (activeTabBtn) {
+        activeTabBtn.classList.remove('tab-pulse');
+        void activeTabBtn.offsetWidth; // Trigger reflow
+        activeTabBtn.classList.add('tab-pulse');
+    }
+
+    // Scroll to new task card
+    const newCard = document.getElementById(`task-${CSS.escape(taskId)}`);
+    if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Filter visible task cards by current category
+function filterTasksByCategory() {
+    tasks.forEach(t => {
+        const card = document.getElementById(`task-${CSS.escape(t.id)}`);
+        if (card) card.style.display = (!currentCat || t.cat === currentCat) ? '' : 'none';
+    });
+    updateTasksEmpty();
+    updateActiveCount();
+}
+function startPolling(task) {
+    let pollErrors = 0;
+    const MAX_POLL_ERRORS = 5;
+    const MAX_POLL_DURATION_MS = 15 * 60 * 1000; // 15 min absolute cap
+    const BASE_INTERVAL = 5000;
+    let currentInterval = BASE_INTERVAL;
+    const pollStart = Date.now();
+
+    const schedulePoll = () => {
+        task.pollTimer = setTimeout(poll, currentInterval);
+    };
+
+    const poll = async () => {
+        // Circuit breaker: give up after absolute max duration even if API never errors
+        if (Date.now() - pollStart > MAX_POLL_DURATION_MS) {
+            task.pollTimer = null;
+            removePendingTask(task.id);
+            task.state = 'fail';
+            task.data = { data: { failMsg: 'Timeout: task não concluída em 15 minutos', failCode: 'POLL_TIMEOUT' } };
+            updateTaskCard(task);
+            toast(`❌ ${task.model} — timeout após 15 min`, 'error');
+            return;
+        }
+        try {
+            const safeId = encodeURIComponent(task.id);
+            const ep = task.mode === 'suno' ? `/api/suno/task/${safeId}` :
+                task.mode === 'veo' ? `/api/veo/task/${safeId}` :
+                    task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${safeId}` :
+                        task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${safeId}` :
+                            `/api/market/task/${safeId}`;
+            const controller = new AbortController();
+            const fetchTimer = setTimeout(() => controller.abort(), 30000);
+            let resp;
+            try {
+                resp = await fetch(`${API}${ep}`, { signal: controller.signal });
+            } finally {
+                clearTimeout(fetchTimer);
+            }
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const json = await resp.json();
+            pollErrors = 0; // reset on success
+            currentInterval = BASE_INTERVAL; // reset backoff on success
+            task.data = json;
+            const data = json?.data || {};
+
+            // Parse resultJson if it comes as string (per API docs)
+            if (typeof data.resultJson === 'string' && data.resultJson) {
+                try { data._parsedResult = JSON.parse(data.resultJson); } catch (e) { console.warn('[poll] Failed to parse resultJson:', e.message); }
+            }
+
+            // Normalize failMsg from various API response formats (like callback handler does)
+            if (!data.failMsg) {
+                data.failMsg = data.failReason || data.errorMessage || data.error_msg
+                    || (json.msg && json.code !== 200 ? json.msg : '') || '';
+            }
+            if (!data.failCode && data.errorCode) data.failCode = data.errorCode;
+
+            let state;
+            if (task.mode === 'veo') {
+                // Veo 3 uses successFlag: 0=processing, 1=success, 2/3=fail
+                const sf = data.successFlag;
+                const respUrls = data.response?.resultUrls || data.resultUrls;
+                if (sf === 1 || respUrls?.length || data.resultInfoJson) state = 'success';
+                else if (sf > 1 || data.errorCode) state = 'fail';
+                else state = 'processing';
+            } else {
+                // Suno/Market APIs use 'status' or 'state'
+                const raw = (data.status || data.state || 'processing').toString().toLowerCase();
+                if (raw === 'success' || raw === 'succeeded' || raw === 'completed') state = 'success';
+                else if (raw === 'fail' || raw === 'failed' || raw === 'error') state = 'fail';
+                else state = 'processing';
+            }
+            task.state = state;
+            updateTaskCard(task);
+            if (state === 'success' || state === 'fail') {
+                task.pollTimer = null;
+                removePendingTask(task.id);
+                const failInfo = data.failMsg ? ` — ${data.failMsg}` : '';
+                toast(
+                    state === 'success' ? `✅ ${task.model} concluído!` : `❌ ${task.model} falhou${failInfo}`,
+                    state === 'success' ? 'success' : 'error'
+                );
+                // Save completed tasks (success or fail) to persistent history
+                addToHistory(task);
+                fetchCredits();
+                updateActiveCount();
+            } else {
+                schedulePoll();
+            }
+        } catch (err) {
+            pollErrors++;
+            // Exponential backoff: 5s → 10s → 20s → 40s → give up
+            currentInterval = Math.min(BASE_INTERVAL * Math.pow(2, pollErrors), 60000);
+            console.error(`[poll] Error ${pollErrors}/${MAX_POLL_ERRORS} for ${task.id}, next retry in ${currentInterval / 1000}s:`, err.message);
+            if (pollErrors >= MAX_POLL_ERRORS) {
+                task.pollTimer = null;
+                removePendingTask(task.id);
+                task.state = 'fail';
+                task.data = { data: { failMsg: `Erro de rede: ${err.message}`, failCode: 'NETWORK_ERROR' } };
+                updateTaskCard(task);
+                toast(`❌ ${task.model} — conexão perdida após ${MAX_POLL_ERRORS} tentativas`, 'error');
+            } else {
+                schedulePoll();
+            }
+        }
+    };
+    poll();
+}
+
+function updateTasksEmpty() { els.tasksEmpty.classList.toggle('hidden', tasks.length > 0); }
+
+function initClearTasks() {
+    els.btnClearTasks.addEventListener('click', () => {
+        clearAllPendingTasks();
+        clearLocalTasks();
+    });
+}
+
+// ==================== Task Card Rendering ====================
+
+// Map resolved/variant model names back to the template's base model name
+const MODEL_REVERSE_MAP = {
+    'seedream/5-lite-image-to-image': 'seedream/5-lite',
+    'seedream/5-lite-text-to-image': 'seedream/5-lite',
+    'bytedance/4.5-text-to-image': 'seedream/5-lite',
+    'seedream/4.5-edit': 'seedream/5-lite',
+    'grok-imagine/image-to-image': 'grok-imagine/text-to-image',
+    'grok-imagine/image-to-video': 'grok-imagine/text-to-video',
+    'sora-2-pro-image-to-video': 'sora-2-pro-text-to-video',
+    'wan/2-7-image-to-video': 'wan/2-7-text-to-video',
+    'wan/2-7-videoedit': 'wan/2-7-text-to-video',
+    'wan/2-7-r2v': 'wan/2-7-text-to-video',
     'veo3/text-to-video-fast': 'veo3/text-to-video',
     'veo3/text-to-video-quality': 'veo3/text-to-video',
     'veo3/image-to-video-fast': 'veo3/text-to-video',
@@ -2024,14 +2256,9 @@ function getModelDetails(modelKey) {
     const tpl = document.getElementById('tpl-models');
     if (!tpl) return null;
     // Try exact match first, then reverse-mapped fallback
-    let item = null;
-    try {
-        if (modelKey) item = tpl.content.querySelector(`[data-model="${CSS.escape(modelKey)}"]`);
-        if (!item && MODEL_REVERSE_MAP[modelKey]) {
-            item = tpl.content.querySelector(`[data-model="${CSS.escape(MODEL_REVERSE_MAP[modelKey])}"]`);
-        }
-    } catch (e) {
-        console.warn('Selector error in getModelDetails:', e);
+    let item = tpl.content.querySelector(`[data-model="${modelKey}"]`);
+    if (!item && MODEL_REVERSE_MAP[modelKey]) {
+        item = tpl.content.querySelector(`[data-model="${MODEL_REVERSE_MAP[modelKey]}"]`);
     }
     return item ? item.dataset : null;
 }
@@ -2168,8 +2395,7 @@ function _buildMusicPlayerHtml(audioSrc, title, artist, coverSrc, extraId) {
             </div>
             </div>
         </div>
-    </div>`;
-}
+    </div>`;}
 
 function renderTaskResult(task) {
     const container = document.querySelector(`[data-task-result="${CSS.escape(task.id)}"]`);
