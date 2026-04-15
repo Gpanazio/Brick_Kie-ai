@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-JWT_SECRET: str = os.environ.get("JWT_SECRET", "brick-kie-dev-secret-change-me")
+JWT_SECRET: str = os.environ.get("JWT_SECRET", "brick-kie-dev-secret-change-me-prod-32b!")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
 

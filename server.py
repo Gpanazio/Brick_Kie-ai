@@ -17,6 +17,7 @@ import hmac
 import hashlib
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 
@@ -117,10 +118,22 @@ async def _save_upload_to_temp(file: UploadFile, default_name: str = "file") -> 
         return tmp.name
 
 
+
+# ==================== Lifespan Handler ====================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan handler for startup/shutdown events (replaces deprecated @app.on_event)."""
+    # Startup
+    logger.info("Starting up KIE AI Frontend Server...")
+    asyncio.create_task(asyncio.to_thread(_run_startup_backfill))
+    yield
+    # Shutdown (if needed)
+    logger.info("Shutting down KIE AI Frontend Server...")
+
 # ==================== App ====================
 
 
-app = FastAPI(title="KIE AI Frontend Server", version="1.0.0", root_path=ROOT_PATH)
+app = FastAPI(title="KIE AI Frontend Server", version="1.0.0", root_path=ROOT_PATH, lifespan=lifespan)
 
 # CORS for dev
 app.add_middleware(
@@ -402,9 +415,7 @@ def _run_startup_backfill() -> None:
         )
 
 
-@app.on_event("startup")
-async def startup_media_backfill() -> None:
-    asyncio.create_task(asyncio.to_thread(_run_startup_backfill))
+# Startup backfill is now handled by the lifespan handler above
 
 
 def _extract_callback_urls(data: object) -> list:
