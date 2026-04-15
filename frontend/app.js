@@ -3074,6 +3074,339 @@ window.mockSunoGeneration = function () {
 // Registry for cross-closure communication with v2 workspace
 const v2Registry = {};
 
+// ── Image Crop Modal ──
+// Promise-based: const croppedFile = await openCropModal(file, '16:9');
+// Returns null if the user cancels.
+window.openCropModal = (function () {
+    const modal = document.getElementById('crop-modal');
+    const canvas = document.getElementById('crop-canvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+    const overlay = document.getElementById('crop-overlay');
+    const selection = document.getElementById('crop-selection');
+    const zoomSlider = document.getElementById('crop-zoom');
+    const zoomPct = document.getElementById('crop-zoom-pct');
+    const arBadge = document.getElementById('crop-ar-badge');
+    const btnConfirm = document.getElementById('crop-btn-confirm');
+    const btnCancel = document.getElementById('crop-btn-cancel');
+    const btnCancelX = document.getElementById('crop-btn-cancel-x');
+    const btnRotate = document.getElementById('crop-btn-rotate');
+    const backdrop = document.getElementById('crop-backdrop');
+
+    if (!modal || !canvas || !ctx) {
+        return function () { return Promise.resolve(null); };
+    }
+
+    let _resolve = null;
+    let _img = null;
+    let _rotation = 0; // 0, 90, 180, 270
+    let _aspectW = 16;
+    let _aspectH = 9;
+    let _aspectLabel = '16:9';
+    let _displayW = 0;
+    let _displayH = 0;
+    let _scaleX = 1;
+    let _scaleY = 1;
+
+    // Selection state (in display/CSS pixels relative to canvas element)
+    let _sel = { x: 0, y: 0, w: 0, h: 0 };
+    let _drag = null; // { type: 'move'|'nw'|'ne'|'sw'|'se', startX, startY, origSel }
+
+    // ── Helpers ──
+    function parseAR(s) {
+        if (!s || s === 'free' || s === 'auto') return null;
+        const parts = s.split(':').map(Number);
+        if (parts.length === 2 && parts[0] > 0 && parts[1] > 0) return parts;
+        // Handle landscape/portrait keywords
+        if (s === 'landscape') return [16, 9];
+        if (s === 'portrait') return [9, 16];
+        return null;
+    }
+
+    function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+    function getRotatedDimensions(img, rot) {
+        const isVertical = rot === 90 || rot === 270;
+        return {
+            w: isVertical ? img.naturalHeight : img.naturalWidth,
+            h: isVertical ? img.naturalWidth : img.naturalHeight
+        };
+    }
+
+    function drawImage() {
+        const dims = getRotatedDimensions(_img, _rotation);
+        canvas.width = dims.w;
+        canvas.height = dims.h;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((_rotation * Math.PI) / 180);
+        ctx.drawImage(_img, -_img.naturalWidth / 2, -_img.naturalHeight / 2);
+        ctx.restore();
+        // After drawing, compute display scale
+        const rect = canvas.getBoundingClientRect();
+        _displayW = rect.width;
+        _displayH = rect.height;
+        _scaleX = canvas.width / _displayW;
+        _scaleY = canvas.height / _displayH;
+    }
+
+    function initSelection() {
+        const ar = _aspectW / _aspectH;
+        // Fill as much of the display canvas as possible
+        let sw, sh;
+        if (_displayW / _displayH > ar) {
+            sh = _displayH * 0.85;
+            sw = sh * ar;
+        } else {
+            sw = _displayW * 0.85;
+            sh = sw / ar;
+        }
+        _sel.w = Math.round(sw);
+        _sel.h = Math.round(sh);
+        _sel.x = Math.round((_displayW - sw) / 2);
+        _sel.y = Math.round((_displayH - sh) / 2);
+        applySelection();
+    }
+
+    function constrainSelection() {
+        _sel.w = Math.max(40, Math.min(_sel.w, _displayW));
+        _sel.h = Math.max(40, Math.min(_sel.h, _displayH));
+        _sel.x = clamp(_sel.x, 0, _displayW - _sel.w);
+        _sel.y = clamp(_sel.y, 0, _displayH - _sel.h);
+    }
+
+    function applySelection() {
+        constrainSelection();
+        selection.style.left = _sel.x + 'px';
+        selection.style.top = _sel.y + 'px';
+        selection.style.width = _sel.w + 'px';
+        selection.style.height = _sel.h + 'px';
+    }
+
+    // ── Mouse / Touch handling ──
+    function getPointer(e) {
+        const rect = overlay.getBoundingClientRect();
+        const touch = e.touches ? e.touches[0] : e;
+        return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    }
+
+    function onPointerDown(e) {
+        e.preventDefault();
+        const p = getPointer(e);
+        const handle = e.target.closest('[data-handle]');
+        const origSel = { ..._sel };
+        if (handle) {
+            _drag = { type: handle.dataset.handle, startX: p.x, startY: p.y, origSel };
+        } else if (p.x >= _sel.x && p.x <= _sel.x + _sel.w && p.y >= _sel.y && p.y <= _sel.y + _sel.h) {
+            _drag = { type: 'move', startX: p.x, startY: p.y, origSel };
+        }
+    }
+
+    function onPointerMove(e) {
+        if (!_drag) return;
+        e.preventDefault();
+        const p = getPointer(e);
+        const dx = p.x - _drag.startX;
+        const dy = p.y - _drag.startY;
+        const o = _drag.origSel;
+        const ar = _aspectW / _aspectH;
+
+        if (_drag.type === 'move') {
+            _sel.x = o.x + dx;
+            _sel.y = o.y + dy;
+        } else {
+            // Resize from corner, locked to aspect ratio
+            let newW, newH;
+            if (_drag.type === 'se') {
+                newW = o.w + dx;
+                newH = newW / ar;
+                _sel.w = newW;
+                _sel.h = newH;
+            } else if (_drag.type === 'sw') {
+                newW = o.w - dx;
+                newH = newW / ar;
+                _sel.x = o.x + o.w - newW;
+                _sel.w = newW;
+                _sel.h = newH;
+            } else if (_drag.type === 'ne') {
+                newW = o.w + dx;
+                newH = newW / ar;
+                _sel.y = o.y + o.h - newH;
+                _sel.w = newW;
+                _sel.h = newH;
+            } else if (_drag.type === 'nw') {
+                newW = o.w - dx;
+                newH = newW / ar;
+                _sel.x = o.x + o.w - newW;
+                _sel.y = o.y + o.h - newH;
+                _sel.w = newW;
+                _sel.h = newH;
+            }
+        }
+        applySelection();
+    }
+
+    function onPointerUp() {
+        _drag = null;
+    }
+
+    // Attach listeners
+    overlay.addEventListener('mousedown', onPointerDown);
+    overlay.addEventListener('touchstart', onPointerDown, { passive: false });
+    document.addEventListener('mousemove', onPointerMove);
+    document.addEventListener('touchmove', onPointerMove, { passive: false });
+    document.addEventListener('mouseup', onPointerUp);
+    document.addEventListener('touchend', onPointerUp);
+
+    // Zoom from scroll wheel on canvas area
+    overlay.addEventListener('wheel', e => {
+        e.preventDefault();
+        const val = parseInt(zoomSlider.value, 10) + (e.deltaY < 0 ? 10 : -10);
+        zoomSlider.value = clamp(val, 100, 300);
+        applyZoom();
+    }, { passive: false });
+
+    function applyZoom() {
+        const z = parseInt(zoomSlider.value, 10);
+        zoomPct.textContent = z + '%';
+        canvas.style.transform = `scale(${z / 100})`;
+        canvas.style.transformOrigin = 'center center';
+        // Re-measure display size
+        const rect = canvas.getBoundingClientRect();
+        _displayW = rect.width;
+        _displayH = rect.height;
+        _scaleX = canvas.width / _displayW;
+        _scaleY = canvas.height / _displayH;
+        // Re-constrain selection
+        constrainSelection();
+        applySelection();
+    }
+
+    zoomSlider.addEventListener('input', applyZoom);
+
+    // Rotation
+    btnRotate.addEventListener('click', () => {
+        _rotation = (_rotation + 90) % 360;
+        drawImage();
+        // Reset zoom
+        zoomSlider.value = 100;
+        applyZoom();
+        // Wait for layout to stabilize
+        requestAnimationFrame(() => {
+            const rect = canvas.getBoundingClientRect();
+            _displayW = rect.width;
+            _displayH = rect.height;
+            _scaleX = canvas.width / _displayW;
+            _scaleY = canvas.height / _displayH;
+            initSelection();
+        });
+    });
+
+    // Cancel
+    function cancel() {
+        modal.classList.add('hidden');
+        if (_resolve) { _resolve(null); _resolve = null; }
+    }
+    btnCancel.addEventListener('click', cancel);
+    btnCancelX.addEventListener('click', cancel);
+    backdrop.addEventListener('click', cancel);
+
+    // Escape key
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            cancel();
+        }
+    });
+
+    // Confirm
+    btnConfirm.addEventListener('click', () => {
+        if (!_img || !_resolve) return;
+        // Convert display-space selection to source-pixel crop rect
+        const sx = Math.round(_sel.x * _scaleX);
+        const sy = Math.round(_sel.y * _scaleY);
+        const sw = Math.round(_sel.w * _scaleX);
+        const sh = Math.round(_sel.h * _scaleY);
+
+        // Draw cropped area to temporary canvas
+        const tmp = document.createElement('canvas');
+        tmp.width = sw;
+        tmp.height = sh;
+        const tmpCtx = tmp.getContext('2d');
+        tmpCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+        tmp.toBlob(blob => {
+            if (!blob) { cancel(); return; }
+            const croppedFile = new File([blob], 'cropped.png', { type: 'image/png' });
+            modal.classList.add('hidden');
+            if (_resolve) { _resolve(croppedFile); _resolve = null; }
+        }, 'image/png');
+    });
+
+    // ── Public API ──
+    return function openCropModal(file, aspectRatioStr) {
+        return new Promise(resolve => {
+            _resolve = resolve;
+            _rotation = 0;
+
+            // Parse aspect ratio
+            const ar = parseAR(aspectRatioStr);
+            if (ar) {
+                _aspectW = ar[0];
+                _aspectH = ar[1];
+                _aspectLabel = aspectRatioStr;
+            } else {
+                // Default to 4:3 for free/auto
+                _aspectW = 4;
+                _aspectH = 3;
+                _aspectLabel = 'Livre';
+            }
+            arBadge.textContent = _aspectLabel;
+
+            // Reset zoom
+            zoomSlider.value = 100;
+            zoomPct.textContent = '100%';
+            canvas.style.transform = '';
+
+            // Load image
+            _img = new Image();
+            const objUrl = URL.createObjectURL(file);
+            _img.onload = () => {
+                URL.revokeObjectURL(objUrl);
+                drawImage();
+                modal.classList.remove('hidden');
+                // Wait one frame for layout
+                requestAnimationFrame(() => {
+                    const rect = canvas.getBoundingClientRect();
+                    _displayW = rect.width;
+                    _displayH = rect.height;
+                    _scaleX = canvas.width / _displayW;
+                    _scaleY = canvas.height / _displayH;
+                    initSelection();
+                });
+            };
+            _img.onerror = () => {
+                URL.revokeObjectURL(objUrl);
+                resolve(null);
+            };
+            _img.src = objUrl;
+        });
+    };
+})();
+
+// ── Helper: detect the current aspect ratio from model settings ──
+function _getCropAspectRatio() {
+    // Read the active aspect_ratio param from the V2 dynamic params UI
+    const arGroup = document.querySelector('[data-param-group-key="aspect_ratio"]');
+    if (arGroup) {
+        // Could be a select or radio pills
+        const sel = arGroup.querySelector('.v2-param-select');
+        if (sel && sel.value) return sel.value;
+        const pill = arGroup.querySelector('.v2-param-pill.active');
+        if (pill && pill.dataset.value) return pill.dataset.value;
+    }
+    return 'free';
+}
+
 (function initV2Workspace() {
     const ws = document.getElementById('v2-workspace');
     if (!ws) return;
@@ -4049,15 +4382,21 @@ const v2Registry = {};
         handleFrameUpload(v2.frameFinalZone, v2.frameFinalInput, 'final');
     }
 
-    function v2AddFrameFile(newFiles, type) {
+    async function v2AddFrameFile(newFiles, type) {
         const images = newFiles.filter(f => f.type.startsWith('image/'));
         if (!images.length) return;
+
+        // Route through crop modal — frames use the video aspect ratio
+        const ar = _getCropAspectRatio() || '16:9';
+        const cropped = await window.openCropModal(images[0], ar);
+        if (!cropped) return; // user cancelled
+
         if (type === 'initial') {
-            v2FrameInitial = images[0];
-            console.log('[KLING-DEBUG] v2AddFrameFile INITIAL set:', images[0].name, images[0].size, 'bytes, type:', images[0].type);
+            v2FrameInitial = cropped;
+            console.log('[KLING-DEBUG] v2AddFrameFile INITIAL set (cropped):', cropped.name, cropped.size, 'bytes');
         } else {
-            v2FrameFinal = images[0];
-            console.log('[KLING-DEBUG] v2AddFrameFile FINAL set:', images[0].name, images[0].size, 'bytes, type:', images[0].type);
+            v2FrameFinal = cropped;
+            console.log('[KLING-DEBUG] v2AddFrameFile FINAL set (cropped):', cropped.name, cropped.size, 'bytes');
         }
         v2RenderFrameGrid(type);
         updateV2GenerateState();
@@ -4207,11 +4546,12 @@ const v2Registry = {};
         };
     }
 
-    function v2AddFiles(newFiles) {
+    async function v2AddFiles(newFiles) {
         const isVideoUpscale = v2Model?.model === TOPAZ_VIDEO_UPSCALE_MODEL;
+        const isVideoEdit = v2Model?.model === 'wan/2-7-videoedit';
         const { image: maxImageSize } = _getSeedanceMaxSizes();
         const accepted = newFiles.filter(f => {
-            if (isVideoUpscale) {
+            if (isVideoUpscale || isVideoEdit) {
                 return f.type.startsWith('video/') || f.name.match(/\.(mp4|mov|mkv|avi|webm)$/i);
             }
             if (!f.type.startsWith('image/')) return false;
@@ -4222,7 +4562,7 @@ const v2Registry = {};
             return true;
         });
         if (!accepted.length) {
-            if (isVideoUpscale) toast('Formato inválido. Use MP4, MOV, MKV, etc. (máx. 50MB)', 'error');
+            if (isVideoUpscale || isVideoEdit) toast('Formato inválido. Use MP4, MOV, MKV, etc. (máx. 50MB)', 'error');
             return;
         }
 
@@ -4235,7 +4575,21 @@ const v2Registry = {};
         if (accepted.length > remaining) {
             toast(`Apenas ${remaining} arquivo(s) adicionado(s) — limite: ${v2MaxFiles}`, 'error');
         }
-        v2Files.push(...toAdd);
+
+        // Route each image through crop modal sequentially (skip videos)
+        const ar = _getCropAspectRatio();
+        for (const file of toAdd) {
+            if (!file.type.startsWith('image/')) {
+                // Video / non-image — add directly
+                v2Files.push(file);
+                continue;
+            }
+            const cropped = await window.openCropModal(file, ar);
+            if (cropped) {
+                v2Files.push(cropped);
+            }
+            // if user cancelled, skip this file
+        }
         v2RenderFilesGrid();
         updateV2GenerateState();
     }
@@ -4853,8 +5207,8 @@ const v2Registry = {};
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
         } else if (isSuno || isAudioUrl(url)) {
             if (coverUrl) {
-                // Suno with cover art: use aspect-ratio wrapper so img has a real height
-                html += `<div style="position:relative;width:100%;aspect-ratio:1;overflow:hidden;">
+                // Suno with cover art: fill parent container (aspect-ratio from .v2-gallery-item CSS)
+                html += `<div style="position:relative;width:100%;height:100%;overflow:hidden;">
                     <img src="${safeCoverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;" onerror="window.handleExpiredMedia(this)">
                     <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);pointer-events:none;"></div>
                     <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);">
