@@ -5215,7 +5215,8 @@ const v2Registry = {};
 
         // Find all tasks created via V2 workspace (tracked by v2Tasks array) or from history matching the current category
         // Check both active tasks and history so finished/failed tasks don't disappear
-        const allTracked = [...tasks, ...loadHistory()];
+        // IMPORTANT: filter out items deleted during this session to prevent them from reappearing
+        const allTracked = [...tasks, ...loadHistory()].filter(t => !_deletedIds.has(t.id));
 
         // Also fetch server-side history (async merge) — filter by model too
         _fetchServerHistory(currentCat).then(serverItems => {
