@@ -4574,6 +4574,9 @@ const v2Registry = {};
 
     async function _handleStandardSubmission(prompt, btnSpan, modelParams) {
         const extra = { ...modelParams };
+        if ('upscale_factor' in extra) {
+            extra.upscale_factor = String(extra.upscale_factor);
+        }
         
         // KIE API (e.g. Kling, Grok) strictly requires a prompt for text-to-video endpoints
         // even when an image is supplied. Provide a safe default if user left it blank.
