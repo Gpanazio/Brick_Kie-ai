@@ -4569,6 +4569,7 @@ const v2Registry = {};
         addTask(tid, resolvedModel, 'veo', json.uploaded_url || extra._uploaded_url_override || null, extra);
         v2Tasks.push(tid);
         v2ClearAllFiles();
+        refreshV2Gallery();
         toast('✅ Veo 3 task created!', 'success');
     }
 
@@ -4810,6 +4811,7 @@ const v2Registry = {};
         // Always clear uploaded files/frames after successful submission
         // to prevent stale images from being re-sent.
         v2ClearAllFiles();
+        refreshV2Gallery();
         toast(`✅ Task created!${hasFiles || hasVideoRefs ? ` (files uploaded)` : ''}`, 'success');
     }
 
