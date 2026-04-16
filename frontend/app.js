@@ -3323,7 +3323,7 @@ window.openCropModal = (function () {
         const tmpCtx = tmp.getContext('2d');
         tmpCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
-        const outputType = (modal.dataset.originalFileType === 'image/jpeg' || modal.dataset.originalFileType === 'image/png') ? modal.dataset.originalFileType : 'image/png';
+        const outputType = ['image/jpeg', 'image/png'].includes(modal.dataset.originalFileType) ? modal.dataset.originalFileType : 'image/png';
         const outputFilename = 'cropped.' + (outputType === 'image/jpeg' ? 'jpg' : 'png');
 
         tmp.toBlob(blob => {
@@ -3417,16 +3417,8 @@ window.openCropModal = (function () {
 
 // ── Helper: detect the current AR + all available AR options from model config ──
 function _getCropAspectRatio() {
-    // Read the active aspect_ratio param from the V2 dynamic params UI
-    const arGroup = document.querySelector('[data-param-group-key="aspect_ratio"]');
-    if (arGroup) {
-        const sel = arGroup.querySelector('.v2-param-select');
-        if (sel && sel.value) return sel.value;
-        const pill = arGroup.querySelector('.v2-param-pill.active');
-        if (pill && pill.dataset.value) return pill.dataset.value;
-    }
-    // Also check ratio, aspectRatio, size, image_size keys (different models use different keys)
-    for (const key of ['ratio', 'aspectRatio', 'size', 'image_size']) {
+    const arKeys = ['aspect_ratio', 'ratio', 'aspectRatio', 'size', 'image_size'];
+    for (const key of arKeys) {
         const g = document.querySelector(`[data-param-group-key="${key}"]`);
         if (g) {
             const sel = g.querySelector('.v2-param-select');
@@ -5166,7 +5158,7 @@ function _getCropAspectRatioOptions() {
         const fd = new FormData();
         fd.append('model', resolvedModel);
         fd.append('input_json', JSON.stringify(extra));
-        if (isSeedance) console.log('[SEEDANCE-DEBUG] model:', resolvedModel, 'extra:', JSON.stringify(extra, null, 2));
+
 
         // Route to correct API endpoint based on model
         const isSuno = resolvedModel.startsWith('suno/');
