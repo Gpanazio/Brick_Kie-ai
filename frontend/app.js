@@ -5354,6 +5354,9 @@ function _getCropAspectRatioOptions() {
             // Do not trigger if clicking an action button/link or interacting with video controls
             // Note: do NOT block on .v2-item-actions itself - only on interactive children inside it
             if (e.target.closest('button') || e.target.closest('a') || (e.target.tagName.toLowerCase() === 'video' && e.offsetX > e.target.clientWidth - 40)) return;
+            // Do not open lightbox when multi-selecting (Ctrl/Cmd+Click) or if items are selected
+            if (e.ctrlKey || e.metaKey) return;
+            if (_selectedItems && _selectedItems.size > 0) { _clearSelection(); return; }
             // Search in-memory tasks first, fall back to history cache, then server cache
             let t = tasks.find(x => x.id === item.dataset.baseTaskId);
             let fromHistory = false;
@@ -5684,6 +5687,267 @@ function _getCropAspectRatioOptions() {
             if (typeof exitWorkspace === 'function') exitWorkspace();
         }
     });
+
+    // ── Multi-Select: Drag-to-select + Context Menu ──
+    const _selectedItems = new Set(); // Set of baseTaskId
+    let _dragSelectActive = false;
+    let _dragStartX = 0, _dragStartY = 0;
+    let _rubberBand = null;
+
+    function _clearSelection() {
+        _selectedItems.clear();
+        v2.gallery.querySelectorAll('.v2-gallery-item.v2-selected').forEach(el => el.classList.remove('v2-selected'));
+        _hideV2ContextMenu();
+    }
+
+    function _toggleItemSelection(item, force) {
+        const bid = item.dataset.baseTaskId || item.dataset.taskId;
+        if (!bid) return;
+        const shouldSelect = typeof force === 'boolean' ? force : !_selectedItems.has(bid);
+        if (shouldSelect) {
+            _selectedItems.add(bid);
+            item.classList.add('v2-selected');
+        } else {
+            _selectedItems.delete(bid);
+            item.classList.remove('v2-selected');
+        }
+    }
+
+    // Rubber-band drag selection
+    v2.gallery.addEventListener('mousedown', (e) => {
+        // Only left-click, not on interactive elements
+        if (e.button !== 0) return;
+        if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.v2-item-actions')) return;
+        // Don't start drag if clicking directly on a gallery item (use Ctrl+click for toggle)
+        const clickedItem = e.target.closest('.v2-gallery-item');
+
+        // Ctrl/Cmd+Click toggles individual selection
+        if (clickedItem && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            e.stopPropagation();
+            _toggleItemSelection(clickedItem);
+            return;
+        }
+
+        // Only start rubber-band if clicking on empty gallery space
+        if (clickedItem) return;
+
+        e.preventDefault();
+        _dragSelectActive = true;
+        v2.gallery.classList.add('v2-dragging');
+        const galleryRect = v2.gallery.getBoundingClientRect();
+        _dragStartX = e.clientX - galleryRect.left + v2.gallery.scrollLeft;
+        _dragStartY = e.clientY - galleryRect.top + v2.gallery.scrollTop;
+
+        // Clear previous selection unless holding Shift
+        if (!e.shiftKey) _clearSelection();
+
+        // Create rubber-band element
+        _rubberBand = document.createElement('div');
+        _rubberBand.className = 'v2-rubber-band';
+        _rubberBand.style.left = _dragStartX + 'px';
+        _rubberBand.style.top = _dragStartY + 'px';
+        _rubberBand.style.width = '0';
+        _rubberBand.style.height = '0';
+        v2.gallery.appendChild(_rubberBand);
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!_dragSelectActive || !_rubberBand) return;
+        const galleryRect = v2.gallery.getBoundingClientRect();
+        const currentX = e.clientX - galleryRect.left + v2.gallery.scrollLeft;
+        const currentY = e.clientY - galleryRect.top + v2.gallery.scrollTop;
+
+        const left = Math.min(_dragStartX, currentX);
+        const top = Math.min(_dragStartY, currentY);
+        const width = Math.abs(currentX - _dragStartX);
+        const height = Math.abs(currentY - _dragStartY);
+
+        _rubberBand.style.left = left + 'px';
+        _rubberBand.style.top = top + 'px';
+        _rubberBand.style.width = width + 'px';
+        _rubberBand.style.height = height + 'px';
+
+        // Hit-test all gallery items
+        const bandRect = {
+            left: left,
+            top: top,
+            right: left + width,
+            bottom: top + height
+        };
+
+        v2.gallery.querySelectorAll('.v2-gallery-item').forEach(item => {
+            const itemLeft = item.offsetLeft;
+            const itemTop = item.offsetTop;
+            const itemRight = itemLeft + item.offsetWidth;
+            const itemBottom = itemTop + item.offsetHeight;
+
+            const intersects = !(itemRight < bandRect.left || itemLeft > bandRect.right ||
+                                 itemBottom < bandRect.top || itemTop > bandRect.bottom);
+            _toggleItemSelection(item, intersects);
+        });
+    });
+
+    document.addEventListener('mouseup', (e) => {
+        if (!_dragSelectActive) return;
+        _dragSelectActive = false;
+        v2.gallery.classList.remove('v2-dragging');
+        if (_rubberBand) {
+            _rubberBand.remove();
+            _rubberBand = null;
+        }
+    });
+
+    // Context menu
+    let _v2CtxMenu = null;
+
+    function _createV2ContextMenu() {
+        const menu = document.createElement('div');
+        menu.className = 'v2-ctx-menu';
+        menu.id = 'v2-context-menu';
+        menu.innerHTML = `
+            <div class="v2-ctx-header"><span class="v2-ctx-count"></span> selecionados</div>
+            <button class="v2-ctx-option" data-action="download">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Baixar Todos</span>
+            </button>
+            <button class="v2-ctx-option v2-ctx-danger" data-action="delete">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                <span>Excluir Todos</span>
+            </button>`;
+        document.body.appendChild(menu);
+        // Download handler
+        menu.querySelector('[data-action="download"]').addEventListener('click', () => {
+            _downloadSelected();
+            _hideV2ContextMenu();
+        });
+        // Delete handler
+        menu.querySelector('[data-action="delete"]').addEventListener('click', () => {
+            _deleteSelected();
+            _hideV2ContextMenu();
+        });
+        return menu;
+    }
+
+    function _showV2ContextMenu(x, y) {
+        if (!_v2CtxMenu) _v2CtxMenu = _createV2ContextMenu();
+        const count = _selectedItems.size;
+        _v2CtxMenu.querySelector('.v2-ctx-count').textContent = count;
+        _v2CtxMenu.style.left = x + 'px';
+        _v2CtxMenu.style.top = y + 'px';
+        _v2CtxMenu.classList.add('visible');
+
+        // Ensure menu stays within viewport
+        requestAnimationFrame(() => {
+            const rect = _v2CtxMenu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) _v2CtxMenu.style.left = (x - rect.width) + 'px';
+            if (rect.bottom > window.innerHeight) _v2CtxMenu.style.top = (y - rect.height) + 'px';
+        });
+    }
+
+    function _hideV2ContextMenu() {
+        if (_v2CtxMenu) _v2CtxMenu.classList.remove('visible');
+    }
+
+    // Right-click on gallery shows context menu when items are selected
+    v2.gallery.addEventListener('contextmenu', (e) => {
+        // If right-clicking on an item, select it (if not already in selection)
+        const clickedItem = e.target.closest('.v2-gallery-item');
+        if (clickedItem) {
+            const bid = clickedItem.dataset.baseTaskId || clickedItem.dataset.taskId;
+            if (bid && !_selectedItems.has(bid)) {
+                if (!e.ctrlKey && !e.metaKey) _clearSelection();
+                _toggleItemSelection(clickedItem, true);
+            }
+        }
+
+        if (_selectedItems.size === 0) return; // Let default context menu show
+
+        e.preventDefault();
+        _showV2ContextMenu(e.clientX, e.clientY);
+    });
+
+    // Hide context menu on click anywhere
+    document.addEventListener('click', (e) => {
+        if (_v2CtxMenu && !_v2CtxMenu.contains(e.target)) _hideV2ContextMenu();
+    });
+
+    // Escape clears selection
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && _selectedItems.size > 0) {
+            _clearSelection();
+            e.stopPropagation();
+        }
+    });
+
+    // Download all selected items
+    async function _downloadSelected() {
+        const items = v2.gallery.querySelectorAll('.v2-gallery-item.v2-selected');
+        let downloadCount = 0;
+        for (const item of items) {
+            const downloadLink = item.querySelector('.v2-item-dl');
+            const mediaEl = item.querySelector('video[src], img[src]');
+            const url = downloadLink?.href || mediaEl?.src;
+            if (url && url.startsWith('http')) {
+                try {
+                    const resp = await fetch(url);
+                    if (!resp.ok) continue;
+                    const blob = await resp.blob();
+                    const ext = blob.type.includes('video') ? '.mp4' : blob.type.includes('audio') ? '.mp3' : '.png';
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `kie-${(item.dataset.baseTaskId || 'media').slice(0, 8)}${ext}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(a.href);
+                    downloadCount++;
+                    // Small delay between downloads to avoid browser throttling
+                    await new Promise(r => setTimeout(r, 300));
+                } catch (err) {
+                    console.warn('[multi-dl] Failed to download:', url, err);
+                }
+            }
+        }
+        if (downloadCount > 0) {
+            toast(`📥 ${downloadCount} arquivo${downloadCount > 1 ? 's' : ''} baixado${downloadCount > 1 ? 's' : ''}`, 'success');
+        }
+        _clearSelection();
+    }
+
+    // Delete all selected items
+    async function _deleteSelected() {
+        const count = _selectedItems.size;
+        if (count === 0) return;
+
+        const ids = [..._selectedItems];
+        // Animate out + remove
+        for (const bid of ids) {
+            _deletedIds.add(bid);
+            // Delete from server
+            fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(() => {});
+            // Remove from local cache
+            const history = loadHistory().filter(h => h.id !== bid);
+            saveHistory(history);
+            if (typeof _serverHistoryCache !== 'undefined') _serverHistoryCache.delete(bid);
+        }
+        // Animate and remove DOM elements
+        const domItems = v2.gallery.querySelectorAll('.v2-gallery-item.v2-selected');
+        domItems.forEach(item => {
+            item.style.transition = `opacity 0.2s, transform 0.2s`;
+            item.style.opacity = '0';
+            item.style.transform = 'scale(0.85)';
+        });
+        setTimeout(() => {
+            domItems.forEach(item => item.remove());
+            updateV2GalleryCount();
+            renderHistoryGallery();
+            updateHistoryCount();
+        }, 220);
+
+        toast(`🗑️ ${count} item${count > 1 ? 's' : ''} removido${count > 1 ? 's' : ''}`, 'success');
+        _selectedItems.clear();
+    }
 
     console.log('[V2] Image workspace initialized');
 })();
