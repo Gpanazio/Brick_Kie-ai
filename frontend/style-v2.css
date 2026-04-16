@@ -5031,7 +5031,7 @@ body {
 .v2-frame-dropzone .v2-files-grid .v2-file-card img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     border-radius: 8px;
     display: block;
     background: rgba(0, 0, 0, 0.3);
