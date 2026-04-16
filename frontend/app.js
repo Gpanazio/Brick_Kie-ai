@@ -5693,6 +5693,7 @@ function _getCropAspectRatioOptions() {
     let _dragSelectActive = false;
     let _dragStartX = 0, _dragStartY = 0;
     let _rubberBand = null;
+    let _itemRectCache = []; // Cached [{item, left, top, right, bottom}] for mousemove hit-testing
 
     function _clearSelection() {
         _selectedItems.clear();
@@ -5703,11 +5704,13 @@ function _getCropAspectRatioOptions() {
     function _toggleItemSelection(item, force) {
         const bid = item.dataset.baseTaskId || item.dataset.taskId;
         if (!bid) return;
-        const shouldSelect = typeof force === 'boolean' ? force : !_selectedItems.has(bid);
-        if (shouldSelect) {
+        const isSelected = _selectedItems.has(bid);
+        const shouldSelect = typeof force === 'boolean' ? force : !isSelected;
+        // Skip redundant DOM mutations when state is already correct
+        if (shouldSelect && !isSelected) {
             _selectedItems.add(bid);
             item.classList.add('v2-selected');
-        } else {
+        } else if (!shouldSelect && isSelected) {
             _selectedItems.delete(bid);
             item.classList.remove('v2-selected');
         }
@@ -5741,6 +5744,19 @@ function _getCropAspectRatioOptions() {
 
         // Clear previous selection unless holding Shift
         if (!e.shiftKey) _clearSelection();
+
+        // Cache all item bounding rects NOW (single layout read) to avoid layout
+        // thrashing inside the mousemove handler on every frame.
+        _itemRectCache = [];
+        v2.gallery.querySelectorAll('.v2-gallery-item').forEach(el => {
+            _itemRectCache.push({
+                item: el,
+                left: el.offsetLeft,
+                top: el.offsetTop,
+                right: el.offsetLeft + el.offsetWidth,
+                bottom: el.offsetTop + el.offsetHeight,
+            });
+        });
 
         // Create rubber-band element
         _rubberBand = document.createElement('div');
@@ -5776,14 +5792,10 @@ function _getCropAspectRatioOptions() {
             bottom: top + height
         };
 
-        v2.gallery.querySelectorAll('.v2-gallery-item').forEach(item => {
-            const itemLeft = item.offsetLeft;
-            const itemTop = item.offsetTop;
-            const itemRight = itemLeft + item.offsetWidth;
-            const itemBottom = itemTop + item.offsetHeight;
-
-            const intersects = !(itemRight < bandRect.left || itemLeft > bandRect.right ||
-                                 itemBottom < bandRect.top || itemTop > bandRect.bottom);
+        // Use cached rects (computed once on mousedown) — avoids layout thrashing
+        _itemRectCache.forEach(({ item, left, top, right, bottom }) => {
+            const intersects = !(right < bandRect.left || left > bandRect.right ||
+                                 bottom < bandRect.top || top > bandRect.bottom);
             _toggleItemSelection(item, intersects);
         });
     });
@@ -5921,16 +5933,16 @@ function _getCropAspectRatioOptions() {
         if (count === 0) return;
 
         const ids = [..._selectedItems];
-        // Animate out + remove
+        // Mark all IDs as deleted and fire server deletes
+        const idsSet = new Set(ids);
         for (const bid of ids) {
             _deletedIds.add(bid);
-            // Delete from server
+            // Delete from server (fire-and-forget)
             fetch(`${API}/api/history/${encodeURIComponent(bid)}`, { method: 'DELETE', headers: _kieAuthHeaders() }).catch(() => {});
-            // Remove from local cache
-            const history = loadHistory().filter(h => h.id !== bid);
-            saveHistory(history);
             if (typeof _serverHistoryCache !== 'undefined') _serverHistoryCache.delete(bid);
         }
+        // Remove all deleted IDs from local history in a single read+write (O(M) not O(N*M))
+        saveHistory(loadHistory().filter(h => !idsSet.has(h.id)));
         // Animate and remove DOM elements
         const domItems = v2.gallery.querySelectorAll('.v2-gallery-item.v2-selected');
         domItems.forEach(item => {
