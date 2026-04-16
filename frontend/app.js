@@ -3323,7 +3323,7 @@ window.openCropModal = (function () {
         const tmpCtx = tmp.getContext('2d');
         tmpCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
-        const outputType = (modal.dataset.originalFileType === 'image/jpeg' || modal.dataset.originalFileType === 'image/png') ? modal.dataset.originalFileType : 'image/png';
+        const outputType = ['image/jpeg', 'image/png'].includes(modal.dataset.originalFileType) ? modal.dataset.originalFileType : 'image/png';
         const outputFilename = 'cropped.' + (outputType === 'image/jpeg' ? 'jpg' : 'png');
 
         tmp.toBlob(blob => {
@@ -3417,16 +3417,8 @@ window.openCropModal = (function () {
 
 // ── Helper: detect the current AR + all available AR options from model config ──
 function _getCropAspectRatio() {
-    // Read the active aspect_ratio param from the V2 dynamic params UI
-    const arGroup = document.querySelector('[data-param-group-key="aspect_ratio"]');
-    if (arGroup) {
-        const sel = arGroup.querySelector('.v2-param-select');
-        if (sel && sel.value) return sel.value;
-        const pill = arGroup.querySelector('.v2-param-pill.active');
-        if (pill && pill.dataset.value) return pill.dataset.value;
-    }
-    // Also check ratio, aspectRatio, size, image_size keys (different models use different keys)
-    for (const key of ['ratio', 'aspectRatio', 'size', 'image_size']) {
+    const arKeys = ['aspect_ratio', 'ratio', 'aspectRatio', 'size', 'image_size'];
+    for (const key of arKeys) {
         const g = document.querySelector(`[data-param-group-key="${key}"]`);
         if (g) {
             const sel = g.querySelector('.v2-param-select');
@@ -3597,7 +3589,7 @@ function _getCropAspectRatioOptions() {
         const isSeedanceMulti = data.model === 'bytedance/seedance-2-multi';
         const isSeedanceVideo = data.model === 'bytedance/seedance-2-video';
 
-        const isFramesModel = (data.model && (data.model.startsWith('veo3/') || data.model.includes('kling-3.0/video') || isSeedanceFrames));
+        const isFramesModel = (data.model && (data.model.startsWith('veo3/') || data.model.includes('kling-3.0/video') || isSeedanceFrames || data.model === 'wan/2-7-image-to-video'));
 
         // Show/hide upload zones based on workflow
         if (uploadFramesGroup) uploadFramesGroup.classList.toggle('hidden', !(needsFile && isFramesModel));
@@ -3646,7 +3638,7 @@ function _getCropAspectRatioOptions() {
             'flux-kontext-max': 1,              // single inputImage
             'flux-2/pro-text-to-image': 0,      // text only
             'kling-3.0/video': 2,              // first + last frame
-            'wan/2-7-image-to-video': 1,
+            'wan/2-7-image-to-video': 2,       // first + last frame
             'wan/2-7-videoedit': 1,
             'wan/2-7-r2v': 5,
             'bytedance/seedance-2-frames': 2,  // initial + final frame
@@ -4561,7 +4553,7 @@ function _getCropAspectRatioOptions() {
     setupPasteImageHandler(
         v2.prompt,
         (file) => {
-            const isFramesModel = (v2Model?.model && (v2Model.model.startsWith('veo3/') || v2Model.model.includes('kling-3.0/video') || v2Model.model === 'bytedance/seedance-2-frames'));
+            const isFramesModel = (v2Model?.model && (v2Model.model.startsWith('veo3/') || v2Model.model.includes('kling-3.0/video') || v2Model.model === 'bytedance/seedance-2-frames' || v2Model.model === 'wan/2-7-image-to-video'));
             if (isFramesModel) {
                 if (!v2FrameInitial) v2AddFrameFile([file], 'initial');
                 else if (!v2FrameFinal) v2AddFrameFile([file], 'final');
@@ -5065,8 +5057,8 @@ function _getCropAspectRatioOptions() {
         const seedanceSpeedFast = isSeedance && extra.seedance_speed === 'Fast';
         if (isSeedance) delete extra.seedance_speed; // not an API param
 
-        const isFramesModel = resolvedModel.includes('kling-3.0/video') || isSeedanceFrames;
-        const hasVideoRefs = (isSeedanceVideo || resolvedModel === 'bytedance/seedance-2-fast') && v2VideoFiles.length > 0;
+        const isFramesModel = resolvedModel.includes('kling-3.0/video') || isSeedanceFrames || resolvedModel === 'wan/2-7-image-to-video';
+        const hasVideoRefs = isSeedanceVideo && v2VideoFiles.length > 0;
         const hasFiles = isFramesModel ? (v2FrameInitial !== null || v2FrameFinal !== null) : (v2Files.length > 0);
 
         // Remap model names based on whether files are present
@@ -5166,7 +5158,7 @@ function _getCropAspectRatioOptions() {
         const fd = new FormData();
         fd.append('model', resolvedModel);
         fd.append('input_json', JSON.stringify(extra));
-        if (isSeedance) console.log('[SEEDANCE-DEBUG] model:', resolvedModel, 'extra:', JSON.stringify(extra, null, 2));
+
 
         // Route to correct API endpoint based on model
         const isSuno = resolvedModel.startsWith('suno/');
