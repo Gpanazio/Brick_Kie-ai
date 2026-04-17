@@ -21,7 +21,7 @@ window.handleExpiredMedia = function(el) {
 // 'cost' is the estimated credits per generation (from KIE API docs)
 
 // Shared category constants
-const VIDEO_CATS = ['video', 'seedance2'];
+const VIDEO_CATS = ['video', 'seedance2', 'seedance2or'];
 
 // Topaz video upscale model identifier and accepted MIME types
 const TOPAZ_VIDEO_UPSCALE_MODEL = 'topaz/video-upscale';
@@ -78,6 +78,10 @@ const MODEL_COST_ESTIMATES = {
     'bytedance/seedance-2-multi': 375,
     'bytedance/seedance-2-video': 375,
     'bytedance/seedance-2-fast': 330,     // 33 cr/s × 10s (720p, no video input)
+    // ── Seedance 2.0 (OpenRouter) ──
+    'openrouter/bytedance/seedance-2.0-frames': 225, // Or whatever estimate
+    'openrouter/bytedance/seedance-2.0-multi': 225,
+    'openrouter/bytedance/seedance-2.0-video': 225,
     // ── Audio (ElevenLabs) ──
     'elevenlabs/text-to-speech-turbo-2-5': 6,   // 6 cr / 1000 chars
     'elevenlabs/text-to-dialogue-v3': 14,       // 14 cr / 1000 chars
@@ -629,6 +633,10 @@ const MODEL_CONFIGS = {
             { key: 'web_search', label: 'Web Search', type: 'bool', default: false },
         ]
     },
+    // ──── SEEDANCE 2.0 (OpenRouter) ────
+    'openrouter/bytedance/seedance-2.0-frames': { params: SEEDANCE_2_PARAMS },
+    'openrouter/bytedance/seedance-2.0-multi':  { params: SEEDANCE_2_PARAMS },
+    'openrouter/bytedance/seedance-2.0-video':  { params: SEEDANCE_2_PARAMS },
 
     // ──── VEO 3.1 (Google) ────
     'veo3/text-to-video': {
@@ -1021,7 +1029,7 @@ const els = {
 };
 
 // Category labels
-const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale', seedance2: 'Seedance 2.0' };
+const CAT_LABELS = { image: 'Generate Image', video: 'Generate Video', audio: 'Audio', music: 'Music', tools: 'Tools & Upscale', seedance2: 'Seedance 2.0', seedance2or: 'Seedance 2.0 (OR)' };
 
 // ==================== Init ====================
 
@@ -1320,6 +1328,10 @@ function enterWorkspace(cat) {
         setTimeout(() => _openSeedance2Picker(), 50);
         return;
     }
+    if (cat === 'seedance2or') {
+        setTimeout(() => _openSeedance2orPicker(), 50);
+        return;
+    }
 
     // Restore previously selected model (F5 / Ctrl+R)
     let savedModel;
@@ -1353,6 +1365,7 @@ function exitWorkspace() {
     _currentCatItems = [];
     closeModelPickerModal();
     _closeSeedance2Picker();
+    if (typeof _closeSeedance2orPicker === 'function') _closeSeedance2orPicker();
     stopAllPolling();
     // Hide V2 workspace if open
     if (typeof window._v2HideWorkspace === 'function') window._v2HideWorkspace();
@@ -1425,6 +1438,64 @@ function _closeSeedance2Picker() {
     if (modal) modal.classList.add('hidden');
     // Remove scoped Escape listener
     document.removeEventListener('keydown', _seedance2EscapeHandler);
+}
+
+// ==================== Seedance 2.0 OpenRouter Workflow Picker ====================
+
+function _handleCloseSeedance2orPicker() {
+    _closeSeedance2orPicker();
+    if (!selectedModel) exitWorkspace();
+}
+
+function _seedance2orEscapeHandler(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('modal-seedance2or-picker');
+        if (modal && !modal.classList.contains('hidden')) {
+            _handleCloseSeedance2orPicker();
+        }
+    }
+}
+
+function _openSeedance2orPicker() {
+    const modal = document.getElementById('modal-seedance2or-picker');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const backdrop = document.getElementById('seedance2or-backdrop');
+    const closeBtn = document.getElementById('seedance2or-close');
+    if (backdrop) backdrop.onclick = () => _handleCloseSeedance2orPicker();
+    if (closeBtn) closeBtn.onclick = () => _handleCloseSeedance2orPicker();
+
+    document.addEventListener('keydown', _seedance2orEscapeHandler);
+
+    modal.querySelectorAll('.seedance2or-wf-card').forEach(card => {
+        card.onclick = () => {
+            const wf = card.dataset.seedanceWf;
+            const modelMap = {
+                frames: 'openrouter/bytedance/seedance-2.0-frames',
+                multi: 'openrouter/bytedance/seedance-2.0-multi',
+                video: 'openrouter/bytedance/seedance-2.0-video',
+            };
+            const modelId = modelMap[wf];
+            if (!modelId) return;
+
+            const tpl = document.getElementById('tpl-models');
+            const tplItem = tpl?.content.querySelector(`[data-model="${CSS.escape(modelId)}"]`);
+            if (tplItem) {
+                selectModelFromData(tplItem.dataset);
+                _closeSeedance2orPicker();
+                if (typeof window._v2ShowWorkspace === 'function') {
+                    window._v2ShowWorkspace({ ...tplItem.dataset });
+                }
+            }
+        };
+    });
+}
+
+function _closeSeedance2orPicker() {
+    const modal = document.getElementById('modal-seedance2or-picker');
+    if (modal) modal.classList.add('hidden');
+    document.removeEventListener('keydown', _seedance2orEscapeHandler);
 }
 
 // ==================== Model Picker Modal ====================
@@ -1749,9 +1820,10 @@ function startPolling(task) {
             const safeId = encodeURIComponent(task.id);
             const ep = task.mode === 'suno' ? `/api/suno/task/${safeId}` :
                 task.mode === 'veo' ? `/api/veo/task/${safeId}` :
-                    task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${safeId}` :
-                        task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${safeId}` :
-                            `/api/market/task/${safeId}`;
+                    task.mode === 'openrouter' ? `/api/openrouter/task/${safeId}` :
+                        task.mode === 'gpt4o-image' ? `/api/gpt4o-image/task/${safeId}` :
+                            task.mode === 'flux-kontext' ? `/api/flux-kontext/task/${safeId}` :
+                                `/api/market/task/${safeId}`;
             const controller = new AbortController();
             const fetchTimer = setTimeout(() => controller.abort(), 30000);
             let resp;
@@ -3585,9 +3657,9 @@ function _getCropAspectRatioOptions() {
         const uploadFramesGroup = v2.uploadFramesGroup;
 
         // Seedance 2.0 workflow detection
-        const isSeedanceFrames = data.model === 'bytedance/seedance-2-frames';
-        const isSeedanceMulti = data.model === 'bytedance/seedance-2-multi';
-        const isSeedanceVideo = data.model === 'bytedance/seedance-2-video';
+        const isSeedanceFrames = data.model === 'bytedance/seedance-2-frames' || data.model === 'openrouter/bytedance/seedance-2.0-frames';
+        const isSeedanceMulti = data.model === 'bytedance/seedance-2-multi' || data.model === 'openrouter/bytedance/seedance-2.0-multi';
+        const isSeedanceVideo = data.model === 'bytedance/seedance-2-video' || data.model === 'openrouter/bytedance/seedance-2.0-video';
 
         const isFramesModel = (data.model && (data.model.startsWith('veo3/') || data.model.includes('kling-3.0/video') || isSeedanceFrames || data.model === 'wan/2-7-image-to-video'));
 
@@ -5161,11 +5233,15 @@ function _getCropAspectRatioOptions() {
 
 
         // Route to correct API endpoint based on model
+        const isOpenRouter = resolvedModel.startsWith('openrouter/');
         const isSuno = resolvedModel.startsWith('suno/');
         const isGpt4o = resolvedModel === 'gpt4o-image';
         const isFluxKontext = resolvedModel.startsWith('flux-kontext');
         let endpoint, mode;
-        if (isSuno) {
+        if (isOpenRouter) {
+            endpoint = `${API}/api/openrouter/create`;
+            mode = 'openrouter';
+        } else if (isSuno) {
             endpoint = `${API}/api/suno/create`;
             mode = 'suno';
         } else if (isGpt4o) {

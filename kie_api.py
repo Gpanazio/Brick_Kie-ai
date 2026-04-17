@@ -443,6 +443,56 @@ def topaz_video_upscale_from_local(video_path: str, upscale_factor: str = "2", u
     )
 
 
+# ==================== OpenRouter (Videos) ====================
+
+def _or_auth_headers() -> Dict[str, str]:
+    key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not key:
+        raise ValueError("OPENROUTER_API_KEY não definido no ambiente.")
+    return {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+
+def openrouter_create_task(model: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    url = "https://openrouter.ai/api/v1/videos"
+    payload = {"model": model, **input_data}
+    r = requests.post(url, headers=_or_auth_headers(), data=json.dumps(payload), timeout=180)
+    r.raise_for_status()
+    res = r.json()
+    
+    return {
+        "code": 200,
+        "data": {
+            "taskId": res.get("id"),
+            "polling_url": res.get("polling_url")
+        }
+    }
+
+def openrouter_task_info(task_id: str) -> Dict[str, Any]:
+    url = f"https://openrouter.ai/api/v1/videos/{task_id}"
+    r = requests.get(url, headers={"Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY', '')}"}, timeout=60)
+    r.raise_for_status()
+    res = r.json()
+    
+    raw_status = res.get("status", "pending")
+    if raw_status == "completed":
+        state = "success"
+    elif raw_status == "failed":
+        state = "fail"
+    else:
+        state = "processing"
+    
+    return {
+        "code": 200,
+        "data": {
+            "state": state,
+            "failMsg": res.get("error"),
+            "resultUrls": res.get("unsigned_urls", [])
+        }
+    }
+
+
 # ==================== CLI ====================
 
 
