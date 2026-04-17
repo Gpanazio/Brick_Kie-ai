@@ -5244,9 +5244,9 @@ function _getCropAspectRatioOptions() {
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">Concluído</span></div>`;
         } else if (isSuno || isAudioUrl(url)) {
             if (coverUrl) {
-                // Suno with cover art: fill parent container (aspect-ratio from .v2-gallery-item CSS)
-                html += `<div style="position:relative;width:100%;height:100%;overflow:hidden;">
-                    <img src="${safeCoverUrl}" alt="Capa" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;" onerror="window.handleExpiredMedia(this)">
+                // Suno with cover art: natural image height for masonry flow
+                html += `<div style="position:relative;width:100%;overflow:hidden;">
+                    <img src="${safeCoverUrl}" alt="Capa" style="width:100%;height:auto;display:block;" onerror="window.handleExpiredMedia(this)">
                     <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);pointer-events:none;"></div>
                     <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="white" style="opacity:0.9;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));"><polygon points="5 3 19 12 5 21"/></svg>
@@ -5254,7 +5254,7 @@ function _getCropAspectRatioOptions() {
                     <div class="v2-gallery-item-overlay"><span class="v2-gallery-item-status">♫ Suno</span></div>
                 </div>`;
             } else {
-                html += `<div style="width:100%;height:100%;background:linear-gradient(135deg,rgba(220,38,38,0.15),rgba(15,15,15,0.9));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+                html += `<div style="width:100%;min-height:160px;background:linear-gradient(135deg,rgba(220,38,38,0.15),rgba(15,15,15,0.9));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
                         <span style="font-family:var(--mono);font-size:10px;color:rgba(148,163,184,0.7);">Áudio Gerado</span>
                     </div>`;
