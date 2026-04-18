@@ -999,6 +999,73 @@ def veo_task(request: Request, task_id: str):
         raise HTTPException(status_code=500, detail=_sanitize_error(e))
 
 
+# ==================== OpenRouter (Videos) ====================
+
+@app.post("/api/openrouter/create")
+async def openrouter_create(
+    request: Request,
+    model: str = Form(...),
+    input_json: str = Form(""),
+    file: Optional[UploadFile] = File(None),
+):
+    rid = _request_id(request)
+    tmp_path = None
+    try:
+        input_data = json.loads(input_json) if input_json else {}
+
+        if model.startswith("openrouter/"):
+            model = model.replace("openrouter/", "", 1)
+        
+        # Norm: openrouter/bytedance/seedance-2.0-frames -> bytedance/seedance-2.0
+        if "seedance-2.0" in model:
+            if input_data.get("seedance_speed") == "Fast" or "fast" in model:
+                model = "bytedance/seedance-2.0-fast"
+            else:
+                model = "bytedance/seedance-2.0"
+            input_data.pop("seedance_speed", None)
+
+        if file and file.filename:
+            tmp_path = await _save_upload_to_temp(file)
+            up_resp = await asyncio.to_thread(
+                kie_api.upload_stream, tmp_path, upload_path="images"
+            )
+            _validate_api_response(up_resp)
+            file_url = kie_api._extract_uploaded_url(up_resp)
+            
+            # Since OR expects strings or list of strings depending on what UI passed:
+            # Using basic heuristic if array was needed
+            field = input_data.get("_file_field") or "first_frame_url"
+            if field.endswith("_urls"):
+                input_data[field] = [file_url]
+            else:
+                input_data[field] = file_url
+            # Remove internal ui trackers
+            input_data.pop("_file_field", None)
+
+        resp = await asyncio.to_thread(kie_api.openrouter_create_task, model, input_data)
+        logger.info("[%s] openrouter/create: model=%s", rid, model)
+        return resp
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid input JSON")
+    except Exception as e:
+        logger.error("[%s] openrouter/create: %s", rid, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=_sanitize_error(e))
+    finally:
+        if tmp_path:
+            _safe_unlink(tmp_path)
+
+
+@app.get("/api/openrouter/task/{task_id}")
+def openrouter_task(request: Request, task_id: str):
+    rid = _request_id(request)
+    try:
+        resp = kie_api.openrouter_task_info(task_id)
+        return resp
+    except Exception as e:
+        logger.error("[%s] openrouter/task: %s", rid, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=_sanitize_error(e))
+
+
 @app.get("/api/veo/1080p/{task_id}")
 def veo_1080p(request: Request, task_id: str):
     """Get 1080P version of a Veo video."""
