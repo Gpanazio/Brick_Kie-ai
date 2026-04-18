@@ -1018,10 +1018,11 @@ async def openrouter_create(
         
         # Norm: openrouter/bytedance/seedance-2.0-frames -> bytedance/seedance-2.0
         if "seedance-2.0" in model:
-            if "fast" in model:
+            if input_data.get("seedance_speed") == "Fast" or "fast" in model:
                 model = "bytedance/seedance-2.0-fast"
             else:
                 model = "bytedance/seedance-2.0"
+            input_data.pop("seedance_speed", None)
 
         if file and file.filename:
             tmp_path = await _save_upload_to_temp(file)
