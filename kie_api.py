@@ -471,7 +471,7 @@ def openrouter_create_task(model: str, input_data: Dict[str, Any]) -> Dict[str, 
 
 def openrouter_task_info(task_id: str) -> Dict[str, Any]:
     url = f"https://openrouter.ai/api/v1/videos/{task_id}"
-    r = requests.get(url, headers={"Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY', '')}"}, timeout=60)
+    r = requests.get(url, headers=_or_auth_headers(), timeout=60)
     r.raise_for_status()
     res = r.json()
     
