@@ -3174,12 +3174,15 @@ window.openCropModal = (function () {
     let _aspectW = 16;
     let _aspectH = 9;
     let _aspectLabel = '16:9';
+    let _baseDisplayW = 0; // unzoomed CSS width of canvas
+    let _baseDisplayH = 0; // unzoomed CSS height of canvas
     let _displayW = 0;
     let _displayH = 0;
     let _scaleX = 1;
     let _scaleY = 1;
+    let _zoomFactor = 1;
 
-    // Selection state (in display/CSS pixels relative to canvas element)
+    // Selection state (in display/CSS pixels relative to overlay)
     let _sel = { x: 0, y: 0, w: 0, h: 0 };
     let _drag = null; // { type: 'move'|'nw'|'ne'|'sw'|'se', startX, startY, origSel }
 
@@ -3214,29 +3217,43 @@ window.openCropModal = (function () {
         ctx.rotate((_rotation * Math.PI) / 180);
         ctx.drawImage(_img, -_img.naturalWidth / 2, -_img.naturalHeight / 2);
         ctx.restore();
-        // After drawing, compute display scale
+    }
+
+    function syncOverlaySize() {
+        // Measure the actual rendered canvas size (which may differ from overlay)
         const rect = canvas.getBoundingClientRect();
         _displayW = rect.width;
         _displayH = rect.height;
+        // Explicitly size the overlay to match the canvas visual area
+        overlay.style.width = _displayW + 'px';
+        overlay.style.height = _displayH + 'px';
+        // Center overlay on top of canvas using transform
+        overlay.style.left = '50%';
+        overlay.style.top = '50%';
+        overlay.style.transform = 'translate(-50%, -50%)';
+        // Scale factors: from overlay/display pixels to canvas source pixels
         _scaleX = canvas.width / _displayW;
         _scaleY = canvas.height / _displayH;
     }
 
     function initSelection() {
         const ar = _aspectW / _aspectH;
+        // Use overlay dimensions (which match the visual canvas)
+        const dw = _displayW;
+        const dh = _displayH;
         // Fill as much of the display canvas as possible
         let sw, sh;
-        if (_displayW / _displayH > ar) {
-            sh = _displayH * 0.85;
+        if (dw / dh > ar) {
+            sh = dh * 0.85;
             sw = sh * ar;
         } else {
-            sw = _displayW * 0.85;
+            sw = dw * 0.85;
             sh = sw / ar;
         }
         _sel.w = Math.round(sw);
         _sel.h = Math.round(sh);
-        _sel.x = Math.round((_displayW - sw) / 2);
-        _sel.y = Math.round((_displayH - sh) / 2);
+        _sel.x = Math.round((dw - sw) / 2);
+        _sel.y = Math.round((dh - sh) / 2);
         applySelection();
     }
 
@@ -3329,15 +3346,12 @@ window.openCropModal = (function () {
 
     function applyZoom() {
         const z = parseInt(zoomSlider.value, 10);
+        _zoomFactor = z / 100;
         zoomPct.textContent = z + '%';
-        canvas.style.transform = `scale(${z / 100})`;
+        canvas.style.transform = `scale(${_zoomFactor})`;
         canvas.style.transformOrigin = 'center center';
-        // Re-measure display size
-        const rect = canvas.getBoundingClientRect();
-        _displayW = rect.width;
-        _displayH = rect.height;
-        _scaleX = canvas.width / _displayW;
-        _scaleY = canvas.height / _displayH;
+        // Re-sync overlay with zoomed canvas dimensions
+        syncOverlaySize();
         // Re-constrain selection
         constrainSelection();
         applySelection();
@@ -3351,14 +3365,14 @@ window.openCropModal = (function () {
         drawImage();
         // Reset zoom
         zoomSlider.value = 100;
-        applyZoom();
+        _zoomFactor = 1;
+        canvas.style.transform = '';
+        zoomPct.textContent = '100%';
         // Wait for layout to stabilize
         requestAnimationFrame(() => {
-            const rect = canvas.getBoundingClientRect();
-            _displayW = rect.width;
-            _displayH = rect.height;
-            _scaleX = canvas.width / _displayW;
-            _scaleY = canvas.height / _displayH;
+            syncOverlaySize();
+            _baseDisplayW = _displayW;
+            _baseDisplayH = _displayH;
             initSelection();
         });
     });
@@ -3383,17 +3397,26 @@ window.openCropModal = (function () {
     btnConfirm.addEventListener('click', () => {
         if (!_img || !_resolve) return;
         // Convert display-space selection to source-pixel crop rect
+        // _scaleX/_scaleY already account for zoom since syncOverlaySize measures getBoundingClientRect
         const sx = Math.round(_sel.x * _scaleX);
         const sy = Math.round(_sel.y * _scaleY);
         const sw = Math.round(_sel.w * _scaleX);
         const sh = Math.round(_sel.h * _scaleY);
 
+        // Clamp to canvas boundaries to prevent out-of-bounds crop
+        const clampedSx = Math.max(0, Math.min(sx, canvas.width - 1));
+        const clampedSy = Math.max(0, Math.min(sy, canvas.height - 1));
+        const clampedSw = Math.min(sw, canvas.width - clampedSx);
+        const clampedSh = Math.min(sh, canvas.height - clampedSy);
+
+        if (clampedSw <= 0 || clampedSh <= 0) { cancel(); return; }
+
         // Draw cropped area to temporary canvas
         const tmp = document.createElement('canvas');
-        tmp.width = sw;
-        tmp.height = sh;
+        tmp.width = clampedSw;
+        tmp.height = clampedSh;
         const tmpCtx = tmp.getContext('2d');
-        tmpCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+        tmpCtx.drawImage(canvas, clampedSx, clampedSy, clampedSw, clampedSh, 0, 0, clampedSw, clampedSh);
 
         const outputType = ['image/jpeg', 'image/png'].includes(modal.dataset.originalFileType) ? modal.dataset.originalFileType : 'image/png';
         const outputFilename = 'cropped.' + (outputType === 'image/jpeg' ? 'jpg' : 'png');
@@ -3458,6 +3481,7 @@ window.openCropModal = (function () {
 
             // Reset zoom
             zoomSlider.value = 100;
+            _zoomFactor = 1;
             zoomPct.textContent = '100%';
             canvas.style.transform = '';
 
@@ -3468,13 +3492,11 @@ window.openCropModal = (function () {
                 URL.revokeObjectURL(objUrl);
                 drawImage();
                 modal.classList.remove('hidden');
-                // Wait one frame for layout
+                // Wait one frame for layout to stabilize, then sync overlay
                 requestAnimationFrame(() => {
-                    const rect = canvas.getBoundingClientRect();
-                    _displayW = rect.width;
-                    _displayH = rect.height;
-                    _scaleX = canvas.width / _displayW;
-                    _scaleY = canvas.height / _displayH;
+                    syncOverlaySize();
+                    _baseDisplayW = _displayW;
+                    _baseDisplayH = _displayH;
                     initSelection();
                 });
             };

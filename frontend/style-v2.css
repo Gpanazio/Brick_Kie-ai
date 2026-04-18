@@ -6506,6 +6506,7 @@ body {
     line-height: 0;
     user-select: none;
     -webkit-user-select: none;
+    overflow: visible;
 }
 
 .crop-canvas-wrap canvas {
@@ -6518,8 +6519,9 @@ body {
 /* ── Overlay: darkens outside crop area ── */
 .crop-overlay {
     position: absolute;
-    inset: 0;
+    /* width/height/left/top/transform set by JS to match canvas rendered size */
     cursor: crosshair;
+    overflow: hidden;
 }
 
 /* ── Selection box ── */
